@@ -467,7 +467,7 @@ function Get-ConditionsStacked {
 function Get-AutomateComputer {
     param (
         [Parameter(Mandatory = $false, Position = 0, ParameterSetName = "IndividualPC")]
-        [int16]$ComputerID,
+        [int32[]]$ComputerID,
 
         [Parameter(Mandatory = $false, ParameterSetName = "AllResults")]
         [switch]$AllComputers,
@@ -573,7 +573,7 @@ function Get-AutomateComputer {
     $ArrayOfConditions = @()
 
     if ($ComputerID) {
-        Return Get-AutomateAPIOutputGeneric -AllResults -APIURI "/v1/computers/$($ComputerID)?"
+        Return Get-AutomateAPIOutputGeneric -AllResults -APIURI "/v1/computers/?" -IDs $(($ComputerID) -join ",")
     }
 
     if ($AllComputers) {
@@ -727,16 +727,36 @@ function Get-AutomateComputer {
 function Get-AutomateControlReconcile {
     [CmdletBinding()]
     param (
-        $ResultArray = @()
+        [Parameter(Mandatory = $false, ParameterSetName = "Remediate")]
+        [bool]$PromptBeforeAction = $true,
+
+        [Parameter(Mandatory = $false, ParameterSetName = "Remediate")]
+        [bool]$AutofixRestartService = $false,
+
+        [Parameter()]
+        [int]$NotSeenInDays = 30,
+
+        [Parameter()]
+        [Alias('Id')]
+        [int[]]$ComputerID
+
     )
   
     begin {
         $ResultArray = @()
-        $ComputersToCheck = Get-AutomateComputer -NotSeenInDays 30
+        $RestartServiceRecheckArray  = @()
+        if ($PSBoundParameters.ContainsKey('ComputerID') -and -not([string]::IsNullOrEmpty($ComputerID))) {
+            $ComputersToCheck = Get-AutomateComputer -ComputerID $ComputerID
+        }
+        else {
+            
+            $ComputersToCheck = Get-AutomateComputer -NotSeenInDays $NotSeenInDays
+        }
+        
     }
   
     process {
-
+   
         foreach ($CompToCheck in $ComputersToCheck) {
 
             #Calculate how many days until it has been online
@@ -752,12 +772,13 @@ function Get-AutomateControlReconcile {
             $ResultObject | Add-Member -Type NoteProperty -Name "LocationName" -Value $CompToCheck.Location.Name
             $ResultObject | Add-Member -Type NoteProperty -Name "LastContactDateInAutomate" -Value $AutomateDate
             $ResultObject | Add-Member -Type NoteProperty -Name "DaysSinceSeenInAutomate" -Value $NumberOfDays
+            $ResultObject | Add-Member -Type NoteProperty -Name "AutofixServiceRestartResult" -Value ""
   
             Write-Host "Checking ID $($CompToCheck.ID) - $($CompToCheck.ComputerName) at $($CompToCheck.Client.Name). Last seen $($AutomateDate) which was $NumberOfDays days ago" -BackgroundColor Yellow -ForegroundColor Black
   
             #Get the Control GUID for this instance
             $ControlGuid = $(Get-AutomateControlGUID -ComputerID $CompToCheck.ID | Select -ExpandProperty ControlGUID)
-            if (-not([string]::IsNullOrEmpty($ControlGuid)) -and ($ControlGuid -ne 'No Control Guid Found')) {
+            if (-not([string]::IsNullOrEmpty($ControlGuid)) -and ($ControlGuid -ne 'No Guid Found')) {
                 $ResultObject | Add-Member -Type NoteProperty -Name "ControlGUID" -Value $ControlGUID
   
                 #Get Last Contact Date from Control
@@ -774,9 +795,36 @@ function Get-AutomateControlReconcile {
                     $NumberOfMinutesInControl = $null
                     $NumberOfDaysInControl = $null
                 }
+
+                #Check if it is actually online now, if so process any fixes
                 if (($NumberOfMinutesInControl -gt -5) -and ($NumberOfMinutesInControl -le 5) -and (-not [string]::IsNullOrEmpty($NumberOfMinutesInControl))) {
                     $ResultObject | Add-Member -Type NoteProperty -Name "IsOnline" -Value $True
-                    Write-Host "ONLINE: ID $($CompToCheck.ID) - $($CompToCheck.ComputerName) at $($CompToCheck.Client.Name). Last seen $($AutomateDate) is currently online in Control" -BackgroundColor Red -ForegroundColor Yellow
+                    Write-Host "$($CompToCheck.ID) - $($CompToCheck.ComputerName) at $($CompToCheck.Client.Name) is ONLINE in Control. Last seen in Automate $($AutomateDate)" -BackgroundColor Red -ForegroundColor Yellow
+
+
+                    if ($AutofixRestartService) {
+                        if ($PromptBeforeAction) {
+                            Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($CompToCheck.ID) - $($CompToCheck.ComputerName) at $($CompToCheck.Client.Name) - Shall we attempt to restart the Automate services? Press y for Yes or n for No"
+                            $Confirmation = Read-Host "$($CompToCheck.ID) - $($CompToCheck.ComputerName) - Enter y or n to process a service restart"
+                            if ($Confirmation -eq 'y') {
+                                #Perform Invoke Action
+                                Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($CompToCheck.ID) - $($CompToCheck.ComputerName) - Attempting to restart Automate Services"
+                                $ServiceRestartAttempt = Invoke-ControlCommand -GUID $ControlGuid -Powershell -Command "(new-object Net.WebClient).DownloadString('http://bit.ly/LTPoSh') | iex; Restart-LTService"
+                                Write-Host -BackgroundColor DarkGray -ForegroundColor Green "$($CompToCheck.ID) - $($CompToCheck.ComputerName) - Result of service restart - $ServiceRestartAttempt"
+                                $ResultObject.AutofixServiceRestartResult = $ServiceRestartAttempt
+                            }
+                        }
+                        else {
+                            Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($CompToCheck.ID) - $($CompToCheck.ComputerName) - Attempting to restart Automate Services"
+                            $ServiceRestartAttempt = Invoke-ControlCommand -GUID $ControlGuid -Powershell -Command "(new-object Net.WebClient).DownloadString('http://bit.ly/LTPoSh') | iex; Restart-LTService"
+                            Write-Host -BackgroundColor DarkGray -ForegroundColor Green "$($CompToCheck.ID) - $($CompToCheck.ComputerName) - Result of service restart - $ServiceRestartAttempt"
+                            $ResultObject.AutofixServiceRestartResult = $ServiceRestartAttempt
+                        }
+
+                        #Add this computer ID into an Array that gets re-checked at the end of the process
+                        if ($Confirmation -eq 'y'){$RestartServiceRecheckArray += $($CompToCheck.ID)}
+                    }
+
                 }
                 else {
                     $ResultObject | Add-Member -Type NoteProperty -Name "IsOnline" -Value $False
@@ -788,9 +836,19 @@ function Get-AutomateControlReconcile {
             #Add to final Array Object
             $ResultArray += $ResultObject
         }
+
+        #Recheck items where services have been restarted
+        if ($AutofixRestartService -and ($RestartServiceRecheckArray.Count -gt 0)) {
+            Write-Host "Checking the following IDs to ensure service restart worked $RestartServiceRecheckArray"
+            foreach ($id in $RestartServiceRecheckArray) {
+                $Status = Get-AutomateComputer -ComputerID $id | Select -ExpandProperty Status
+                if ($Status -eq 'Online') {Write-Host -BackgroundColor Green -ForegroundColor Black "$ID is back online!"}
+            }
+        }
     }
   
     end {
+        return $ResultArray
     }
 }
 
