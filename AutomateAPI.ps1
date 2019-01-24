@@ -736,7 +736,7 @@ function Get-AutomateControlReconcile {
         [Parameter()]
         [int]$NotSeenInDays = 30,
 
-        [Parameter()]
+        [Parameter(ValueFromPipeline = $true, ValueFromPipelineByPropertyName=$true)]
         [Alias('Id')]
         [int[]]$ComputerID
 
@@ -744,7 +744,11 @@ function Get-AutomateControlReconcile {
   
     begin {
         $ResultArray = @()
-        $RestartServiceRecheckArray  = @()
+        $RestartServiceRecheckArray  = @()        
+    }
+  
+    process {
+
         if ($PSBoundParameters.ContainsKey('ComputerID') -and -not([string]::IsNullOrEmpty($ComputerID))) {
             $ComputersToCheck = Get-AutomateComputer -ComputerID $ComputerID
         }
@@ -752,10 +756,6 @@ function Get-AutomateControlReconcile {
             
             $ComputersToCheck = Get-AutomateComputer -NotSeenInDays $NotSeenInDays
         }
-        
-    }
-  
-    process {
    
         foreach ($CompToCheck in $ComputersToCheck) {
 
@@ -834,7 +834,8 @@ function Get-AutomateControlReconcile {
             }
   
             #Add to final Array Object
-            $ResultArray += $ResultObject
+            #$ResultArray += $ResultObject
+            
         }
 
         #Recheck items where services have been restarted
@@ -845,10 +846,13 @@ function Get-AutomateControlReconcile {
                 if ($Status -eq 'Online') {Write-Host -BackgroundColor Green -ForegroundColor Black "$ID is back online!"}
             }
         }
+        return $ResultObject
     }
+
+    
   
     end {
-        return $ResultArray
+        
     }
 }
 
@@ -979,3 +983,5 @@ function Invoke-ControlCommand {
         }
     }
 }
+
+Get-AutomateControlReconcile -ComputerID 5,6
