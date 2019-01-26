@@ -38,6 +38,10 @@ function Connect-AutomateAPI {
     )
     
     begin {
+        # Check for locally stored credentials
+        [string]$CredentialDirectory = "$($env:USERPROFILE)\AutomateAPI\"
+        $LocalCredentialsExist = Test-Path "$($CredentialDirectory)Automate - Credentials.txt"
+
         if (!$Server) {
             $Server = Read-Host -Prompt "Please enter your Automate Server address, without the HTTPS, IE: rancor.hostedrmm.com" 
         }
@@ -79,7 +83,7 @@ function Connect-AutomateAPI {
         $AutomateToken.Add("Authorization", "Bearer $($AutomateAPITokenResult.accesstoken)")
 
         if ([string]::IsNullOrEmpty($AutomateAPITokenResult.accesstoken)) {
-            Write-Error "Unable to get Access Token. Either the credentials your entered are incorrect or you did not pass a valid two factor token"
+            throw "Unable to get Access Token. Either the credentials your entered are incorrect or you did not pass a valid two factor token"
         }
 
         Write-Verbose "Token retrieved, $AutomateAPITokenResult.accesstoken, expiration is $AutomateAPITokenResult.ExpirationDate"
@@ -90,7 +94,7 @@ function Connect-AutomateAPI {
         $Global:CWACredentialsExpirationDate = $AutomateAPITokenResult.ExpirationDate
 
         if (!$Quiet) {
-            Write-Host  -BackgroundColor Green -ForegroundColor Black "Token retrieved successfully"
+            Write-Host  -BackgroundColor Green -ForegroundColor Black "Automate Token Retrieved Successfully. Token will expire at $($AutomateAPITokenResult | Select -expandproperty ExpirationDate)"
         }
 
     }
@@ -153,7 +157,7 @@ function Connect-ControlAPI {
         $Global:ControlServer = $Server
 
         if (!$Quiet) {
-            Write-Host  -BackgroundColor Green -ForegroundColor Black "Credentials stored in memory"
+            Write-Host  -BackgroundColor Green -ForegroundColor Black "Control Credentials Stored for use"
         }
 
     }
@@ -984,4 +988,212 @@ function Invoke-ControlCommand {
     }
 }
 
-Get-AutomateControlReconcile -ComputerID 5,6
+Function NEEDTOREFEACTORInvoke-AutomatePowershellCommand {
+
+    param
+       (
+           [Parameter(Mandatory = $false,Position = 0)]
+           [String]$Arguments,
+           [Parameter(Mandatory = $false,Position = 0)]
+           [String]$Computerid
+    
+       )
+       $url = ($Global:CWAUri + "/computers/" + $computerid + "/commandexecute/")
+       $body =   '{"ComputerId":"' + $($computerid) + '","Command":{"Id":"2"},"Parameters":["powershell.exe !!!' + $arguments.ToString() + '"]}'
+       $post = $body| ConvertTo-Json -Depth 3
+       $response = Invoke-RestMethod -Uri $url -Headers $global:CWACredentials -ContentType "application/json" -Body $body -Method post
+       $url = ($Global:CWAUri + "/computers/" + $computerid + "/commandhistory?condition=id=$($response.id)")
+       $status = invoke-restmethod -Uri $url -Headers $global:CWACredentials
+        Write-progress  -Activity "Status" -Status $status.status -PercentComplete 5
+       Start-Sleep 2
+       $i = 1
+       $c = 20
+       do{
+       $status = invoke-restmethod -Uri $url -Headers $global:CWACredentials
+       if (($status.status -eq 'pending') -or ($status.status -eq 'Executing')){
+       $gtil = $null
+       Write-progress  -Activity "Status" -Status $status.status -PercentComplete ($i * 10)
+       Start-Sleep -Seconds 2
+       }
+       else {$gtil = "1"}
+       $c--
+       $i++
+       }
+       until($gtil -ne $null)
+       return $status
+    
+}
+
+
+function Set-CredentialsLocallyStored {
+    <#
+.SYNOPSIS
+   Sets credential objects on a server that has never had them before
+
+.DESCRIPTION
+   This function takes a Powershell script and sets credentials on the local disk encrypted with the local system
+
+.EXAMPLE
+   Set-CredentialsLocallyStored -Automate
+
+.EXAMPLE
+   Set-CredentialsLocallyStored -ITGlue
+
+.EXAMPLE
+   Set-CredentialsLocallyStored -MySQL
+
+.EXAMPLE
+   Set-CredentialsLocallyStored -Office365
+
+.Example
+   Set-CredentialsLocallyStored -Custom -CredentialPath "C:\Credentials\Custom Credentials.txt"
+
+#>
+    [CmdletBinding()]
+    param (
+        [Parameter(ParameterSetName="Automate")]
+        [switch]$Automate,
+
+        [Parameter(ParameterSetName="All")]
+        [switch]$All,
+
+        [Parameter(ParameterSetName="Control")]
+        [switch]$Control,
+
+        [Parameter(ParameterSetName="Custom",Mandatory=$True)]
+        [switch]$Custom,
+
+        [Parameter(ParameterSetName="Custom",Mandatory=$True)]
+        [string]$CredentialDisplayName,
+
+        [Parameter(ParameterSetName = 'Automate')]
+        [Parameter(ParameterSetName = 'Control')]
+        [Parameter(ParameterSetName = "Custom",Mandatory=$True)]      
+        [string]$CredentialDirectory = "$($env:USERPROFILE)\AutomateAPI\"
+    )
+
+    if ($All) {
+        $Automate = $True
+        $Control = $True
+    }
+
+    if (-not (Test-Path $CredentialDirectory)) {
+        New-Item -ItemType Directory -Force -Path $CredentialDirectory | ForEach-Object{$_.Attributes = "hidden"}
+    }
+
+
+    if ($Automate) {
+        $CredentialPath = "$($CredentialDirectory)Automate - Credentials.txt"
+
+        $TempAutomateServer = Read-Host -Prompt "Please enter your Automate Server address, without the HTTPS, IE: rancor.hostedrmm.com" 
+        $TempAutomateUsername = Read-Host -Prompt "Please enter your Automate Username"
+        $TempAutomatePassword = Read-Host -Prompt "Please enter your Automate Password" -AsSecureString
+        $TempAutomatePassword = $TempAutomatePassword | ConvertFrom-SecureString
+        
+        Set-Content "$CredentialPath" $TempAutomateUsername -Force
+        Add-Content "$CredentialPath" $TempAutomatePassword
+        Add-Content "$CredentialPath" $TempAutomateServer
+        Write-Output "Automate Credentials Set"
+    }
+
+    if ($Control) {
+        $CredentialPath = "$($CredentialDirectory)Control - Credentials.txt"
+
+        $TempControlServer = Read-Host -Prompt "Please enter your Control Server address, the full URL. IE https://control.rancorthebeast.com:8040" 
+        $TempControlUsername = Read-Host -Prompt "Please enter your Control Username"
+        $TempControlPassword = Read-Host -Prompt "Please enter your Control Password" -AsSecureString
+        $TempControlPassword = $TempControlPassword | ConvertFrom-SecureString
+        
+        Set-Content "$CredentialPath" $TempControlUsername -Force
+        Add-Content "$CredentialPath" $TempControlPassword 
+        Add-Content "$CredentialPath" $TempControlServer 
+        Write-Output "Control Credentials Set"
+    }
+
+    if ($Custom) {
+        $CredentialPath = "$($CredentialDirectory)\$($CredentialDisplayName).txt"
+        $CustomCredentials = Get-Credential -Message "Please enter the Custom Username and Password to store"
+        $CustomUsername = $CustomCredentials.UserName
+        $CustomPasswordSecureString = $CustomCredentials.Password
+        $CustomPassword = $CustomPasswordSecureString | ConvertFrom-SecureString
+        
+        Set-Content "$CredentialPath" $CustomUsername -Force
+        Add-Content "$CredentialPath" $CustomPassword
+        Write-Output "Custom Credentials Set"
+    }
+
+}
+
+function Get-CredentialsLocallyStored {
+    [CmdletBinding()]
+    param (
+        [Parameter(ParameterSetName = 'Automate')]
+        [switch]$Automate,
+
+        [Parameter(ParameterSetName = 'Control')]
+        [switch]$Control,
+
+        [Parameter(ParameterSetName = 'Custom')]
+        [string]$CredentialPath,
+
+        [Parameter(ParameterSetName = 'Automate')]
+        [Parameter(ParameterSetName = 'Control')]    
+        [string]$CredentialDirectory = "$($env:USERPROFILE)\AutomateAPI\"
+
+    )
+
+    if ($Automate) {
+        if (-not (Test-Path "$($CredentialDirectory)Automate - Credentials.txt")) {    throw [System.IO.FileNotFoundException] "Automate Credentials not found at $($CredentialDirectory)Automate - Credentials.txt"}
+        $LocalAutomateCredentials = Get-Content "$($CredentialDirectory)Automate - Credentials.txt"
+        $LocalAutomateUsername = $LocalAutomateCredentials[0]
+        $LocalAutomatePassword = $LocalAutomateCredentials[1] | ConvertTo-SecureString
+        $LocalAutomateServer = $LocalAutomateCredentials[2]
+        $LocalAutomateCredentialsObject = New-Object System.Management.Automation.PSCredential -ArgumentList $LocalAutomateUsername, $LocalAutomatePassword
+        try {
+            Connect-AutomateAPI -AutomateCredentials $LocalAutomateCredentialsObject -Server $LocalAutomateServer
+        }
+        catch {
+            if ($_.Exception.Message -like '*two factor token') {
+                Write-Warning "Unable to connect, the account stored may require a two factor token. Please enter the two factor token for the account $LocalAutomateUsername"
+                $TwoFactorToken = Read-Host -Prompt "Please enter your 2FA Token"
+                Connect-AutomateAPI -AutomateCredentials $LocalAutomateCredentialsObject -Server $LocalAutomateServer -TwoFactorToken $TwoFactorToken
+            }
+            else {
+                Write-Error $_
+            }
+        }
+   
+    }
+
+    if ($Control) {
+        if (-not (Test-Path "$($CredentialDirectory)Control - Credentials.txt")) {    throw [System.IO.FileNotFoundException] "Control Credentials not found at $($CredentialDirectory)Control - Credentials.txt"}
+        $LocalControlCredentials = Get-Content "$($CredentialDirectory)Control - Credentials.txt"
+        $LocalControlUsername = $LocalControlCredentials[0]
+        $LocalControlPassword = $LocalControlCredentials[1] | ConvertTo-SecureString
+        $LocalControlServer = $LocalControlCredentials[2]
+        $LocalControlCredentialsObject = New-Object System.Management.Automation.PSCredential -ArgumentList $LocalControlUsername, $LocalControlPassword
+        try {
+            Connect-ControlAPI -ControlCredentials $LocalControlCredentialsObject -Server $LocalControlServer -ErrorAction Stop
+        }
+        catch {
+            Write-Error "Unable to store or retrieve Control credentials with error $_.Exception.Message"
+        }
+   
+    }
+
+    if ($Custom) {
+        if (-not (Test-Path "$($CredentialPath)")) {    throw [System.IO.FileNotFoundException] "Credentials not found at $($CredentialPath)"}
+        $CustomCredentials = Get-Content $CredentialPath
+        $CustomUsername = $CustomCredentials[0]
+        $CustomPassword = $CustomCredentials[1] | ConvertTo-SecureString
+        $CustomCredentialObject = New-Object System.Management.Automation.PSCredential -ArgumentList $CustomUsername, $CustomPassword
+        return $CustomCredentialObject
+    }
+
+}
+
+#Get-CredentialsLocallyStored -Automate
+
+Get-AutomateComputer -OnlineOnly -IsWorkstation | ogv
+
+Invoke-ControlCommand -GUID "9d0a3487-d16d-436e-b977-e148b14b63b4" -TimeOut 100000 -PowerShell -Command "(new-object Net.WebClient).DownloadString('https://raw.githubusercontent.com/DarrenWhite99/LabTech-Powershell-Module/Get-LTServiceInfo-Update/LabTech.psm1') | iex; Get-LTError" -MaxLength 500000
