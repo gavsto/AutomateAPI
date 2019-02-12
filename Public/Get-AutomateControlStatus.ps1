@@ -1,9 +1,8 @@
 function Get-AutomateControlStatus {
     [CmdletBinding()]
     param (
-        [Parameter(ValueFromPipeline = $true, ValueFromPipelineByPropertyName=$true)]
-        [Alias('Id')]
-        [int[]]$ComputerID
+        [Parameter(ValueFromPipeline = $true)]
+        $ComputerObject
 
     )
   
@@ -31,32 +30,26 @@ namespace FastSearch
 "@
         Add-Type -ReferencedAssemblies $Assem -TypeDefinition $Source -Language CSharp        
         $ArrayTest = @()
+        $ObjectRebuild = @()
     }
   
     process {
+        $ObjectRebuild += $ComputerObject
+    }
 
-        if ($PSBoundParameters.ContainsKey('ComputerID') -and -not([string]::IsNullOrEmpty($ComputerID))) {
-            $ComputersToCheck = Get-AutomateComputer -ComputerID $ComputerID
-        }
-        else {
-            
-            $ComputersToCheck = Get-AutomateComputer -NotSeenInDays $NotSeenInDays
-        }
-
+    
+  
+    end {
         #Get all of the Control sessions
+        Write-Host -ForegroundColor Green "Getting all control sessions. This may take a few minutes"
         $ControlSessions = Get-ControlSessionBulk
 
-        foreach ($computer in $ComputersToCheck) {
+        Write-Host -ForegroundColor Green "Getting all Automate Control GUIDs. This may take a few minutes"
+        foreach ($computer in $ObjectRebuild) {
             # See if we can be cheeky without using an API call
-            $Count = [FastSearch.Search]::Find($ControlSessions, "Name", $computer.ComputerName) | Measure-Object | Select-Object -ExpandProperty Count
-            if ($Count -eq 1) {
-                $GUID = [FastSearch.Search]::Find($ControlSessions, "Name", $computer.ComputerName) | Select -First 1 | Select -ExpandProperty SessionID
-            }
-            else {
-                $GUID = Get-AutomateControlGUID -ComputerID $($computer | Select -ExpandProperty id)
-            }
+            $GUID = Get-AutomateControlGUID -ComputerID $($computer | Select -ExpandProperty id)
         
-            $OnlineStatus = [FastSearch.Search]::Find($ControlSessions, "SessionID", $GUID) | Select-Object -ExpandProperty Connected
+            $OnlineStatus = [FastSearch.Search]::Find($ControlSessions, "SessionID", $GUID.ControlGuid) | Select-Object -ExpandProperty Connected
             $Object = ""
             $Object = [pscustomobject] @{
                 ComputerID = $Computer.ID
@@ -66,12 +59,7 @@ namespace FastSearch
                 GUID = $GUID
             }
             $ArrayTest += $Object
-        }
-    }
-
-    
-  
-    end {
+                }              
         $ArrayTest | ?{($_.OnlineStatusControl -eq 'Online') -and ($_.OnlineStatusAutomate -eq 'Offline') }
     }
 }
