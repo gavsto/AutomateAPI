@@ -54,9 +54,11 @@ namespace FastSearch
             $Object = [pscustomobject] @{
                 ComputerID = $Computer.ID
                 ComputerName = $computer.ComputerName
+                ClientName = $computer.client.Name
+                OperatingSystem = $computer.OperatingSystemName
                 OnlineStatusControl = $(If($OnlineStatus){"Online"}else{"Offline"})
                 OnlineStatusAutomate = $Computer.Status
-                GUID = $GUID
+                GUID = $GUID.ControlGuid
             }
             $ArrayTest += $Object
                 }              

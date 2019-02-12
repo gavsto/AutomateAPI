@@ -64,10 +64,7 @@ function Get-AutomateComputer {
         [switch]$DDay,
 
         [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
-        [switch]$OnlineOnly,
-
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
-        [switch]$OfflineOnly,
+        [bool]$Online,
 
         [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [int]$UserIdleLongerThanMinutes,
@@ -199,11 +196,11 @@ function Get-AutomateComputer {
         $ArrayOfConditions += "(IsVirtualMachine = $IsVirtualmachine)"
     }
 
-    if ($OnlineOnly) {
+    if ($Online) {
         $ArrayOfConditions += "(Status = 'Online')"
     }
 
-    if ($OfflineOnly) {
+    if (!$Online) {
         $ArrayOfConditions += "(Status = 'Offline')"
     }
 

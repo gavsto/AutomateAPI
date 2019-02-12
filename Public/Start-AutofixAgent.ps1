@@ -35,14 +35,19 @@ function Start-AutofixAgent {
                     Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($igu.ComputerID) - $($igu.ComputerName) - Shall we attempt to restart the Automate services? Press y for Yes or n for No"
                     $Confirmation = Read-Host "$($igu.ComputerID) - Enter y or n to process a service restart"
                     if (($Confirmation -eq 'y') -or ($PromptBeforeAction -eq $false)) {
+                        if ($igu.OperatingSystem -like '*windows*') {
                         Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($igu.ComputerID) - $($igu.ComputerName) -  Attempting to restart Automate Services - job will be queued"
                         $IGU | Start-RSJob -Throttle $BatchSize -Name "$($igu.ComputerName) - $($igu.ComputerID) - RestartService" -ScriptBlock {
-                            Import-Module "C:\GitHubProjects\AutomateAPI\AutomateAPI.psm1" -Force
+                            Import-Module AutomateAPI -Force
                             $Global:ControlCredentials = $using:ControlCredentials
                             $Global:ControlServer = $using:ControlServer
                             $ServiceRestartAttempt = Invoke-ControlCommand -GUID $($_.Guid) -Powershell -Command "(new-object Net.WebClient).DownloadString('http://bit.ly/LTPoSh') | iex; Restart-LTService" -TimeOut 60000
                             return $ServiceRestartAttempt
                         } | out-null
+                    }
+                    else {
+                        Write-Host -BackgroundColor Yellow -ForegroundColor Red "This is not a windows machine - there is no Mac/Linux support at present in this module"
+                    }
                     }
                 }
             }
@@ -51,14 +56,20 @@ function Start-AutofixAgent {
                     Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($igu.ComputerID) - $($igu.ComputerName) - Shall we attempt to reinstall the Automate services? Press y for Yes or n for No"
                     $Confirmation = Read-Host "$($igu.ComputerID) - Enter y or n to process a service reinstall"
                     if (($Confirmation -eq 'y') -or ($PromptBeforeAction -eq $false)) {
-                        Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($igu.ComputerID) - $($igu.ComputerName) -  Attempting to reinstall Automate Services - job will be queued"
-                        $IGU | Start-RSJob -Throttle $BatchSize -Name "$($igu.ComputerName) - $($igu.ComputerID) - ReinstallService" -ScriptBlock {
-                            Import-Module "C:\GitHubProjects\AutomateAPI\AutomateAPI.psm1" -Force
-                            $Global:ControlCredentials = $using:ControlCredentials
-                            $Global:ControlServer = $using:ControlServer
-                            $ServiceRestartAttempt = Invoke-ControlCommand -GUID $($_.Guid) -Powershell -Command "(new-object Net.WebClient).DownloadString('http://bit.ly/LTPoSh') | iex; Reinstall-LTService" -TimeOut 600000 -MaxLength 10000
-                            return $ServiceRestartAttempt
-                        } | out-null
+                        if ($igu.OperatingSystem -like '*windows*') {
+                            Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($igu.ComputerID) - $($igu.ComputerName) -  Attempting to reinstall Automate Services - job will be queued"
+                            $IGU | Start-RSJob -Throttle $BatchSize -Name "$($igu.ComputerName) - $($igu.ComputerID) - ReinstallService" -ScriptBlock {
+                                Import-Module AutomateAPI -Force
+                                $Global:ControlCredentials = $using:ControlCredentials
+                                $Global:ControlServer = $using:ControlServer
+                                $ServiceRestartAttempt = Invoke-ControlCommand -GUID $($_.Guid) -Powershell -Command "(new-object Net.WebClient).DownloadString('http://bit.ly/LTPoSh') | iex; Reinstall-LTService" -TimeOut 600000 -MaxLength 10000
+                                return $ServiceRestartAttempt
+                            } | out-null
+                        }
+                        else {
+                            Write-Host -BackgroundColor Yellow -ForegroundColor Red "This is not a windows machine - there is no Mac/Linux support at present in this module"
+                        }
+
                     }
                 }
             }
@@ -66,8 +77,8 @@ function Start-AutofixAgent {
 
         Write-Host -ForegroundColor Green "All jobs are queued. Waiting for them to complete. Reinstall jobs can take up to 10 minutes"
         while ($(Get-RSJob | ?{$_.State -ne 'Completed'} | Measure-Object | Select -ExpandProperty Count) -gt 0) {
-            Start-Sleep -Milliseconds 5000
-            Write-Host -ForegroundColor Yellow "There are currently $(Get-RSJob | ?{$_.State -ne 'Completed'} | Measure-Object | Select -ExpandProperty Count) jobs left to complete"
+            Start-Sleep -Milliseconds 10000
+            Write-Host -ForegroundColor Yellow "$(Get-Date) - There are currently $(Get-RSJob | ?{$_.State -ne 'Completed'} | Measure-Object | Select -ExpandProperty Count) jobs left to complete"
         }
 
         $AllServiceRestartJobs = Get-RSJob | Where-Object {$_.Name -like '*RestartService*'}
@@ -82,7 +93,7 @@ function Start-AutofixAgent {
                 JobType = "Restart Automate Services"
                 JobState = $Job.State
                 JobHasErrors = $Job.HasErrors
-                JobResultStream = $RecJob
+                JobResultStream = "$RecJob"
                 AutofixSuccess = $AutofixSuccess
             } 
         }
@@ -96,10 +107,11 @@ function Start-AutofixAgent {
                 JobType = "Reinstall Automate Service"
                 JobState = $Job2.State
                 JobHasErrors = $Job2.HasErrors
-                JobResultStream = $RecJob
+                JobResultStream = "$RecJob"
                 AutofixSuccess = $AutofixSuccess
             } 
         }
+        Write-Host -ForegroundColor Green "All jobs completed"
         return $ResultArray
     }
 }
