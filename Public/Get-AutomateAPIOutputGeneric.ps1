@@ -117,6 +117,7 @@ function Get-AutomateAPIOutputGeneric {
     }
     
     process {
+      Redo-CWAAuth
         if ($AllResults) {
             $ReturnedResults = @()
             [System.Collections.ArrayList]$ReturnedResults
