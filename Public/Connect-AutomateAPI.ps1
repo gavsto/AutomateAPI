@@ -117,7 +117,7 @@ $Global:APITokenResultTest=$AutomateAPITokenResult
         $AutomateToken.Add("Authorization", "Bearer $($AutomateAPITokenResult.accesstoken)")
         Write-Debug "Setting Credentials to $($AutomateToken.Authorization)"
         #Create Global Variables for this session in order to use the token
-        $Global:CWAUri = ($server + "/cwa/api")
+        $Global:CWAUri = ("https://" + $server + "/cwa/api")
         $Global:CWACredentials = $AutomateToken
         $Global:CWACredentialsExpirationDate = $AutomateAPITokenResult.ExpirationDate
 
