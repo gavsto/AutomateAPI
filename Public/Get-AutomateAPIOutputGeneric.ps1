@@ -117,7 +117,7 @@ function Get-AutomateAPIOutputGeneric {
     }
     
     process {
-      Redo-CWAAuth
+      $RancorNull = Connect-AutomateAPI -Quiet
         if ($AllResults) {
             $ReturnedResults = @()
             [System.Collections.ArrayList]$ReturnedResults
