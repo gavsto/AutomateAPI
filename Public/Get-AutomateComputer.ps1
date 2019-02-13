@@ -196,11 +196,11 @@ function Get-AutomateComputer {
         $ArrayOfConditions += "(IsVirtualMachine = $IsVirtualmachine)"
     }
 
-    if ($Online) {
+    if (($PSBoundParameters.ContainsKey('Online')) -and ($Online)) {
         $ArrayOfConditions += "(Status = 'Online')"
     }
 
-    if (!$Online) {
+    if (($PSBoundParameters.ContainsKey('Online')) -and (!$Online)) {
         $ArrayOfConditions += "(Status = 'Offline')"
     }
 
