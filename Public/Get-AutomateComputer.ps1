@@ -52,6 +52,10 @@ function Get-AutomateComputer {
     Returns agents that are online or offline, IE -Online $true or alternatively -Online $false
 .PARAMETER UserIdleLongerThanMinutes
     Takes an integer in minutes and brings back all users who have been idle on their machines longer than that. IE -UserIdleLongerThanMinutes 60
+.PARAMETER UptimeLongerThanMinutes
+    Takes an integer in minutes and brings back all computers that have an uptime longer than x minutes. IE -UptimeLongerThanMinutes 60
+.PARAMETER AssetTag
+    Return computers with a certain asset tag - a wildcard search  
 .OUTPUTS
     Computer Object
 .NOTES
@@ -152,6 +156,7 @@ function Get-AutomateComputer {
         [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [int]$UserIdleLongerThanMinutes,
 
+        [Alias("Uptime")]
         [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [int]$UptimeLongerThanMinutes,
 
