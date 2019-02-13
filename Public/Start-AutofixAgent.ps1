@@ -29,11 +29,7 @@ function Start-AutofixAgent {
     End {
         Write-Host -ForegroundColor Green "Starting fixes - you will be prompted if you have turned this on"
         foreach ($igu in $ObjectCapture) {
-<<<<<<< Updated upstream
             if ($AutofixRestartService -and $PSCmdlet.ShouldProcess("Automate Services on $($igu.ComputerID) - $($igu.ComputerName)","Restart")) {
-=======
-            if ($AutofixRestartService -and $PSCmdlet.ShouldProcess("$($igu.ComputerID) - $($igu.ComputerName)","Restart")) {
->>>>>>> Stashed changes
 #                if ($PromptBeforeAction) 
 #                    Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($igu.ComputerID) - $($igu.ComputerName) - Shall we attempt to restart the Automate services? Press y for Yes or n for No"
 #                    $Confirmation = Read-Host "$($igu.ComputerID) - Enter y or n to process a service restart"
