@@ -38,11 +38,13 @@ Connect-AutomateAPI -Server "rancor.hostedrmm.com" -AutomateCredentials $Credent
         [Parameter(ParameterSetName = 'refresh', Mandatory = $False)]
         [String]$Server,
 
+        [Parameter(ParameterSetName = 'refresh', Mandatory = $False)]
+        [String]$Token = ($Script:CWACredentials.Authorization -replace 'Bearer ',''),
+
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
         [String]$TwoFactorToken,
 
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
-        [Parameter(ParameterSetName = 'refresh', Mandatory = $False)]
         [Switch]$Force,
 
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
@@ -56,20 +58,26 @@ Connect-AutomateAPI -Server "rancor.hostedrmm.com" -AutomateCredentials $Credent
         $LocalCredentialsExist = Test-Path "$($CredentialDirectory)Automate - Credentials.txt"
         $TwoFactorNeeded=$False
 
-        While (!($Server -match '.+')) {
-            If ($Script:CWAUri -match 'https://.+') {
-                $Server = $Script:CWAUri
-            } ElseIf (!$Quiet) {
-                $Server = Read-Host -Prompt "Please enter your Automate Server address, without the HTTPS, IE: rancor.hostedrmm.com" 
-            }
+        If (!($Server -match '.+') -and $Script:CWAUri -match 'https://.+') {
+            $Server = $Script:CWAUri
+        }
+        While (!($Server -match '.+') -and !$Quiet) {
+            $Server = Read-Host -Prompt "Please enter your Automate Server address, without the HTTPS, IE: rancor.hostedrmm.com" 
         }
         $Server = $Server -replace '^https?://','' -replace '/.*',''
     } #End Begin
     
     Process {
+        If (!($Server -match '.+')) {
+            If (!$Quiet) { 
+                throw "Server name was not provided." 
+            } Else {
+                return $False
+            }
+        }
         Do {
             $AutomateAPIURI = "https://$Server/cwa/api/v1/apitoken"
-            If (!$Quiet -and !$AutomateCredentials -and ($TwoFactorToken -match '.+' -or !(!$Force -and $Script:CWACredentials.Authorization))) {
+            If (!$Quiet -and !$AutomateCredentials -and ($TwoFactorToken -match '.+' -or !(!$Force -and $Token))) {
                 $Username = Read-Host -Prompt "Please enter your Automate Username"
                 $Password = Read-Host -Prompt "Please enter your Automate Password" -AsSecureString
                 $AutomateCredentials = New-Object System.Management.Automation.PSCredential ($Username, $Password)
@@ -90,7 +98,7 @@ Connect-AutomateAPI -Server "rancor.hostedrmm.com" -AutomateCredentials $Credent
                 }
             } Else {
                 $AutomateAPIURI = $AutomateAPIURI + '/refresh'
-                $PostHeaders = $Script:CWACredentials.Authorization -replace 'Bearer ',''
+                $PostHeaders = $Token -replace 'Bearer ',''
             }
             #Convert the body to JSON for Posting
             $PostBody = $PostHeaders | ConvertTo-Json -Compress
@@ -134,7 +142,7 @@ Connect-AutomateAPI -Server "rancor.hostedrmm.com" -AutomateCredentials $Credent
             $Script:CWACredentialsExpirationDate = $AutomateAPITokenResult.ExpirationDate
 
             If (!$Quiet) {
-                Write-Host  -BackgroundColor Green -ForegroundColor Black "Automate Token Retrieved Successfully. Token will expire at $($AutomateAPITokenResult | Select -expandproperty ExpirationDate)"
+                Write-Host  -BackgroundColor Green -ForegroundColor Black "Automate Token Retrieved Successfully. Token will expire at $($AutomateAPITokenResult | Select-Object -expandproperty ExpirationDate)"
             } Else {
                 return $True
             }

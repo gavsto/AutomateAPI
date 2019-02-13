@@ -4,20 +4,16 @@ function Start-AutofixAgent {
         ConfirmImpact = 'High',
         DefaultParameterSetName = 'restart')]
     param (
- #       [Parameter(Mandatory = $false)]
- #       [bool]$PromptBeforeAction = $true,
-
         [Parameter(ParameterSetName = 'restart', Mandatory = $True)]
-        [bool]$AutofixRestartService,
+        [Switch]$AutofixRestartService,
 
         [Parameter(ParameterSetName = 'reinstall', Mandatory = $True)]
-        [bool]$AutofixReinstallService,
+        [Switch]$AutofixReinstallService,
 
         [Parameter(ParameterSetName = 'restart', Mandatory = $False)]
         [Parameter(ParameterSetName = 'reinstall', Mandatory = $False)]
         [Parameter(ValueFromPipeline = $true)]
         $AutomateControlStatusObject
-
     )
   
     Begin {
@@ -33,7 +29,7 @@ function Start-AutofixAgent {
     End {
         Write-Host -ForegroundColor Green "Starting fixes - you will be prompted if you have turned this on"
         foreach ($igu in $ObjectCapture) {
-            if ($AutofixRestartService -and $PSCmdlet.ShouldProcess("Automate Services","Restart")) {
+            if ($AutofixRestartService -and $PSCmdlet.ShouldProcess("Automate Services on $($igu.ComputerID) - $($igu.ComputerName)","Restart")) {
 #                if ($PromptBeforeAction) 
 #                    Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($igu.ComputerID) - $($igu.ComputerName) - Shall we attempt to restart the Automate services? Press y for Yes or n for No"
 #                    $Confirmation = Read-Host "$($igu.ComputerID) - Enter y or n to process a service restart"
@@ -51,7 +47,7 @@ function Start-AutofixAgent {
                 else {
                     Write-Host -BackgroundColor Yellow -ForegroundColor Red "This is not a windows machine - there is no Mac/Linux support at present in this module"
                 }
-            } ElseIf ($AutofixReinstallService -and $PSCmdlet.ShouldProcess("Automate Services","Reinstall")) {
+            } ElseIf ($AutofixReinstallService -and $PSCmdlet.ShouldProcess("Automate Services on $($igu.ComputerID) - $($igu.ComputerName)","Reinstall")) {
 #                if ($PromptBeforeAction) {
 #                    Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($igu.ComputerID) - $($igu.ComputerName) - Shall we attempt to reinstall the Automate services? Press y for Yes or n for No"
 #                    $Confirmation = Read-Host "$($igu.ComputerID) - Enter y or n to process a service reinstall"
