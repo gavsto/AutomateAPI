@@ -15,7 +15,7 @@ function Get-AutomateControlGUID {
           ComputerId = $ComputerIdSingle
         }
 
-        $Result = Invoke-RestMethod -Uri $url -Headers $global:CWACredentials -ContentType "application/json"
+        $Result = Invoke-RestMethod -Uri $url -Headers $script:CWACredentials -ContentType "application/json"
         if (-not ([string]::IsNullOrEmpty($Result))) {
             $Position = $Result.IndexOf("=");
             $ControlGUID = ($Result.Substring($position + 1)).Substring(0, 36)
