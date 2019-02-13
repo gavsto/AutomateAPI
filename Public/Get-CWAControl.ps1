@@ -1,4 +1,26 @@
 function Get-CWAControl {
+<#
+.SYNOPSIS
+Retrieve data from Automate API Control Extension
+.DESCRIPTION
+Connects to the Automate API Control Extension and returns an object with Control Session data
+.PARAMETER ComputerID
+The Automate ComputerID to retrieve information on
+.OUTPUTS
+Custom object with the ComputerID and Control SessionID. Additional properties from the return data will be included.
+.NOTES
+Version:        1.0
+Author:         Gavin Stone
+Creation Date:  2019-01-20
+Purpose/Change: Initial script development
+
+Update Date:    2019-02-12
+Author:         Darren White
+Purpose/Change: Modified returned object data
+
+.EXAMPLE
+Get-CWAControl -ComputerId 123
+#>
     param
     (
         [Parameter(Mandatory = $true, Position = 0,ValueFromPipeline = $true, ValueFromPipelineByPropertyName=$true)]
