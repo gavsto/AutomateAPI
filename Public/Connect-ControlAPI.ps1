@@ -1,7 +1,7 @@
 function Connect-ControlAPI {
     <#
     .SYNOPSIS
-    Creates a Control Credential in Memory.
+    Adds credentials required to connect to the Control API
     .DESCRIPTION
     Creates a Control hashtable in memory containing the server and username/password so that it can be used in other functions that connect to ConnectWise Control. Unfortunately the Control API does not support 2FA.
     .PARAMETER Server
@@ -11,7 +11,7 @@ function Connect-ControlAPI {
     .PARAMETER Quiet
     Will not output any standard logging messages
     .OUTPUTS
-    One hashtable called $ControlCredentials
+    Two script variables with server and credentials
     .NOTES
     Version:        1.0
     Author:         Gavin Stone

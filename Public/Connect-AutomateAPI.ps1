@@ -10,6 +10,8 @@ The address to your Automate Server. Example 'rancor.hostedrmm.com'
 Takes a standard powershell credential object, this can be built with $CredentialsToPass = Get-Credential, then pass $CredentialsToPass
 .PARAMETER TwoFactorToken
 Takes a string that represents the 2FA number
+.PARAMETER Token
+Used internally when quietly refreshing the Token
 .PARAMETER Force
 Will not attempt to refresh a current session
 .PARAMETER Quiet
@@ -28,6 +30,9 @@ Purpose/Change: Credential and 2FA prompting is only if needed. Supports Token R
 
 .EXAMPLE
 Connect-AutomateAPI -Server "rancor.hostedrmm.com" -AutomateCredentials $CredentialObject -TwoFactorToken "999999"
+
+.EXAMPLE
+Connect-AutomateAPI -Quiet
 #>
     [CmdletBinding(DefaultParameterSetName = 'refresh')]
     param (
