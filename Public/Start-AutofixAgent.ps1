@@ -8,10 +8,10 @@ function Start-AutofixAgent {
  #       [bool]$PromptBeforeAction = $true,
 
         [Parameter(ParameterSetName = 'restart', Mandatory = $True)]
-        [bool]$AutofixRestartService = $false,
+        [bool]$AutofixRestartService,
 
         [Parameter(ParameterSetName = 'reinstall', Mandatory = $True)]
-        [bool]$AutofixReinstallService = $false,
+        [bool]$AutofixReinstallService,
 
         [Parameter(ParameterSetName = 'restart', Mandatory = $False)]
         [Parameter(ParameterSetName = 'reinstall', Mandatory = $False)]
@@ -74,9 +74,9 @@ function Start-AutofixAgent {
         }
 
         Write-Host -ForegroundColor Green "All jobs are queued. Waiting for them to complete. Reinstall jobs can take up to 10 minutes"
-        while ($(Get-RSJob | ?{$_.State -ne 'Completed'} | Measure-Object | Select-Object -ExpandProperty Count) -gt 0) {
+        while ($(Get-RSJob | Where-Object {$_.State -ne 'Completed'} | Measure-Object | Select-Object -ExpandProperty Count) -gt 0) {
             Start-Sleep -Milliseconds 10000
-            Write-Host -ForegroundColor Yellow "$(Get-Date) - There are currently $(Get-RSJob | ?{$_.State -ne 'Completed'} | Measure-Object | Select -ExpandProperty Count) jobs left to complete"
+            Write-Host -ForegroundColor Yellow "$(Get-Date) - There are currently $(Get-RSJob | Where-Object{$_.State -ne 'Completed'} | Measure-Object | Select-Object -ExpandProperty Count) jobs left to complete"
         }
 
         $AllServiceRestartJobs = Get-RSJob | Where-Object {$_.Name -like '*RestartService*'}
