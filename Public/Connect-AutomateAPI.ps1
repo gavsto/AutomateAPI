@@ -64,7 +64,7 @@ Connect-AutomateAPI -Server "rancor.hostedrmm.com" -AutomateCredentials $Credent
             }
         }
         $Server = $Server -replace '^https?://','' -replace '/.*',''
-    }
+    } #End Begin
     
     Process {
         Do {
@@ -117,6 +117,8 @@ Connect-AutomateAPI -Server "rancor.hostedrmm.com" -AutomateCredentials $Credent
         If ([string]::IsNullOrEmpty($AutomateAPITokenResult.Accesstoken)) {
             If (!$Quiet) { 
                 throw "Unable to get Access Token. Either the credentials your entered are incorrect or you did not pass a valid two factor token" 
+            } Else {
+                return $False
             }
         } Else {
 
@@ -131,11 +133,13 @@ Connect-AutomateAPI -Server "rancor.hostedrmm.com" -AutomateCredentials $Credent
             $Global:CWACredentials = $AutomateToken
             $Global:CWACredentialsExpirationDate = $AutomateAPITokenResult.ExpirationDate
 
-            if (!$Quiet) {
+            If (!$Quiet) {
                 Write-Host  -BackgroundColor Green -ForegroundColor Black "Automate Token Retrieved Successfully. Token will expire at $($AutomateAPITokenResult | Select -expandproperty ExpirationDate)"
+            } Else {
+                return $True
             }
         }
-    }
+    } #End Process
     
     End {
     }
