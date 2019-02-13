@@ -20,10 +20,10 @@ function Get-ControlLastContactBulk {
     end {
         $IDs | Start-RSJob -Throttle $BatchSize -ScriptBlock {
             Import-Module "C:\GitHubProjects\AutomateAPI\AutomateAPI.psm1" -Force
-            $Global:CWAUri = $using:CWAuri
-            $Global:CWACredentials = $using:CWACredentials
-            $Global:ControlCredentials = $using:ControlCredentials
-            $Global:ControlServer = $using:ControlServer
+            $Script:CWAUri = $using:CWAuri
+            $Script:CWACredentials = $using:CWACredentials
+            $Script:ControlCredentials = $using:ControlCredentials
+            $Script:ControlServer = $using:ControlServer
             
             $ControlGUID = Get-AutomateControlGUID -ComputerID $($_) | Select -ExpandProperty ControlGUID
             if (-not([string]::IsNullOrEmpty($ControlGuid)) -and ($ControlGuid -ne 'No Guid Found')){

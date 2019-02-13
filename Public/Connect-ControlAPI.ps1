@@ -48,8 +48,8 @@ function Connect-ControlAPI {
     
     process {
 
-        $Global:ControlCredentials = $ControlCredentials
-        $Global:ControlServer = $Server
+        $Script:ControlCredentials = $ControlCredentials
+        $Script:ControlServer = $Server
 
         if (!$Quiet) {
             Write-Host  -BackgroundColor Green -ForegroundColor Black "Control Credentials Stored for use"
