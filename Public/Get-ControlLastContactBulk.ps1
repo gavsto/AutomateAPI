@@ -25,7 +25,7 @@ function Get-ControlLastContactBulk {
             $Script:ControlCredentials = $using:ControlCredentials
             $Script:ControlServer = $using:ControlServer
             
-            $ControlGUID = Get-AutomateControlGUID -ComputerID $($_) | Select -ExpandProperty ControlGUID
+            $ControlGUID = Get-AutomateControlGUID -ComputerID $($_) | Select-Object -ExpandProperty ControlGUID
             if (-not([string]::IsNullOrEmpty($ControlGuid)) -and ($ControlGuid -ne 'No Guid Found')){
                 $LastContact = Get-ControlLastContact -GUID $ControlGUID
                 try {
