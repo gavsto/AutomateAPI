@@ -41,53 +41,81 @@ function Connect-AutomateAPI {
         # Check for locally stored credentials
         [string]$CredentialDirectory = "$($env:USERPROFILE)\AutomateAPI\"
         $LocalCredentialsExist = Test-Path "$($CredentialDirectory)Automate - Credentials.txt"
+        $TwoFactorNeeded=$False
 
-        if (!$Server) {
-            $Server = Read-Host -Prompt "Please enter your Automate Server address, without the HTTPS, IE: rancor.hostedrmm.com" 
+        While (!($Server -match '.+')) {
+            If ($Global:CWAUri -match 'https://.+') {
+                $Server = $Global:CWAUri
+            } Else {
+                $Server = Read-Host -Prompt "Please enter your Automate Server address, without the HTTPS, IE: rancor.hostedrmm.com" 
+            }
         }
-        if (!$AutomateCredentials) {
-            $Username = Read-Host -Prompt "Please enter your Automate Username"
-            $Password = Read-Host -Prompt "Please enter your Automate Password" -AsSecureString
-            $AutomateCredentials = New-Object System.Management.Automation.PSCredential ($Username, $Password)
-            $TwoFactorToken = Read-Host -Prompt "Please enter your 2FA Token, enter nothing if this account does not have 2FA enabled"
-        }
+        $Server = $Server -replace '^https?://','' -replace '/.*',''
     }
     
-    process {
-        #Build the headers for the Authentication
-        $PostHeaders = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
-        $PostHeaders.Add("username", $AutomateCredentials.UserName)
-        $PostHeaders.Add("password", $AutomateCredentials.GetNetworkCredential().Password)
-        if ($TwoFactorToken -or -not([string]::IsNullOrEmpty($TwoFactorToken))) {
-            #Remove any spaces that were added
-            $TwoFactorToken = $TwoFactorToken -replace '\s', ''
-            $PostHeaders.Add("TwoFactorPasscode", $TwoFactorToken)
-        }
+    Process {
+        'I am here'
+        Do {
+            $AutomateAPIURI = "https://$Server/cwa/api/v1/apitoken"
+            If (!$AutomateCredentials -and !($Global:CWACredentials.Authorization)) {
+                $Username = Read-Host -Prompt "Please enter your Automate Username"
+                $Password = Read-Host -Prompt "Please enter your Automate Password" -AsSecureString
+                $AutomateCredentials = New-Object System.Management.Automation.PSCredential ($Username, $Password)
+            }
+'stinking 2fa'
+            If ($TwoFactorNeeded -eq $True) {
+                $TwoFactorToken = Read-Host -Prompt "Please enter your 2FA Token"
+            }
 
-        #Build the URI for Authentication
-        $AutomateAPIURI = "https://$Server/cwa/api/v1/apitoken"
-
-        #Convert the body to JSON for Posting
-        $PostBody = $PostHeaders | ConvertTo-Json
-
-        #Invoke the REST Method
-        try {
-            $AutomateAPITokenResult = Invoke-RestMethod -Method post -Uri $AutomateAPIURI -Body $PostBody -ContentType "application/json" -ErrorAction Stop
-        }
-        catch {
-            Write-Error "Attempt to authenticated to the Automate API has failed with error $_.Exception.Message"
-        }
-
-        #Build the returned token
-        $AutomateToken = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
-        $AutomateToken.Add("Authorization", "Bearer $($AutomateAPITokenResult.accesstoken)")
-
+            If ($AutomateCredentials) {
+                #Build the headers for the Authentication
+                $PostHeaders = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
+                $PostHeaders.Add("username", $AutomateCredentials.UserName)
+                $PostHeaders.Add("password", $AutomateCredentials.GetNetworkCredential().Password)
+                If ($TwoFactorToken -or -not([string]::IsNullOrEmpty($TwoFactorToken))) {
+                    #Remove any spaces that were added
+                    $TwoFactorToken = $TwoFactorToken -replace '\s', ''
+                    $PostHeaders.Add("TwoFactorPasscode", $TwoFactorToken)
+                }
+            } Else {
+                $AutomateAPIURI = $AutomateAPIURI + '/refresh'
+                $PostHeaders = $Global:CWACredentials.Authorization -replace 'Bearer ',''
+            }
+'postit'
+            #Convert the body to JSON for Posting
+            $PostBody = $PostHeaders | ConvertTo-Json
+            #Clear Credential Variables
+            Clear-Variable -Name CWACredentials, CWACredentialsExpirationDate -Scope Global -EA 0
+            #Invoke the REST Method
+            Write-Debug "Submitting Request to $AutomateAPIURI with body: `n$PostBody"
+            Try {
+                $AutomateAPITokenResult = Invoke-RestMethod -Method post -Uri $AutomateAPIURI -Body $PostBody -ContentType "application/json" -ErrorAction Stop
+#Dont forget to remove the next line
+$Global:APITokenResultTest=$AutomateAPITokenResult
+            }
+            Catch {
+                If ($AutomateCredentials) {
+                    Write-Error "Attempt to authenticated to the Automate API has failed with error $_.Exception.Message"
+                }
+            }
+            If (@($True,$False) -contains ($AutomateAPITokenResult.IsTwoFactorRequired)) {
+                $TwoFactorNeeded=$AutomateAPITokenResult.IsTwoFactorRequired
+            }
+        } Until (
+                ![string]::IsNullOrEmpty($AutomateAPITokenResult.accesstoken) -or 
+                ($TwoFactorNeeded -eq $False -and $AutomateCredentials) -or 
+                ($TwoFactorNeeded -eq $True -and $TwoFactorToken -ne '')
+            )
         if ([string]::IsNullOrEmpty($AutomateAPITokenResult.accesstoken)) {
             throw "Unable to get Access Token. Either the credentials your entered are incorrect or you did not pass a valid two factor token"
         }
 
         Write-Verbose "Token retrieved, $AutomateAPITokenResult.accesstoken, expiration is $AutomateAPITokenResult.ExpirationDate"
 
+        #Build the returned token
+        $AutomateToken = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
+        $AutomateToken.Add("Authorization", "Bearer $($AutomateAPITokenResult.accesstoken)")
+        Write-Debug "Setting Credentials to $($AutomateToken.Authorization)"
         #Create Global Variables for this session in order to use the token
         $Global:CWAUri = ($server + "/cwa/api")
         $Global:CWACredentials = $AutomateToken
@@ -99,6 +127,6 @@ function Connect-AutomateAPI {
 
     }
     
-    end {
+    End {
     }
 }
