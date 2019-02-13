@@ -78,7 +78,7 @@ function Get-AutomateAPIOutputGeneric {
     
     begin {
         #Build the URL to hit
-        $url = ($Global:CWAUri + "$APIURI")
+        $url = ($Script:CWAUri + "$APIURI")
 
         #Build the Body Up
         $Body = @{}
@@ -117,7 +117,7 @@ function Get-AutomateAPIOutputGeneric {
     }
     
     process {
-      Redo-CWAAuth
+      $Null = Connect-AutomateAPI -Quiet
         if ($AllResults) {
             $ReturnedResults = @()
             [System.Collections.ArrayList]$ReturnedResults
@@ -126,7 +126,7 @@ function Get-AutomateAPIOutputGeneric {
                 [int]$i += 1
                 $URLNew = "$($url)page=$($i)"
                 try {
-                    $return = Invoke-RestMethod -Uri $URLNew -Headers $global:CWACredentials -ContentType "application/json" -Body $Body
+                    $return = Invoke-RestMethod -Uri $URLNew -Headers $script:CWACredentials -ContentType "application/json" -Body $Body
                 }
                 catch {
                     Write-Error "Failed to perform Invoke-RestMethod to Automate API with error $_.Exception.Message"
@@ -142,7 +142,7 @@ function Get-AutomateAPIOutputGeneric {
             [System.Collections.ArrayList]$ReturnedResults
             $URLNew = "$($url)page=$($Page)"
             try {
-                $return = Invoke-RestMethod -Uri $URLNew -Headers $global:CWACredentials -ContentType "application/json" -Body $Body
+                $return = Invoke-RestMethod -Uri $URLNew -Headers $script:CWACredentials -ContentType "application/json" -Body $Body
             }
             catch {
                 Write-Error "Failed to perform Invoke-RestMethod to Automate API with error $_.Exception.Message"

@@ -9,13 +9,13 @@ function Get-AutomateControlGUID {
     
   process {
     foreach ($ComputerIDSingle in $ComputerID) {
-        $url = ($Global:CWAUri + "/v1/extensionactions/control/$ComputerIDSingle")
+        $url = ($Script:CWAUri + "/v1/extensionactions/control/$ComputerIDSingle")
 
         $OurResult = [pscustomobject]@{
           ComputerId = $ComputerIdSingle
         }
 
-        $Result = Invoke-RestMethod -Uri $url -Headers $global:CWACredentials -ContentType "application/json"
+        $Result = Invoke-RestMethod -Uri $url -Headers $script:CWACredentials -ContentType "application/json"
         if (-not ([string]::IsNullOrEmpty($Result))) {
             $Position = $Result.IndexOf("=");
             $ControlGUID = ($Result.Substring($position + 1)).Substring(0, 36)
