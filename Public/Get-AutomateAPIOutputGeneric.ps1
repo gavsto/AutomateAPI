@@ -78,7 +78,7 @@ function Get-AutomateAPIOutputGeneric {
     
     begin {
         #Build the URL to hit
-        $url = ($Global:CWAUri + "$APIURI")
+        $url = ($Script:CWAUri + "$APIURI")
 
         #Build the Body Up
         $Body = @{}
@@ -117,7 +117,7 @@ function Get-AutomateAPIOutputGeneric {
     }
     
     process {
-      $RancorNull = Connect-AutomateAPI -Quiet
+      $Null = Connect-AutomateAPI -Quiet
         if ($AllResults) {
             $ReturnedResults = @()
             [System.Collections.ArrayList]$ReturnedResults

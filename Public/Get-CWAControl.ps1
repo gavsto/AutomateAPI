@@ -45,7 +45,7 @@ Get-CWAControl -ComputerId 123
         $Null = $OurResult | Add-Member MemberSet PSStandardMembers $PSStandardMembers
         $Null = $OurResult | Add-Member -MemberType AliasProperty -Name ControlGUID -Value SessionID
 
-        $url = ($Global:CWAUri + "/v1/extensionactions/control/$ComputerIDSingle")
+        $url = ($Script:CWAUri + "/v1/extensionactions/control/$ComputerIDSingle")
         Try {
             $Result = Invoke-RestMethod -Uri $url -Headers $global:CWACredentials -ContentType "application/json"
 

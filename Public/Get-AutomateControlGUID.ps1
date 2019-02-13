@@ -9,7 +9,7 @@ function Get-AutomateControlGUID {
     
   process {
     foreach ($ComputerIDSingle in $ComputerID) {
-        $url = ($Global:CWAUri + "/v1/extensionactions/control/$ComputerIDSingle")
+        $url = ($Script:CWAUri + "/v1/extensionactions/control/$ComputerIDSingle")
 
         $OurResult = [pscustomobject]@{
           ComputerId = $ComputerIdSingle

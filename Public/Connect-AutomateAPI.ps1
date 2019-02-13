@@ -57,8 +57,8 @@ Connect-AutomateAPI -Server "rancor.hostedrmm.com" -AutomateCredentials $Credent
         $TwoFactorNeeded=$False
 
         While (!($Server -match '.+')) {
-            If ($Global:CWAUri -match 'https://.+') {
-                $Server = $Global:CWAUri
+            If ($Script:CWAUri -match 'https://.+') {
+                $Server = $Script:CWAUri
             } ElseIf (!$Quiet) {
                 $Server = Read-Host -Prompt "Please enter your Automate Server address, without the HTTPS, IE: rancor.hostedrmm.com" 
             }
@@ -69,7 +69,7 @@ Connect-AutomateAPI -Server "rancor.hostedrmm.com" -AutomateCredentials $Credent
     Process {
         Do {
             $AutomateAPIURI = "https://$Server/cwa/api/v1/apitoken"
-            If (!$Quiet -and !$AutomateCredentials -and ($TwoFactorToken -match '.+' -or !(!$Force -and $Global:CWACredentials.Authorization))) {
+            If (!$Quiet -and !$AutomateCredentials -and ($TwoFactorToken -match '.+' -or !(!$Force -and $Script:CWACredentials.Authorization))) {
                 $Username = Read-Host -Prompt "Please enter your Automate Username"
                 $Password = Read-Host -Prompt "Please enter your Automate Password" -AsSecureString
                 $AutomateCredentials = New-Object System.Management.Automation.PSCredential ($Username, $Password)
@@ -90,7 +90,7 @@ Connect-AutomateAPI -Server "rancor.hostedrmm.com" -AutomateCredentials $Credent
                 }
             } Else {
                 $AutomateAPIURI = $AutomateAPIURI + '/refresh'
-                $PostHeaders = $Global:CWACredentials.Authorization -replace 'Bearer ',''
+                $PostHeaders = $Script:CWACredentials.Authorization -replace 'Bearer ',''
             }
             #Convert the body to JSON for Posting
             $PostBody = $PostHeaders | ConvertTo-Json -Compress
@@ -129,9 +129,9 @@ Connect-AutomateAPI -Server "rancor.hostedrmm.com" -AutomateCredentials $Credent
             $AutomateToken.Add("Authorization", "Bearer $($AutomateAPITokenResult.accesstoken)")
             Write-Debug "Setting Credentials to $($AutomateToken.Authorization)"
             #Create Global Variables for this session in order to use the token
-            $Global:CWAUri = ("https://" + $Server + "/cwa/api")
-            $Global:CWACredentials = $AutomateToken
-            $Global:CWACredentialsExpirationDate = $AutomateAPITokenResult.ExpirationDate
+            $Script:CWAUri = ("https://" + $Server + "/cwa/api")
+            $Script:CWACredentials = $AutomateToken
+            $Script:CWACredentialsExpirationDate = $AutomateAPITokenResult.ExpirationDate
 
             If (!$Quiet) {
                 Write-Host  -BackgroundColor Green -ForegroundColor Black "Automate Token Retrieved Successfully. Token will expire at $($AutomateAPITokenResult | Select -expandproperty ExpirationDate)"
