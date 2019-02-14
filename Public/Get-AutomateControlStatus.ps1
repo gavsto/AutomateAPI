@@ -1,4 +1,16 @@
 function Get-AutomateControlStatus {
+<#
+.Synopsis
+   Takes computer objects from Get-AutomateComputer, compares against online sessions in control and outputs an object of agents that are on in Control and Off in Automate
+.DESCRIPTION
+   Takes computer objects from Get-AutomateComputer, compares against online sessions in control and outputs an object of agents that are on in Control and Off in Automate
+.EXAMPLE
+   Get-AutomateComputer -Online $False | Get-AutomateControlSTatus
+.INPUTS
+   Computer Object as derived from Get-AutomateComputer
+.OUTPUTS
+   Custom object containing online status for machines online in Control and Offline in Automate
+#>
     [CmdletBinding()]
     param (
         [Parameter(ValueFromPipeline = $true)]

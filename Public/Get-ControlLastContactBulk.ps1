@@ -1,4 +1,26 @@
 function Get-ControlLastContactBulk {
+<#
+.Synopsis
+   Gets a list of last contacts in Bulk from control using PoshRSJob (Parallel Jobs)
+.DESCRIPTION
+   Long description
+.EXAMPLE
+   Example of how to use this cmdlet
+.EXAMPLE
+   Another example of how to use this cmdlet
+.INPUTS
+   Inputs to this cmdlet (if any)
+.OUTPUTS
+   Output from this cmdlet (if any)
+.NOTES
+   General notes
+.COMPONENT
+   The component this cmdlet belongs to
+.ROLE
+   The role this cmdlet belongs to
+.FUNCTIONALITY
+   The functionality that best describes this cmdlet
+#>
     [CmdletBinding()]
     param (
         [Parameter(ValueFromPipeline = $true)]
@@ -19,6 +41,7 @@ function Get-ControlLastContactBulk {
     
     end {
         $IDs | Start-RSJob -Throttle $BatchSize -ScriptBlock {
+            Write-Output "Test"
             Import-Module "C:\GitHubProjects\AutomateAPI\AutomateAPI.psm1" -Force
             $Script:CWAUri = $using:CWAuri
             $Script:CWACredentials = $using:CWACredentials

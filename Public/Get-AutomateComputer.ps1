@@ -14,6 +14,12 @@ function Get-AutomateComputer {
     Boolean values are specified as 'true' or 'false'. Parenthesis can be used to control the order of operations and group conditions.
 .PARAMETER ClientName
     Client name to search for, uses wildcards so full client name is not needed
+.PARAMETER LocationName
+    Location name to search for, uses wildcards so full location name is not needed
+.PARAMETER ClientID
+    ClientID to search for, integer, -ClientID 1
+.PARAMETER LocationID
+    LocationID to search for, integer, -LocationID 2
 .PARAMETER ComputerName
     Computer name to search for, uses wildcards so full computer name is not needed
 .PARAMETER OpenPort
@@ -38,9 +44,9 @@ function Get-AutomateComputer {
     Returns computers with an mac address as a wildcard search
 .PARAMETER LoggedInUser
     Returns computers with a certain logged in user, using wildcard search, IE: -LoggedInUser "Gavin" will find all computers where a Gavin is logged in.
-.PARAMETER IsMaster
+.PARAMETER Master
     Returns computers that are Automate masters
-.PARAMETER IsNetworkProbe
+.PARAMETER NetworkProbe
     Returns computers that are Automate network probes
 .PARAMETER InMaintenanceMode
     Returns computers that are in maintenance mode
@@ -55,20 +61,40 @@ function Get-AutomateComputer {
 .PARAMETER UptimeLongerThanMinutes
     Takes an integer in minutes and brings back all computers that have an uptime longer than x minutes. IE -UptimeLongerThanMinutes 60
 .PARAMETER AssetTag
-    Return computers with a certain asset tag - a wildcard search  
+    Return computers with a certain asset tag - a wildcard search
+.PARAMETER Server
+    Return computers that are servers, boolean value can be used as -Server $true or -Server $false
+.PARAMETER Workstation
+    Return computers that are workstations, boolean value can be used as -Server $true or -Server $false 
+.PARAMETER AntivirusScanner
+    Return computers that have a certain antivirus. Wildcard search.
+.PARAMETER RebootNeeded
+    Return computers that need a reboot. Bool. -RebootNeeded $true or -RebootNeeded $false
+.PARAMETER VirtualHost
+    Return computers that are virtual hosts. Bool. -VirtualHost $true or -VirtualHost $false  
+.PARAMETER SerialNumber
+    Return computers that have a serial number specified. Wildcard Search
+.PARAMETER BiosManufacturer
+    Return computers with a specific Bios Manufacturer. Wildcard search.
+.PARAMETER BiosVersion
+    Return computers with a specific BIOS Version. This is a string search and a wildcard.
+.PARAMETER LocalUserAccounts
+    Return computers where certain local user accounts are present
 .OUTPUTS
-    Computer Object
+    Computer Objects
 .NOTES
     Version:        1.0
     Author:         Gavin Stone
     Creation Date:  2019-01-20
     Purpose/Change: Initial script development
-
 .EXAMPLE
-    Connect-AutomateAPI -Server "rancor.hostedrmm.com" -AutomateCredentials $CredentialObject -TwoFactorToken "999999"
-
+    Get-AutomateComputer -AllComputers
 .EXAMPLE
-    Connect-AutomateAPI -Quiet
+    Get-AutomateComputer -OperatingSystem "Windows 7"
+.EXAMPLE
+    Get-AutomateComputer -ClientName "Rancor"
+.EXAMPLE
+    Get-AutomateComputer -Condition "(Type != 'Workstation')"
 #>
     param (
         [Parameter(Mandatory = $false, Position = 0, ParameterSetName = "IndividualPC")]
@@ -80,8 +106,19 @@ function Get-AutomateComputer {
         [Parameter(Mandatory = $false, Position = 0, ParameterSetName = "ByCondition")]
         [string]$Condition,
 
+        [Alias("Client")]
         [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [string]$ClientName,
+
+        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
+        [int]$ClientId,
+
+        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
+        [int]$LocationId,
+
+        [Alias("Location")]
+        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
+        [string]$LocationName,
 
         [Alias("Computer","Name","Netbios")]
         [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
@@ -130,21 +167,21 @@ function Get-AutomateComputer {
         [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [string]$LoggedInUser,
 
-        [Alias("Master")]
+        [Alias("IsMaster")]
         [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
-        [bool]$IsMaster,
+        [bool]$Master,
 
-        [Alias("NetworkProbe")]
+        [Alias("IsNetworkProbe")]
         [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
-        [bool]$IsNetworkProbe,
+        [bool]$NetworkProbe,
 
-        [Alias("MaintenanceMode")]
+        [Alias("InMaintenanceMode")]
         [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
-        [bool]$InMaintenanceMode,
+        [bool]$MaintenanceMode,
 
-        [Alias("VirtualMachine")]
+        [Alias("IsVirtualMachine")]
         [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
-        [bool]$IsVirtualMachine,
+        [bool]$VirtualMachine,
 
         [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [switch]$DDay,
@@ -164,19 +201,22 @@ function Get-AutomateComputer {
         [string]$AssetTag,
 
         [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
-        [switch]$IsServer,
+        [bool]$Server,
 
         [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
-        [switch]$IsWorkstation,
+        [bool]$Workstation,
 
+        [Alias("AV","VirusScanner","Antivirus")]
         [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [string]$AntivirusScanner,
 
+        [Alias("PendingReboot","RebootRequired")]
         [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [bool]$RebootNeeded,
 
+        [Alias("IsVirtualHost")]
         [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
-        [bool]$IsVirtualHost,
+        [bool]$VirtualHost,
 
         [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [string]$SerialNumber,
@@ -208,6 +248,18 @@ function Get-AutomateComputer {
 
     if ($ClientName) {
         $ArrayOfConditions += "(Client.Name like '%$ClientName%')"
+    }
+    
+    if ($LocationName) {
+        $ArrayOfConditions += "(Location.Name like '%$LocationName%')"
+    }
+
+    if ($ClientID) {
+        $ArrayOfConditions += "(Client.Id = $ClientID)"
+    }
+
+    if ($LocationID) {
+        $ArrayOfConditions += "(Location.Id = $LocationID)"
     }
 
     if ($ComputerName) {
@@ -268,20 +320,20 @@ function Get-AutomateComputer {
         $ArrayOfConditions += "(LoggedInUsers.LoggedInUserName like '%$LoggedInUser%')"
     }
 
-    if ($PSBoundParameters.ContainsKey('IsMaster')) {
-        $ArrayOfConditions += "(IsMaster = $IsMaster)"
+    if ($PSBoundParameters.ContainsKey('Master')) {
+        $ArrayOfConditions += "(IsMaster = $Master)"
     }
 
-    if ($PSBoundParameters.ContainsKey('IsNetworkProbe')) {
-        $ArrayOfConditions += "(IsNetworkProbe = $IsNetworkProbe)"
+    if ($PSBoundParameters.ContainsKey('NetworkProbe')) {
+        $ArrayOfConditions += "(IsNetworkProbe = $NetworkProbe)"
     }
 
-    if ($PSBoundParameters.ContainsKey('InMaintenanceMode')) {
-        $ArrayOfConditions += "(IsMaintenanceModeEnabled = $InMaintenanceMode)"
+    if ($PSBoundParameters.ContainsKey('MaintenanceMode')) {
+        $ArrayOfConditions += "(IsMaintenanceModeEnabled = $MaintenanceMode)"
     }
 
-    if ($PSBoundParameters.ContainsKey('IsVirtualmachine')) {
-        $ArrayOfConditions += "(IsVirtualMachine = $IsVirtualmachine)"
+    if ($PSBoundParameters.ContainsKey('Virtualmachine')) {
+        $ArrayOfConditions += "(IsVirtualMachine = $Virtualmachine)"
     }
 
     if (($PSBoundParameters.ContainsKey('Online')) -and ($Online)) {
@@ -306,11 +358,19 @@ function Get-AutomateComputer {
         $ArrayOfConditions += "(AssetTag like '%$AssetTag%')"
     }
 
-    if ($IsServer) {
+    if (($PSBoundParameters.ContainsKey('Server')) -and (!$Server)) {
+        $ArrayOfConditions += "(Type != 'Server')"
+    }
+
+    if (($PSBoundParameters.ContainsKey('Server')) -and ($Server)) {
         $ArrayOfConditions += "(Type = 'Server')"
     }
 
-    if ($IsWorkstation) {
+    if (($PSBoundParameters.ContainsKey('Workstation')) -and (!$Workstation)) {
+        $ArrayOfConditions += "(Type != 'Workstation')"
+    }
+
+    if (($PSBoundParameters.ContainsKey('Workstation')) -and ($Workstation)) {
         $ArrayOfConditions += "(Type = 'Workstation')"
     }
 
@@ -322,8 +382,8 @@ function Get-AutomateComputer {
         $ArrayOfConditions += "(IsRebootNeeded = $RebootNeeded)"
     }
 
-    if ($PSBoundParameters.ContainsKey('IsVirtualHost')) {
-        $ArrayOfConditions += "(IsVirtualHost = $IsVirtualHost)"
+    if ($PSBoundParameters.ContainsKey('VirtualHost')) {
+        $ArrayOfConditions += "(IsVirtualHost = $VirtualHost)"
     }
 
     if ($SerialNumber) {

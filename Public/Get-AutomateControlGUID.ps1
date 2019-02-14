@@ -1,4 +1,20 @@
 function Get-AutomateControlGUID {
+<#
+.Synopsis
+   Gets the Control GUID for a particular ComputerID from Automate
+.DESCRIPTION
+   Gets the Control GUID from an Automate extension for a particular ID
+.PARAMETER ComputerID
+   ComputerIDs to send, will accept integer or array of integers
+.EXAMPLE
+   Get-AutomateControlGUID -ComputerID 1
+.EXAMPLE
+   Get-AutomateControlGUID -ComputerID 1,5
+.INPUTS
+   ComputerID
+.OUTPUTS
+   ControlGUID Object containing ComputerID and ControlGUID
+#>
     param
     (
         [Parameter(Mandatory = $true, Position = 0,ValueFromPipeline = $true, ValueFromPipelineByPropertyName=$true)]
