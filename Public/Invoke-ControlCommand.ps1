@@ -121,7 +121,7 @@ function Invoke-ControlCommand {
         Start-Sleep -Seconds 1
         if ($(Get-Date) -gt $TimeOutDateTime.AddSeconds(1)) {
             $Looking = $False
-            Write-Warning "Command timed out."
+            $Output = "Command timed out when sent to Agent"
         }
     }
 }

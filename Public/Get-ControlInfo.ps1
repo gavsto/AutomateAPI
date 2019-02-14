@@ -1,4 +1,4 @@
-function Get-CWAControl {
+function Get-ControlInfo {
 <#
 .SYNOPSIS
 Retrieve data from Automate API Control Extension
@@ -19,7 +19,7 @@ Author:         Darren White
 Purpose/Change: Modified returned object data
 
 .EXAMPLE
-Get-CWAControl -ComputerId 123
+Get-ControlInfo -ComputerId 123
 #>
     param
     (
@@ -68,4 +68,4 @@ Get-CWAControl -ComputerId 123
     } #End ForEach
   } #End Process
 
-} #End Get-CWAControl
+} #End Get-ControlInfo

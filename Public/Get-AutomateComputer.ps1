@@ -236,15 +236,15 @@ function Get-AutomateComputer {
     $ArrayOfConditions = @()
 
     if ($ComputerID) {
-        Return Get-AutomateAPIOutputGeneric -AllResults -APIURI "/v1/computers/?" -IDs $(($ComputerID) -join ",")
+        Return Get-AutomateAPIGeneric -AllResults -Endpoint "computers/?" -IDs $(($ComputerID) -join ",")
     }
 
     if ($AllComputers) {
-        Return Get-AutomateAPIOutputGeneric -AllResults -APIURI "/v1/computers?"
+        Return Get-AutomateAPIGeneric -AllResults -Endpoint "computers?"
     }
 
     if ($Condition) {
-        Return Get-AutomateAPIOutputGeneric -AllResults -APIURI "/v1/computers?" -Condition $Condition
+        Return Get-AutomateAPIGeneric -AllResults -Endpoint "computers?" -Condition $Condition
     }
 
     if ($ClientName) {
@@ -406,7 +406,7 @@ function Get-AutomateComputer {
     
     $FinalCondition = Get-ConditionsStacked -ArrayOfConditions $ArrayOfConditions
 
-    $FinalResult = Get-AutomateAPIOutputGeneric -AllResults -APIURI "/v1/computers?" -Condition $FinalCondition
+    $FinalResult = Get-AutomateAPIGeneric -AllResults -Endpoint "computers?" -Condition $FinalCondition
 
     return $FinalResult
 }

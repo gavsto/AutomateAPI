@@ -107,8 +107,7 @@ Connect-AutomateAPI -Quiet
             }
             #Convert the body to JSON for Posting
             $PostBody = $PostHeaders | ConvertTo-Json -Compress
-            #Clear Credential Variables
-            Clear-Variable -Name CWACredentials, CWACredentialsExpirationDate -Scope Global -EA 0
+
             #Invoke the REST Method
             Write-Debug "Submitting Request to $AutomateAPIURI with body: `n$PostBody"
             Try {
