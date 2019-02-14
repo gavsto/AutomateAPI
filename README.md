@@ -1,4 +1,5 @@
-# AutomateAPI
+# AutomateAPI (Alpha Release)
+**THIS HAS ONLY JUST BEEN RELEASED AND HAS HAD LIMITED TESTING - BE AWARE**!
 A Powershell Module created by Gavin Stone (Gavsto) for the ConnectWise Automate API
 
 # How do I get Going
