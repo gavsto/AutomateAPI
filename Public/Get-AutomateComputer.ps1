@@ -65,7 +65,7 @@ function Get-AutomateComputer {
 .PARAMETER Server
     Return computers that are servers, boolean value can be used as -Server $true or -Server $false
 .PARAMETER Workstation
-    Return computers that are workstations, boolean value can be used as -Server $true or -Server $false 
+    Return computers that are workstations, boolean value can be used as -Workstation $true or -Workstation $false 
 .PARAMETER AntivirusScanner
     Return computers that have a certain antivirus. Wildcard search.
 .PARAMETER RebootNeeded
