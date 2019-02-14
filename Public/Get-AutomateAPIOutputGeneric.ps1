@@ -40,10 +40,12 @@ function Get-AutomateAPIOutputGeneric {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false, ParameterSetName = "Page")]
+        [ValidateRange(1,1000)]
         [int]
         $PageSize = 1000,
 
         [Parameter(Mandatory = $true, ParameterSetName = "Page")]
+        [ValidateRange(1,65535)]
         [int]
         $Page,
 
