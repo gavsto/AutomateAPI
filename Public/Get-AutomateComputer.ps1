@@ -98,6 +98,7 @@ function Get-AutomateComputer {
 #>
     param (
         [Parameter(Mandatory = $false, Position = 0, ParameterSetName = "IndividualPC")]
+        [Alias('ID')]
         [int32[]]$ComputerID,
 
         [Parameter(Mandatory = $false, ParameterSetName = "AllResults")]
