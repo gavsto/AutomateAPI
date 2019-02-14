@@ -65,13 +65,14 @@ function Get-AutomateComputer {
     Purpose/Change: Initial script development
 
 .EXAMPLE
-    Connect-AutomateAPI -Server "rancor.hostedrmm.com" -AutomateCredentials $CredentialObject -TwoFactorToken "999999"
+    Get-AutomateComputer -ComputerID 1
 
 .EXAMPLE
-    Connect-AutomateAPI -Quiet
+    Get-AutomateComputer -ComputerID 1
 #>
     param (
         [Parameter(Mandatory = $false, Position = 0, ParameterSetName = "IndividualPC")]
+        [Alias('ID')]
         [int32[]]$ComputerID,
 
         [Parameter(Mandatory = $false, ParameterSetName = "AllResults")]
