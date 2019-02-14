@@ -1,4 +1,18 @@
-function Get-ControlSessionBulk {
+function Get-ControlSessions {
+<#
+.Synopsis
+   Gets bulk session info from Control using the Automate Control Extension
+.DESCRIPTION
+   Gets all Session GUIDs in Control and then gets each session info out 100 at a time
+.PARAMETER SesssionGroup
+   The session group to target, defaults to all machines
+.EXAMPLE
+   Get-ControlSesssions
+.INPUTS
+   None
+.OUTPUTS
+   Custom object of session details for all sessions
+#>
     [CmdletBinding()]
     param (
         # Parameter group - defaults to All Machines

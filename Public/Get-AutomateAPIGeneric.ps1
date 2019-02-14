@@ -1,4 +1,4 @@
-function Get-AutomateAPIOutputGeneric {
+function Get-AutomateAPIGeneric {
     <#
       .SYNOPSIS
         Internal function used to make generic API calls
@@ -10,8 +10,8 @@ function Get-AutomateAPIOutputGeneric {
         Brings back a particular page as defined
       .PARAMETER AllResults
         Will bring back all results for a particular query with no concern for result set size
-      .PARAMETER APIURI
-        The individial URI to post to for results, IE /v1/computers?
+      .PARAMETER Endpoint
+        The individial URI to post to for results, IE computers?
       .PARAMETER OrderBy
         Order by - Used to sort the results by a field. Can be sorted in ascending or descending order.
         Example - fieldname asc
@@ -35,7 +35,7 @@ function Get-AutomateAPIOutputGeneric {
         Creation Date:  20/01/2019
         Purpose/Change: Initial script development
       .EXAMPLE
-        Get-AutomateAPIOutputGeneric -Page 1 -Condition "RemoteAgentLastContact <= 2019-12-18T00:50:19.575Z" -APIURI "/v1/computers?"
+        Get-AutomateAPIGeneric -Page 1 -Condition "RemoteAgentLastContact <= 2019-12-18T00:50:19.575Z" -Endpoint "computers?"
     #>
     [CmdletBinding()]
     param (
@@ -55,7 +55,7 @@ function Get-AutomateAPIOutputGeneric {
 
         [Parameter(Mandatory = $true)]
         [string]
-        $APIURI,
+        $Endpoint,
 
         [Parameter(Mandatory = $false)]
         [string]
@@ -79,8 +79,10 @@ function Get-AutomateAPIOutputGeneric {
     )
     
     begin {
+        #API Version
+        $APIVersion = "v1"
         #Build the URL to hit
-        $url = ($Script:CWAUri + "$APIURI")
+        $url = ($Script:CWAUri + '/' + $APIVersion + '/' + $EndPoint)
 
         #Build the Body Up
         $Body = @{}

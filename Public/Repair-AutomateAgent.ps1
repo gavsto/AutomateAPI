@@ -1,4 +1,22 @@
-function Start-AutofixAgent {
+function Repair-AutomateAgent {
+<#
+.Synopsis
+   Takes changed detected in Compare-AutomateControlStatus and performs a specified repair on them
+.DESCRIPTION
+   Takes changed detected in Compare-AutomateControlStatus and performs a specified repair on them
+.PARAMETER AutofixRestartService
+   Restarts Automate Services using the LabTech Powershell Github Module. Confirmation is on for each by default, to disable add -Confirm:$False to the cmdlet. Runs (new-object Net.WebClient).DownloadString('http://bit.ly/LTPoSh') | iex; Restart-LTService
+.PARAMETER AutofixReinstallService
+   Reinstalls Automate Services using the LabTech Powershell Github Module. Confirmation is on for each by default, to disable add -Confirm:$False to the cmdlet. (new-object Net.WebClient).DownloadString('http://bit.ly/LTPoSh') | iex; Reinstall-LTService
+.EXAMPLE
+   Get-AutomateComputer -Online $False | Compare-AutomateControlStatus | Repair-AutomateAgent -AutofixRestartService
+.EXAMPLE
+   Get-AutomateComputer -Online $False | Compare-AutomateControlStatus | Repair-AutomateAgent -AutofixReinstallService
+.INPUTS
+   Compare-AutomateControlStatus Object
+.OUTPUTS
+   Object containing result of job(s)
+#>
     [CmdletBinding(
         SupportsShouldProcess = $true,
         ConfirmImpact = 'High',
