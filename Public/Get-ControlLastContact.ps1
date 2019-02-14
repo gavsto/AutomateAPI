@@ -6,7 +6,6 @@ function Get-ControlLastContact {
       Returns the date the machine last connected to the control server.
     .PARAMETER GUID
       The GUID/SessionID for the machine you wish to connect to.
-      You can retrieve session info with the 'Get-CWCSessions' commandlet
       On Windows clients, the launch parameters are located in the registry at:
         HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\ScreenConnect Client (xxxxxxxxxxxxxxxx)\ImagePath
       On Linux and Mac clients, it's found in the ClientLaunchParameters.txt file in the client installation folder:
