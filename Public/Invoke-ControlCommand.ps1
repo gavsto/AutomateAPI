@@ -43,6 +43,8 @@ function Invoke-ControlCommand {
         [int]$MaxLength = 5000
     )
 
+    $Server = $Server -replace '/$',''
+    If (!($Server -match 'https?://[a-z0-9][a-z0-9\.\-]*(:[1-9][0-9]*)?$')) {throw "Control Server address is in invalid format."; return}
     $origin = New-Object -Type DateTime -ArgumentList 1970, 1, 1, 0, 0, 0, 0
 
     $URI = "$Server/Services/PageService.ashx/AddEventToSessions"
@@ -71,7 +73,7 @@ function Invoke-ControlCommand {
     }
 
     # Get Session
-    $URI = "Server/Services/PageService.ashx/GetSessionDetails"
+    $URI = "$Server/Services/PageService.ashx/GetSessionDetails"
     $Body = ConvertTo-Json @($Group,$GUID)
     Write-Verbose $Body
     try {

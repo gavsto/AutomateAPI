@@ -52,14 +52,14 @@ Get-AutomateControlInfo -ComputerId 123
                 SessionID = 'Not Found'
                 }
                 $Null = $OurResult.PSObject.TypeNames.Insert(0,'CWControl.Information')
-                $Null = $OurResult | Add-Member -NotePropertyName 'SessionID' -NotePropertyValue 'Not Found'
                 $Null = $OurResult | Add-Member MemberSet PSStandardMembers $PSStandardMembers
                 $ComputerObjects+=$OurResult
             }
         }
 
         ForEach ($Computer in $ComputerObjects) {
-            If ($PSCmdlet.ParameterSetName -eq 'ID') {
+            If ($PSCmdlet.ParameterSetName -eq 'pipeline') {
+                $Null = $Computer | Add-Member -NotePropertyName 'SessionID' -NotePropertyValue 'Not Found'
             }
             $url = ($Script:CWAServer + "/cwa/api/v1/extensionactions/control/$($Computer.ID)")
             Try {

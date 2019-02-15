@@ -55,25 +55,25 @@ function Repair-AutomateAgent {
                   If ($Action -eq 'Check') {
                      $IGU | Start-RSJob -Throttle $BatchSize -Name "$($igu.ComputerName) - $($igu.ComputerID) - $($Action) Service" -ScriptBlock {
                      Import-Module AutomateAPI -Force
-                     $ServiceRestartAttempt = Invoke-ControlCommand -Server $using:ControlServer -Credential $using:ControlAPICredentials -GUID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString('http://bit.ly/LTPoSh') | iex; Get-LTServiceInfo" -TimeOut 60000
+                     $ServiceRestartAttempt = Invoke-ControlCommand -Server $($using:ControlServer) -Credential $($using:ControlAPICredentials) -GUID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString('http://bit.ly/LTPoSh') | iex; Get-LTServiceInfo" -TimeOut 60000 -MaxLength 10240
                      return $ServiceRestartAttempt
                      } | out-null
                   } ElseIf ($Action -eq 'Update') {
                      $IGU | Start-RSJob -Throttle $BatchSize -Name "$($igu.ComputerName) - $($igu.ComputerID) - $($Action) Service" -ScriptBlock {
                      Import-Module AutomateAPI -Force
-                     $ServiceRestartAttempt = Invoke-ControlCommand -Server $using:ControlServer -Credential $using:ControlAPICredentials -GUID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString('http://bit.ly/LTPoSh') | iex; Update-LTService" -TimeOut 60000
+                     $ServiceRestartAttempt = Invoke-ControlCommand -Server $using:ControlServer -Credential $using:ControlAPICredentials -GUID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString('http://bit.ly/LTPoSh') | iex; Update-LTService" -TimeOut 120000 -MaxLength 10240
                      return $ServiceRestartAttempt
                      } | out-null
                   } ElseIf ($Action -eq 'Restart') {
                      $IGU | Start-RSJob -Throttle $BatchSize -Name "$($igu.ComputerName) - $($igu.ComputerID) - $($Action) Service" -ScriptBlock {
                      Import-Module AutomateAPI -Force
-                     $ServiceRestartAttempt = Invoke-ControlCommand -Server $using:ControlServer -Credential $using:ControlAPICredentials -GUID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString('http://bit.ly/LTPoSh') | iex; Restart-LTService" -TimeOut 60000
+                     $ServiceRestartAttempt = Invoke-ControlCommand -Server $using:ControlServer -Credential $using:ControlAPICredentials -GUID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString('http://bit.ly/LTPoSh') | iex; Restart-LTService" -TimeOut 120000 -MaxLength 10240
                      return $ServiceRestartAttempt
                      } | out-null
                   } ElseIf ($Action -eq 'Restart') {
                      $IGU | Start-RSJob -Throttle $BatchSize -Name "$($igu.ComputerName) - $($igu.ComputerID) - $($Action) Service" -ScriptBlock {
                      Import-Module AutomateAPI -Force
-                     $ServiceRestartAttempt = Invoke-ControlCommand -Server $using:ControlServer -Credential $using:ControlAPICredentials -GUID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString('http://bit.ly/LTPoSh') | iex; ReInstall-LTService" -TimeOut 60000
+                     $ServiceRestartAttempt = Invoke-ControlCommand -Server $using:ControlServer -Credential $using:ControlAPICredentials -GUID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString('http://bit.ly/LTPoSh') | iex; ReInstall-LTService" -TimeOut 360000 -MaxLength 10240
                      return $ServiceRestartAttempt
                      } | out-null
                   } Else {
