@@ -37,21 +37,44 @@ function Get-ControlSessions {
         $Query = "" 
         $Version = "5"
         $FinalArray = @()
+        $Null = Get-RSJob | Remove-RSJob | out-null
     }
     
     process {
-        for ($i = 0; $i -lt $SplitGUIDsArray.Count; $i++) {
-            $Body = ConvertTo-Json @($SessionGroup,$Query,$SplitGUIDsArray[$i],$Version)
-            $URl = "$($ControlServer)/App_Extensions/fc234f0e-2e8e-4a1f-b977-ba41b14031f7/Service.ashx/GetSessionsInfo"
-            $ProgressPreference = 'SilentlyContinue'
-            $SessionDetails = ""
-            $SessionDetails = Invoke-RestMethod -Uri $url -Method Post -Credential $Script:ControlAPICredentials -ContentType "application/json" -Body $Body
-            $FinalArray += $SessionDetails.Sessions
-        }
     }
     
     end {
-        return $FinalArray
+        #Create a result array object
+        $ResultArray = @()
+        for ($i = 0; $i -lt $SplitGUIDsArray.Count; $i++) {
+            $Body = ConvertTo-Json @($SessionGroup,$Query,$SplitGUIDsArray[$i],$Version)
+            $ResultArray += [pscustomobject] @{
+                Body = $Body
+            } 
+        }
+        
+        
+        $ResultArray | Start-RSJob -Throttle 20 -Name {"Dunno"} -ScriptBlock {
+            Import-Module AutomateAPI -Force
+            try{
+                $SessionGroupof100 = Invoke-RestMethod -Uri "$($using:ControlServer)/App_Extensions/fc234f0e-2e8e-4a1f-b977-ba41b14031f7/Service.ashx/GetSessionsInfo" -Method POST -Credential $($using:ControlAPICredentials) -ContentType "application/json" -Body $($_.Body)
+            }
+            Catch
+            {
+                Write-Output "Error: $_"
+            }
+            return $SessionGroupof100
+        } | out-null
+
+        while ($(Get-RSJob | Where-Object {$_.State -ne 'Completed'} | Measure-Object | Select-Object -ExpandProperty Count) -gt 0) {
+            Start-Sleep -Milliseconds 1000
+            Write-Host -ForegroundColor Yellow "$(Get-Date) - There are currently $(Get-RSJob | Where-Object{$_.State -ne 'Completed'} | Measure-Object | Select-Object -ExpandProperty Count) jobs left to complete"
+         }
+
+        $AllSessionsResult =  Get-RSJob | Receive-RSJob
+        $Null = Get-RSJob | Remove-RSJob | out-null
+
+        return $AllSessionsResult.Sessions
     }
 }
 
