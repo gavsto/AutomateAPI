@@ -52,89 +52,84 @@ function Repair-AutomateAgent {
             If ($PSCmdlet.ShouldProcess("Automate Services on $($igu.ComputerID) - $($igu.ComputerName)",$Action)) {
                if ($igu.OperatingSystemName -like '*windows*') {
                   Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($igu.ComputerID) - $($igu.ComputerName) -  Attempting to $Action Automate Services - job will be queued"
-                  If ($Action -eq 'Check') {
-                     $IGU | Start-RSJob -Throttle $BatchSize -Name "$($igu.ComputerName) - $($igu.ComputerID) - $($Action) Service" -ScriptBlock {
-                     Import-Module AutomateAPI -Force
-                     $ServiceRestartAttempt = Invoke-ControlCommand -Server $($using:ControlServer) -Credential $($using:ControlAPICredentials) -GUID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString('http://bit.ly/LTPoSh') | iex; Get-LTServiceInfo" -TimeOut 60000 -MaxLength 10240
-                     return $ServiceRestartAttempt
-                     } | out-null
-                  } ElseIf ($Action -eq 'Update') {
-                     $IGU | Start-RSJob -Throttle $BatchSize -Name "$($igu.ComputerName) - $($igu.ComputerID) - $($Action) Service" -ScriptBlock {
-                     Import-Module AutomateAPI -Force
-                     $ServiceRestartAttempt = Invoke-ControlCommand -Server $using:ControlServer -Credential $using:ControlAPICredentials -GUID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString('http://bit.ly/LTPoSh') | iex; Update-LTService" -TimeOut 120000 -MaxLength 10240
-                     return $ServiceRestartAttempt
-                     } | out-null
-                  } ElseIf ($Action -eq 'Restart') {
-                     $IGU | Start-RSJob -Throttle $BatchSize -Name "$($igu.ComputerName) - $($igu.ComputerID) - $($Action) Service" -ScriptBlock {
-                     Import-Module AutomateAPI -Force
-                     $ServiceRestartAttempt = Invoke-ControlCommand -Server $using:ControlServer -Credential $using:ControlAPICredentials -GUID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString('http://bit.ly/LTPoSh') | iex; Restart-LTService" -TimeOut 120000 -MaxLength 10240
-                     return $ServiceRestartAttempt
-                     } | out-null
-                  } ElseIf ($Action -eq 'Restart') {
-                     $IGU | Start-RSJob -Throttle $BatchSize -Name "$($igu.ComputerName) - $($igu.ComputerID) - $($Action) Service" -ScriptBlock {
-                     Import-Module AutomateAPI -Force
-                     $ServiceRestartAttempt = Invoke-ControlCommand -Server $using:ControlServer -Credential $using:ControlAPICredentials -GUID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString('http://bit.ly/LTPoSh') | iex; ReInstall-LTService" -TimeOut 360000 -MaxLength 10240
-                     return $ServiceRestartAttempt
-                     } | out-null
-                  } Else {
-                     Write-Host -BackgroundColor Yellow -ForegroundColor Red "Action $Action is not currently supported."
-                  }
+                  $ObjectCapture += $AutomateControlStatusObject
                } Else {
                   Write-Host -BackgroundColor Yellow -ForegroundColor Red "This is not a windows machine - there is no Mac/Linux support at present in this module"
                }
             }
-         } Else {            Write-Host -BackgroundColor Yellow -ForegroundColor Red "An object was passed that is missing a required property (ComputerID, SessionID, ComputerName)"
+         } Else {
+            Write-Host -BackgroundColor Yellow -ForegroundColor Red "An object was passed that is missing a required property (ComputerID, SessionID)"
          }
       }
-
-      $ObjectCapture += $AutomateControlStatusObject
    }
 
    End {
-   Write-Host -ForegroundColor Green "All jobs are queued. Waiting for them to complete. Reinstall jobs can take up to 10 minutes"
-   while ($(Get-RSJob | Where-Object {$_.State -ne 'Completed'} | Measure-Object | Select-Object -ExpandProperty Count) -gt 0) {
-      Start-Sleep -Milliseconds 10000
-      Write-Host -ForegroundColor Yellow "$(Get-Date) - There are currently $(Get-RSJob | Where-Object{$_.State -ne 'Completed'} | Measure-Object | Select-Object -ExpandProperty Count) jobs left to complete"
-   }
+      if ($ObjectCapture) {
 
-   $AllServiceJobs = Get-RSJob | Where-Object {$_.Name -like "*$($Action) Service*"}
+         If ($Action -eq 'Check') {
+            $ObjectCapture | Start-RSJob -Throttle $BatchSize -Name "$($igu.ComputerName) - $($igu.ComputerID) - $($Action) Service" -ScriptBlock {
+            Import-Module AutomateAPI -Force
+            $ServiceRestartAttempt = Invoke-ControlCommand -Server $($using:ControlServer) -Credential $($using:ControlAPICredentials) -GUID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString('http://bit.ly/LTPoSh') | iex; Get-LTServiceInfo" -TimeOut 60000 -MaxLength 10240
+            return $ServiceRestartAttempt
+            } | out-null
+         } ElseIf ($Action -eq 'Update') {
+            $ObjectCapture | Start-RSJob -Throttle $BatchSize -Name "$($igu.ComputerName) - $($igu.ComputerID) - $($Action) Service" -ScriptBlock {
+            Import-Module AutomateAPI -Force
+            $ServiceRestartAttempt = Invoke-ControlCommand -Server $using:ControlServer -Credential $using:ControlAPICredentials -GUID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString('http://bit.ly/LTPoSh') | iex; Update-LTService" -TimeOut 120000 -MaxLength 10240
+            return $ServiceRestartAttempt
+            } | out-null
+         } ElseIf ($Action -eq 'Restart') {
+            $ObjectCapture | Start-RSJob -Throttle $BatchSize -Name "$($igu.ComputerName) - $($igu.ComputerID) - $($Action) Service" -ScriptBlock {
+            Import-Module AutomateAPI -Force
+            $ServiceRestartAttempt = Invoke-ControlCommand -Server $using:ControlServer -Credential $using:ControlAPICredentials -GUID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString('http://bit.ly/LTPoSh') | iex; Restart-LTService" -TimeOut 120000 -MaxLength 10240
+            return $ServiceRestartAttempt
+            } | out-null
+         } ElseIf ($Action -eq 'Restart') {
+            $ObjectCapture | Start-RSJob -Throttle $BatchSize -Name "$($igu.ComputerName) - $($igu.ComputerID) - $($Action) Service" -ScriptBlock {
+            Import-Module AutomateAPI -Force
+            $ServiceRestartAttempt = Invoke-ControlCommand -Server $using:ControlServer -Credential $using:ControlAPICredentials -GUID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString('http://bit.ly/LTPoSh') | iex; ReInstall-LTService" -TimeOut 360000 -MaxLength 10240
+            return $ServiceRestartAttempt
+            } | out-null
+         } Else {
+            Write-Host -BackgroundColor Yellow -ForegroundColor Red "Action $Action is not currently supported."
+         }
 
-   foreach ($Job in $AllServiceJobs) {
-      $RecJob = ""
-      $RecJob = Receive-RSJob -Name $Job.Name
-      If ($Action -eq 'Check') {
-         If ($RecJob -like '*LastSuccessStatus*') {$AutofixSuccess = $true}else{$AutofixSuccess = $false}
-      } ElseIf ($Action -eq 'Update') {
-         If ($RecJob -like '*successfully*') {$AutofixSuccess = $true}else{$AutofixSuccess = $false}
-      } ElseIf ($Action -eq 'Restart') {
-         If ($RecJob -like '*Restarted successfully*') {$AutofixSuccess = $true}else{$AutofixSuccess = $false}
-      } ElseIf ($Action -eq 'ReInstall') {
-         If ($RecJob -like '*successfully*') {$AutofixSuccess = $true}else{$AutofixSuccess = $false}
+         Write-Host -ForegroundColor Green "All jobs are queued. Waiting for them to complete. Reinstall jobs can take up to 10 minutes"
+         while ($(Get-RSJob | Where-Object {$_.State -ne 'Completed'} | Measure-Object | Select-Object -ExpandProperty Count) -gt 0) {
+            Start-Sleep -Milliseconds 10000
+            Write-Host -ForegroundColor Yellow "$(Get-Date) - There are currently $(Get-RSJob | Where-Object{$_.State -ne 'Completed'} | Measure-Object | Select-Object -ExpandProperty Count) jobs left to complete"
+         }
+
+         $AllServiceJobs = Get-RSJob | Where-Object {$_.Name -like "*$($Action) Service*"}
+
+         foreach ($Job in $AllServiceJobs) {
+            $RecJob = ""
+            $RecJob = Receive-RSJob -Name $Job.Name
+            If ($Action -eq 'Check') {
+               If ($RecJob -like '*LastSuccessStatus*') {$AutofixSuccess = $true}else{$AutofixSuccess = $false}
+            } ElseIf ($Action -eq 'Update') {
+               If ($RecJob -like '*successfully*') {$AutofixSuccess = $true}else{$AutofixSuccess = $false}
+            } ElseIf ($Action -eq 'Restart') {
+               If ($RecJob -like '*Restarted successfully*') {$AutofixSuccess = $true}else{$AutofixSuccess = $false}
+            } ElseIf ($Action -eq 'ReInstall') {
+               If ($RecJob -like '*successfully*') {$AutofixSuccess = $true}else{$AutofixSuccess = $false}
+            } Else {
+               $AutofixSuccess = $true
+            }
+            $ResultArray += [pscustomobject] @{
+            JobName = $Job.Name
+            JobType = "$($Action) Automate Services"
+            JobState = $Job.State
+            JobHasErrors = $Job.HasErrors
+            JobResultStream = "$RecJob"
+            AutofixSuccess = $AutofixSuccess
+            } 
+         }
+
+         Write-Host -ForegroundColor Green "All jobs completed"
+         return $ResultArray
       } Else {
-         $AutofixSuccess = $true
+         'No Queued Jobs'
       }
-      $ResultArray += [pscustomobject] @{
-      JobName = $Job.Name
-      JobType = "$($Action) Automate Services"
-      JobState = $Job.State
-      JobHasErrors = $Job.HasErrors
-      JobResultStream = "$RecJob"
-      AutofixSuccess = $AutofixSuccess
-      } 
-   }
-
-   Write-Host -ForegroundColor Green "All jobs completed"
-   return $ResultArray
    }
 }
-
-
-
-$ControlServer='Hmmm'
-(1,2,3,4,5,6,7) | Foreach-Object {Start-RSJob -Throttle 4 -Name "Run $_" -ScriptBlock {
-   write-output "Local $ControlServer and Loaded $($Using:ControlServer)"
-   Start-Sleep 5
-   Get-Date
-}}
-'All Done'
-Get-RSJob
