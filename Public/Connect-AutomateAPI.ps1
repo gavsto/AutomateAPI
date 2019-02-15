@@ -146,7 +146,7 @@ Connect-AutomateAPI -Quiet
             $Script:CWACredentialsExpirationDate = $AutomateAPITokenResult.ExpirationDate
 
             If (!$Quiet) {
-                Write-Host  -BackgroundColor Green -ForegroundColor Black "Automate Token Retrieved Successfully. Token will expire at $($AutomateAPITokenResult | Select-Object -expandproperty ExpirationDate)"
+                Write-Host -BackgroundColor Green -ForegroundColor Black "Successfully tested and connected to the Automate REST API. Token will expire at $($AutomateAPITokenResult | Select-Object -expandproperty ExpirationDate)"
             } Else {
                 return $True
             }

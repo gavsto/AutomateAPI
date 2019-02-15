@@ -10,6 +10,8 @@ function Connect-ControlAPI {
     Takes a standard powershell credential object, this can be built with $CredentialsToPass = Get-Credential, then pass $CredentialsToPass
     .PARAMETER Quiet
     Will not output any standard logging messages
+    .PARAMETER TestCredentials
+    Performs a test to the API
     .OUTPUTS
     Two script variables with server and credentials
     .NOTES
@@ -32,7 +34,10 @@ function Connect-ControlAPI {
         [string]$Server,
 
         [Parameter(mandatory = $false)]
-        [switch]$Quiet
+        [switch]$Quiet,
+
+        [Parameter(mandatory = $false)]
+        [switch]$TestCredentials=[switch]::Present
     )
     
     begin {
@@ -51,8 +56,21 @@ function Connect-ControlAPI {
         $Script:ControlCredentials = $ControlCredentials
         $Script:ControlServer = $Server
 
-        if (!$Quiet) {
-            Write-Host  -BackgroundColor Green -ForegroundColor Black "Control Credentials Stored for use"
+        if ($TestCredentials) {
+            if ($Quiet) {
+                $Return = Test-ControlCredentials -Quiet
+            }
+            else {
+                Test-ControlCredentials
+            }
+        }
+
+        if ((!$Quiet) -and ($Return)) {
+            Write-Host  -BackgroundColor Green -ForegroundColor Black "Control Credentials Stored for use"            
+        }
+
+        if (($Quiet) -and (!$Return)) {
+            Return $false
         }
 
     }
