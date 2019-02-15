@@ -59,22 +59,30 @@ namespace FastSearch
             Write-Host -ForegroundColor Green "Getting all control sessions. This may take a few minutes"
             $ControlSessions = Get-ControlSessions
 
+            $CWAUseMe = $CWACredentials.Authorization -Replace 'Bearer ',''
             Write-Host -ForegroundColor Green "Getting all Automate Control GUIDs. This may take a few minutes"
-            foreach ($computer in $ObjectRebuild) {
-                $GUID = Get-AutomateControlInfo -ComputerID $($computer | Select-Object -ExpandProperty id)
-                $OnlineStatus = [FastSearch.Search]::Find($ControlSessions, "SessionID", $GUID.SessionID) | Select-Object -ExpandProperty Connected
+            #-----------GO FASTER ATTEMPT------------
+            $CredsToUse
+            $ObjectRebuild | Start-RSJob -Throttle 40 -Name {"Dunno2"} -ScriptBlock {
+                Import-Module AutomateAPI -Force
+                Connect-AutomateAPI -Server $Using:CWAServer -AuthorizationToken $Using:CWAUseMe -Quiet
+                $GUID = Get-AutomateControlInfo -ComputerID $_.ID
                 $Object = ""
                 $Object = [pscustomobject] @{
-                    ComputerID = $Computer.ID
-                    ComputerName = $Computer.ComputerName
-                    ClientName = $Computer.Client.Name
-                    OperatingSystemName = $Computer.OperatingSystemName
-                    OnlineStatusControl = $(If($OnlineStatus){"Online"}else{"Offline"})
-                    OnlineStatusAutomate = $Computer.Status
+                    ComputerID = $_.ID
+                    ComputerName = $_.ComputerName
+                    ClientName = $_.Client.Name
+                    OperatingSystemName = $_.OperatingSystemName
                     SessionID = $GUID.SessionID
                 }
-                $ArrayTest += $Object
-            }              
+                #Write-Output $GUID
+                Return $Object
+            } | out-null
+
+
+            #-----------GO FASTER ATTEMPT------------
+            
+
             $ArrayTest | Where-Object{($_.OnlineStatusControl -eq 'Online') -and ($_.OnlineStatusAutomate -eq 'Offline') }
         }
     }
