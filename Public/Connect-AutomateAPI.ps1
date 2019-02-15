@@ -46,6 +46,9 @@ Connect-AutomateAPI -Quiet
         [Parameter(ParameterSetName = 'refresh', Mandatory = $False)]
         [String]$AuthorizationToken = ($Script:CWACredentials.Authorization -replace 'Bearer ',''),
 
+        [Parameter(ParameterSetName = 'refresh', Mandatory = $False)]
+        [Switch]$SkipCheck,
+
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
         [String]$TwoFactorToken,
 
@@ -70,10 +73,20 @@ Connect-AutomateAPI -Quiet
             }
         }
         $Server = $Server -replace '^https?://','' -replace '/.*',''
+        $AuthorizationToken = $AuthorizationToken -replace 'Bearer ',''
     } #End Begin
     
     Process {
         if (!($Server -match '^[a-z0-9][a-z0-9\.\-]*$')) {throw "Server address is missing or in invalid format."; return}
+        if ($SkipCheck) {
+            #Build the returned token
+            $AutomateToken = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
+            $AutomateToken.Add("Authorization", "Bearer $AuthorizationToken")
+            Write-Debug "Setting Credentials to $($AutomateToken.Authorization)"
+            $Script:CWAServer = ("https://" + $Server)
+            $Script:CWACredentials = $AutomateToken
+            return
+        }
         Do {
             $AutomateAPIURI = ('https://' + $Server + '/cwa/api/v1/apitoken')
             If (!$Quiet) {
