@@ -44,7 +44,7 @@ function Connect-ControlAPI {
         [Switch]$Force,
 
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
-        [Switch]$SkipTest,
+        [Switch]$SkipCheck,
 
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
         [Parameter(ParameterSetName = 'refresh', Mandatory = $False)]
@@ -67,42 +67,45 @@ function Connect-ControlAPI {
     
     Process {
         If (!($Server -match 'https?://[a-z0-9][a-z0-9\.\-]*(:[1-9][0-9]*)?$')) {throw "Control Server address is in invalid format."; return}
-        If (!$AuthorizationToken) {$AuthorizationToken = $Script:ControlAPICredentials}
-        If (!$SkipTest) {
-            Do {
-                $ControlAPITestURI = ($Server + '/Services/PageService.ashx/GetHostSessionInfo')
-                If (!$Quiet) {
-                    If (!$ControlCredentials -and ($Force -or !$AuthorizationToken)) {
-                        $AuthorizationToken = $Null
-                        $Username = Read-Host -Prompt "Please enter your Control Username"
-                        $Password = Read-Host -Prompt "Please enter your Control Password" -AsSecureString
-                        $ControlCredentials = New-Object System.Management.Automation.PSCredential ($Username, $Password)
-                    }
-                    If ($TwoFactorNeeded -eq $True -and $TwoFactorToken -match '') {
-                        $TwoFactorToken = Read-Host -Prompt "Please enter your 2FA Token"
-                    }
-                }
-
-                #Invoke the REST Method
-                Write-Debug "Submitting Request to $ControlAPITestURI"
-                If (!$AuthorizationToken) {$AuthorizationToken=$ControlCredentials}
-                Try {
-                    $ControlAPITokenResult = Invoke-RestMethod -Uri $ControlAPITestURI -Method Get -Credential $AuthorizationToken
-                }
-                Catch {
-                    $Script:ControlAPICredentials = $Null
-                    If ($ControlCredentials) {
-                        Throw "Unable to connect to Control. Server or Control Credentials are wrong. This module does not support 2FA for Control Users"
-                        Return
-                    }
-                }
-                $AuthorizationResult=$ControlAPITokenResult.Version
-                $TwoFactorNeeded=$ControlAPITokenResult.IsTwoFactorRequired
-            } Until ($Quiet -or ![string]::IsNullOrEmpty($AuthorizationResult) -or 
-                    ($TwoFactorNeeded -ne $True -and $ControlCredentials) -or 
-                    ($TwoFactorNeeded -eq $True -and $TwoFactorToken -ne '')
-                )
+        If ($SkipCheck -and $ControlCredentials) {
+            $Script:ControlAPICredentials = $ControlCredentials
+            $Script:ControlServer = $Server
+            Return
         }
+        If (!$AuthorizationToken) {$AuthorizationToken = $Script:ControlAPICredentials}
+        Do {
+            $ControlAPITestURI = ($Server + '/Services/PageService.ashx/GetHostSessionInfo')
+            If (!$Quiet) {
+                If (!$ControlCredentials -and ($Force -or !$AuthorizationToken)) {
+                    $AuthorizationToken = $Null
+                    $Username = Read-Host -Prompt "Please enter your Control Username"
+                    $Password = Read-Host -Prompt "Please enter your Control Password" -AsSecureString
+                    $ControlCredentials = New-Object System.Management.Automation.PSCredential ($Username, $Password)
+                }
+                If ($TwoFactorNeeded -eq $True -and $TwoFactorToken -match '') {
+                    $TwoFactorToken = Read-Host -Prompt "Please enter your 2FA Token"
+                }
+            }
+
+            #Invoke the REST Method
+            Write-Debug "Submitting Request to $ControlAPITestURI"
+            If (!$AuthorizationToken) {$AuthorizationToken=$ControlCredentials}
+            Try {
+                $ControlAPITokenResult = Invoke-RestMethod -Uri $ControlAPITestURI -Method Get -Credential $AuthorizationToken
+            }
+            Catch {
+                $Script:ControlAPICredentials = $Null
+                If ($ControlCredentials) {
+                    Throw "Unable to connect to Control. Server or Control Credentials are wrong. This module does not support 2FA for Control Users"
+                    Return
+                }
+            }
+            $AuthorizationResult=$ControlAPITokenResult.Version
+            $TwoFactorNeeded=$ControlAPITokenResult.IsTwoFactorRequired
+        } Until ($Quiet -or ![string]::IsNullOrEmpty($AuthorizationResult) -or 
+                ($TwoFactorNeeded -ne $True -and $ControlCredentials) -or 
+                ($TwoFactorNeeded -eq $True -and $TwoFactorToken -ne '')
+            )
     }
     
     End {
