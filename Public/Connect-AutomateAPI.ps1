@@ -81,11 +81,11 @@ Connect-AutomateAPI -Quiet
         if ($SkipCheck) {
             #Build the returned token
             $AutomateToken = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
-            $AutomateToken.Add("Authorization", "Bearer $AuthorizationToken")
+            $Null = $AutomateToken.Add("Authorization", "Bearer $AuthorizationToken")
             Write-Debug "Setting Credentials to $($AutomateToken.Authorization)"
             $Script:CWAServer = ("https://" + $Server)
             $Script:CWACredentials = $AutomateToken
-            return
+            Return
         }
         Do {
             $AutomateAPIURI = ('https://' + $Server + '/cwa/api/v1/apitoken')
