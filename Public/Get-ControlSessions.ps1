@@ -25,7 +25,7 @@ function Get-ControlSessions {
         # Get all the GUIDs out of Control
         $URlGuids = "$($ControlServer)/App_Extensions/fc234f0e-2e8e-4a1f-b977-ba41b14031f7/Service.ashx/GetSessionGuids"
         try {
-            $SessionGuids = Invoke-RestMethod -Uri $urlguids -Method Get -Credential $ControlCredentials
+            $SessionGuids = Invoke-RestMethod -Uri $urlguids -Method Get -Credential $Script:ControlAPICredentials
         }
         catch {
             Write-Error "Unable to get GUIDS out of Control $_.Exception.Message"
@@ -45,7 +45,7 @@ function Get-ControlSessions {
             $URl = "$($ControlServer)/App_Extensions/fc234f0e-2e8e-4a1f-b977-ba41b14031f7/Service.ashx/GetSessionsInfo"
             $ProgressPreference = 'SilentlyContinue'
             $SessionDetails = ""
-            $SessionDetails = Invoke-RestMethod -Uri $url -Method Post -Credential $ControlCredentials -ContentType "application/json" -Body $Body
+            $SessionDetails = Invoke-RestMethod -Uri $url -Method Post -Credential $Script:ControlAPICredentials -ContentType "application/json" -Body $Body
             $FinalArray += $SessionDetails.Sessions
         }
     }

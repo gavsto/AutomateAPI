@@ -79,10 +79,8 @@ function Get-AutomateAPIGeneric {
     )
     
     begin {
-        #API Version
-        $APIVersion = "v1"
         #Build the URL to hit
-        $url = ($Script:CWAUri + '/' + $APIVersion + '/' + $EndPoint)
+        $url = ($Script:CWAServer + '/cwa/api/v1/' + $EndPoint)
 
         #Build the Body Up
         $Body = @{}
@@ -128,7 +126,7 @@ function Get-AutomateAPIGeneric {
             $i = 0
             DO {
                 [int]$i += 1
-                $URLNew = "$($url)page=$($i)"
+                $URLNew = "$($url)?page=$($i)"
                 try {
                     $return = Invoke-RestMethod -Uri $URLNew -Headers $script:CWACredentials -ContentType "application/json" -Body $Body
                 }
@@ -144,7 +142,7 @@ function Get-AutomateAPIGeneric {
         if ($Page) {
             $ReturnedResults = @()
             [System.Collections.ArrayList]$ReturnedResults
-            $URLNew = "$($url)page=$($Page)"
+            $URLNew = "$($url)?page=$($Page)"
             try {
                 $return = Invoke-RestMethod -Uri $URLNew -Headers $script:CWACredentials -ContentType "application/json" -Body $Body
             }

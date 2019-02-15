@@ -27,11 +27,13 @@ function Invoke-ControlCommand {
         Invoke-ControlCommand -GUID $GUID -Command 'hostname'
             Will return the hostname of the machine.
     .EXAMPLE
-        Invoke-ControlCommand -Server $ControlServer -GUID $GUID -User $User -Password $Password -TimeOut 120000 -Command 'iwr -UseBasicParsing "https://bit.ly/ltposh" | iex; Restart-LTService' -PowerShell
+        Invoke-ControlCommand -GUID $GUID -User $User -Password $Password -TimeOut 120000 -Command 'iwr -UseBasicParsing "https://bit.ly/ltposh" | iex; Restart-LTService' -PowerShell
             Will restart the Automate agent on the target machine.
     #>
     [CmdletBinding()]
     param (
+        [string]$Server = $Script:ControlServer,
+        [System.Management.Automation.PSCredential]$Credentials = $Script:ControlAPICredentials,
         [Parameter(Mandatory=$True)]
         [guid]$GUID,
         [string]$Command,
@@ -43,7 +45,7 @@ function Invoke-ControlCommand {
 
     $origin = New-Object -Type DateTime -ArgumentList 1970, 1, 1, 0, 0, 0, 0
 
-    $URI = "$ControlServer/Services/PageService.ashx/AddEventToSessions"
+    $URI = "$Server/Services/PageService.ashx/AddEventToSessions"
 
     # Format command
     $FormattedCommand = @()
@@ -61,7 +63,7 @@ function Invoke-ControlCommand {
     
     # Issue command
     try {
-        $null = Invoke-RestMethod -Uri $URI -Method Post -Credential $ControlCredentials -ContentType "application/json" -Body $Body
+        $null = Invoke-RestMethod -Uri $URI -Method Post -Credential $Credentials -ContentType "application/json" -Body $Body
     }
     catch {
         Write-Error "$(($_.ErrorDetails | ConvertFrom-Json).message)"
@@ -69,11 +71,11 @@ function Invoke-ControlCommand {
     }
 
     # Get Session
-    $URI = "$ControlServer/Services/PageService.ashx/GetSessionDetails"
+    $URI = "Server/Services/PageService.ashx/GetSessionDetails"
     $Body = ConvertTo-Json @($Group,$GUID)
     Write-Verbose $Body
     try {
-        $SessionDetails = Invoke-RestMethod -Uri $URI -Method Post -Credential $ControlCredentials -ContentType "application/json" -Body $Body
+        $SessionDetails = Invoke-RestMethod -Uri $URI -Method Post -Credential $Credentials -ContentType "application/json" -Body $Body
     }
     catch {
         Write-Error $($_.Exception.Message)
@@ -91,7 +93,7 @@ function Invoke-ControlCommand {
     $Body = ConvertTo-Json @($Group,$GUID)
     while ($Looking) {
         try {
-            $SessionDetails = Invoke-RestMethod -Uri $URI -Method Post -Credential $ControlCredentials -ContentType "application/json" -Body $Body
+            $SessionDetails = Invoke-RestMethod -Uri $URI -Method Post -Credential $Credentials -ContentType "application/json" -Body $Body
         }
         catch {
             Write-Error $($_.Exception.Message)

@@ -13,7 +13,7 @@ function Connect-ControlAPI {
     .PARAMETER TestCredentials
     Performs a test to the API
     .OUTPUTS
-    Two script variables with server and credentials
+    Two script variables with server and credentials. Returns True or False
     .NOTES
     Version:        1.0
     Author:         Gavin Stone
@@ -25,56 +25,100 @@ function Connect-ControlAPI {
     All values needed to Automatically create appropriate output
     Connect-ControlAPI -Server "https://control.rancorthebeast.com:8040" -ControlCredentials $CredentialsToPass
     #>
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'refresh')]
     param (
-        [Parameter(mandatory = $false)]
+        [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
         [System.Management.Automation.PSCredential]$ControlCredentials,
 
-        [Parameter(mandatory = $false)]
-        [string]$Server,
+        [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
+        [Parameter(ParameterSetName = 'refresh', Mandatory = $False)]
+        [String]$Server = $Script:ControlServer,
 
-        [Parameter(mandatory = $false)]
-        [switch]$Quiet,
+#        [Parameter(ParameterSetName = 'refresh', Mandatory = $False)]
+#        [String]$AuthorizationToken = ($Script:ControlAPICredentials),
 
-        [Parameter(mandatory = $false)]
-        [switch]$TestCredentials=[switch]::Present
+#        [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
+#        [String]$TwoFactorToken,
+
+        [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
+        [Switch]$Force,
+
+        [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
+        [Switch]$SkipTest,
+
+        [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
+        [Parameter(ParameterSetName = 'refresh', Mandatory = $False)]
+        [Switch]$Quiet
+
     )
     
-    begin {
-        if (!$Server) {
-            $Server = Read-Host -Prompt "Please enter your Control Server address, the full URL. IE https://control.rancorthebeast.com:8040" 
+    Begin {
+#        $TwoFactorToken=''
+#        if ($TwoFactorToken -match '.+') {$Force=$True}
+        $TwoFactorNeeded=$False
+
+        If (!$Quiet) {
+            While (!($Server -match '.+')) {
+                $Server = Read-Host -Prompt "Please enter your Control Server address, the full URL. IE https://control.rancorthebeast.com:8040" 
+            }
         }
-        if (!$ControlCredentials) {
-            $Username = Read-Host -Prompt "Please enter your Control Username"
-            $Password = Read-Host -Prompt "Please enter your Control Password" -AsSecureString
-            $ControlCredentials = New-Object System.Management.Automation.PSCredential ($Username, $Password)
+        $Server = $Server -replace '/$',''
+    }
+    
+    Process {
+        If (!($Server -match 'https?://[a-z0-9][a-z0-9\.\-]*(:[1-9][0-9]*)?$')) {throw "Control Server address is in invalid format."; return}
+        If (!$AuthorizationToken) {$AuthorizationToken = $Script:ControlAPICredentials}
+        If (!$SkipTest) {
+            Do {
+                $ControlAPITestURI = ($Server + '/Services/PageService.ashx/GetHostSessionInfo')
+                If (!$Quiet) {
+                    If (!$ControlCredentials -and ($Force -or !$AuthorizationToken)) {
+                        $AuthorizationToken = $Null
+                        $Username = Read-Host -Prompt "Please enter your Control Username"
+                        $Password = Read-Host -Prompt "Please enter your Control Password" -AsSecureString
+                        $ControlCredentials = New-Object System.Management.Automation.PSCredential ($Username, $Password)
+                    }
+                    If ($TwoFactorNeeded -eq $True -and $TwoFactorToken -match '') {
+                        $TwoFactorToken = Read-Host -Prompt "Please enter your 2FA Token"
+                    }
+                }
+
+                #Invoke the REST Method
+                Write-Debug "Submitting Request to $ControlAPITestURI"
+                If (!$AuthorizationToken) {$AuthorizationToken=$ControlCredentials}
+                Try {
+                    $ControlAPITokenResult = Invoke-RestMethod -Uri $ControlAPITestURI -Method Get -Credential $AuthorizationToken
+                }
+                Catch {
+                    $Script:ControlAPICredentials = $Null
+                    If ($ControlCredentials) {
+                        Throw "Unable to connect to Control. Server or Control Credentials are wrong. This module does not support 2FA for Control Users"
+                        Return
+                    }
+                }
+                $AuthorizationResult=$ControlAPITokenResult.Version
+                $TwoFactorNeeded=$ControlAPITokenResult.IsTwoFactorRequired
+            } Until ($Quiet -or ![string]::IsNullOrEmpty($AuthorizationResult) -or 
+                    ($TwoFactorNeeded -ne $True -and $ControlCredentials) -or 
+                    ($TwoFactorNeeded -eq $True -and $TwoFactorToken -ne '')
+                )
         }
     }
     
-    process {
-
-        $Script:ControlCredentials = $ControlCredentials
-        $Script:ControlServer = $Server
-
-        if ($TestCredentials) {
-            if ($Quiet) {
-                $Return = Test-ControlCredentials -Quiet
+    End {
+        If ([string]::IsNullOrEmpty($AuthorizationToken)) {
+            Throw "Unable to get Access Token. Either the credentials your entered are incorrect or you did not pass a valid two factor token" 
+            If ($Quiet) {
+                Return $False
             }
-            else {
-                Test-ControlCredentials
+        } Else {
+            $Script:ControlAPICredentials = $AuthorizationToken
+            $Script:ControlServer = $Server
+            If (!$Quiet) {
+                Write-Host -BackgroundColor Green -ForegroundColor Black "Successfully tested and connected to the Control API. Server version is $($ControlAPITokenResult.ProductVersion)"
+            } Else {
+                Return $True
             }
         }
-
-        if ((!$Quiet) -and ($Return)) {
-            Write-Host  -BackgroundColor Green -ForegroundColor Black "Control Credentials Stored for use"            
-        }
-
-        if (($Quiet) -and (!$Return)) {
-            Return $false
-        }
-
-    }
-    
-    end {
     }
 }
