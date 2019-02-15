@@ -50,30 +50,32 @@ namespace FastSearch
     process {
         $ObjectRebuild += $ComputerObject
     }
-
-    
   
     end {
-        #Get all of the Control sessions
-        Write-Host -ForegroundColor Green "Getting all control sessions. This may take a few minutes"
-        $ControlSessions = Get-ControlSessions
+        If (!$ObjectRebuild) {
+            throw "Error. Input Object is required."
+        } Else {
+            #Get all of the Control sessions
+            Write-Host -ForegroundColor Green "Getting all control sessions. This may take a few minutes"
+            $ControlSessions = Get-ControlSessions
 
-        Write-Host -ForegroundColor Green "Getting all Automate Control GUIDs. This may take a few minutes"
-        foreach ($computer in $ObjectRebuild) {
-            $GUID = Get-AutomateControlInfo -ComputerID $($computer | Select-Object -ExpandProperty id)
-            $OnlineStatus = [FastSearch.Search]::Find($ControlSessions, "SessionID", $GUID.SessionID) | Select-Object -ExpandProperty Connected
-            $Object = ""
-            $Object = [pscustomobject] @{
-                ComputerID = $Computer.ID
-                ComputerName = $Computer.ComputerName
-                ClientName = $Computer.Client.Name
-                OperatingSystemName = $Computer.OperatingSystemName
-                OnlineStatusControl = $(If($OnlineStatus){"Online"}else{"Offline"})
-                OnlineStatusAutomate = $Computer.Status
-                SessionID = $GUID.SessionID
-            }
-            $ArrayTest += $Object
-        }              
-        $ArrayTest | Where-Object{($_.OnlineStatusControl -eq 'Online') -and ($_.OnlineStatusAutomate -eq 'Offline') }
+            Write-Host -ForegroundColor Green "Getting all Automate Control GUIDs. This may take a few minutes"
+            foreach ($computer in $ObjectRebuild) {
+                $GUID = Get-AutomateControlInfo -ComputerID $($computer | Select-Object -ExpandProperty id)
+                $OnlineStatus = [FastSearch.Search]::Find($ControlSessions, "SessionID", $GUID.SessionID) | Select-Object -ExpandProperty Connected
+                $Object = ""
+                $Object = [pscustomobject] @{
+                    ComputerID = $Computer.ID
+                    ComputerName = $Computer.ComputerName
+                    ClientName = $Computer.Client.Name
+                    OperatingSystemName = $Computer.OperatingSystemName
+                    OnlineStatusControl = $(If($OnlineStatus){"Online"}else{"Offline"})
+                    OnlineStatusAutomate = $Computer.Status
+                    SessionID = $GUID.SessionID
+                }
+                $ArrayTest += $Object
+            }              
+            $ArrayTest | Where-Object{($_.OnlineStatusControl -eq 'Online') -and ($_.OnlineStatusAutomate -eq 'Offline') }
+        }
     }
 }
