@@ -13,7 +13,8 @@ Adds credentials required to connect to the Control API
 ## SYNTAX
 
 ```
-Connect-ControlAPI [[-ControlCredentials] <PSCredential>] [[-Server] <String>] [-Quiet] [<CommonParameters>]
+Connect-ControlAPI [[-ControlCredentials] <PSCredential>] [[-Server] <String>] [-Quiet] [-TestCredentials]
+ [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -75,6 +76,21 @@ Aliases:
 Required: False
 Position: Named
 Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -TestCredentials
+Performs a test to the API
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: [switch]::Present
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
