@@ -60,20 +60,20 @@ namespace FastSearch
 
         Write-Host -ForegroundColor Green "Getting all Automate Control GUIDs. This may take a few minutes"
         foreach ($computer in $ObjectRebuild) {
-            $GUID = Get-ControlInfo -ComputerID $($computer | Select-Object -ExpandProperty id)
+            $GUID = Get-AutomateControlInfo -ComputerID $($computer | Select-Object -ExpandProperty id)
             $OnlineStatus = [FastSearch.Search]::Find($ControlSessions, "SessionID", $GUID.SessionID) | Select-Object -ExpandProperty Connected
             $Object = ""
             $Object = [pscustomobject] @{
                 ComputerID = $Computer.ID
-                ComputerName = $computer.ComputerName
-                ClientName = $computer.client.Name
-                OperatingSystem = $computer.OperatingSystemName
+                ComputerName = $Computer.ComputerName
+                ClientName = $Computer.Client.Name
+                OperatingSystemName = $Computer.OperatingSystemName
                 OnlineStatusControl = $(If($OnlineStatus){"Online"}else{"Offline"})
                 OnlineStatusAutomate = $Computer.Status
-                GUID = $GUID.SessionID
+                SessionID = $GUID.SessionID
             }
             $ArrayTest += $Object
-                }              
-        $ArrayTest | ?{($_.OnlineStatusControl -eq 'Online') -and ($_.OnlineStatusAutomate -eq 'Offline') }
+        }              
+        $ArrayTest | Where-Object{($_.OnlineStatusControl -eq 'Online') -and ($_.OnlineStatusAutomate -eq 'Offline') }
     }
 }

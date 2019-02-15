@@ -5,7 +5,7 @@ online version:
 schema: 2.0.0
 ---
 
-# Get-ControlInfo
+# Get-AutomateControlInfo
 
 ## SYNOPSIS
 Retrieve data from Automate API Control Extension
@@ -13,7 +13,7 @@ Retrieve data from Automate API Control Extension
 ## SYNTAX
 
 ```
-Get-ControlInfo [-ComputerID] <Int16[]> [<CommonParameters>]
+Get-AutomateControlInfo [-ComputerID] <Int16[]> [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -23,7 +23,7 @@ Connects to the Automate API Control Extension and returns an object with Contro
 
 ### EXAMPLE 1
 ```
-Get-ControlInfo -ComputerId 123
+Get-AutomateControlInfo -ComputerId 123
 ```
 
 ## PARAMETERS

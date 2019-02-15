@@ -27,16 +27,8 @@ function Get-CredentialsLocallyStored {
             Connect-AutomateAPI -AutomateCredentials $LocalAutomateCredentialsObject -Server $LocalAutomateServer
         }
         catch {
-            if ($_.Exception.Message -like '*two factor token') {
-                Write-Warning "Unable to connect, the account stored may require a two factor token. Please enter the two factor token for the account $LocalAutomateUsername"
-                $TwoFactorToken = Read-Host -Prompt "Please enter your 2FA Token"
-                Connect-AutomateAPI -AutomateCredentials $LocalAutomateCredentialsObject -Server $LocalAutomateServer -TwoFactorToken $TwoFactorToken
-            }
-            else {
-                Write-Error $_
-            }
+            Write-Error $_
         }
-   
     }
 
     if ($Control) {
@@ -52,7 +44,6 @@ function Get-CredentialsLocallyStored {
         catch {
             Write-Error "Unable to store or retrieve Control credentials with error $_.Exception.Message"
         }
-   
     }
 
     if ($Custom) {
