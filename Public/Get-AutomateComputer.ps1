@@ -346,12 +346,12 @@ function Get-AutomateComputer {
     }
 
     if ($UserIdleLongerThanMinutes) {
-        $Seconds = $UserIdleLongerThanMinutes * 60
+#        $Seconds = $UserIdleLongerThanMinutes * 60
         $ArrayOfConditions += "((Status = 'Online') and (UserIdleTime >= $UserIdleLongerThanMinutes))"
     }
 
     if ($UptimeLongerThanMinutes) {
-        $Seconds = $UptimeLongerThanMinutes * 60
+#        $Seconds = $UptimeLongerThanMinutes * 60
         $ArrayOfConditions += "((Status = 'Online') and (SystemUptime >= $UptimeLongerThanMinutes))"
     }
 

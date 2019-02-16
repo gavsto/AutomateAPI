@@ -54,7 +54,7 @@ function Get-ControlSessions {
         }
         
         
-        $ResultArray | Start-RSJob -Throttle 20 -Name {"Dunno"} -ScriptBlock {
+        $ResultArray | Start-RSJob -Throttle 10 -Name {"Dunno"} -ScriptBlock {
             Import-Module AutomateAPI -Force
             try{
                 $SessionGroupof100 = Invoke-RestMethod -Uri "$($using:ControlServer)/App_Extensions/fc234f0e-2e8e-4a1f-b977-ba41b14031f7/Service.ashx/GetSessionsInfo" -Method POST -Credential $($using:ControlAPICredentials) -ContentType "application/json" -Body $($_.Body)

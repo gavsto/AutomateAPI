@@ -119,7 +119,7 @@ function Get-AutomateAPIGeneric {
     }
     
     process {
-      $Null = Connect-AutomateAPI -Quiet
+#      $Null = Connect-AutomateAPI -Quiet                 # Dont want to do this!
         if ($AllResults) {
             $ReturnedResults = @()
             [System.Collections.ArrayList]$ReturnedResults
