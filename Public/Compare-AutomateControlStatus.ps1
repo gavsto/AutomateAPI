@@ -16,8 +16,7 @@ function Compare-AutomateControlStatus {
         [CmdletBinding()]
         param (
             [Parameter(ValueFromPipeline = $true)]
-            $ComputerObject
-    
+            $ComputerObject    
         )
       
         begin {
@@ -26,7 +25,6 @@ using System;
 using System.Management.Automation;
 namespace FastSearch
 {
-    
     public static class Search
     {
         public static object Find(PSObject[] collection, string column, string data)
@@ -35,7 +33,7 @@ namespace FastSearch
             {
                 if (item.Properties[column].Value.ToString() == data) { return item; }
             }
-    
+
             return null;
         }
     }
@@ -44,6 +42,25 @@ namespace FastSearch
             Add-Type -ReferencedAssemblies $Assem -TypeDefinition $Source -Language CSharp        
             $ArrayTest = @()
             $ObjectRebuild = @()
+
+            # Get Control Instance ID
+            $RESTRequest = @{
+                'Method' = 'GET'
+                'URI' = "$($ControlServer)/App_Extensions/fc234f0e-2e8e-4a1f-b977-ba41b14031f7/Service.ashx/GetInstanceID"
+                'Credential' = $Script:ControlAPICredentials
+            }
+            $SCInstanceID = Invoke-RestMethod @RESTRequest
+
+            $sw1 = [diagnostics.stopwatch]::new() # Get-AutomateControlInfo Time
+            $sw2 = [diagnostics.stopwatch]::new() # FastSearch Time
+            $sw3 = [diagnostics.stopwatch]::new() # ObjectBuild Time
+            $sw4 = [diagnostics.stopwatch]::new() # ArrayBuild Time
+            $sw5 = [diagnostics.stopwatch]::new() # Pipeline time
+            $sw6 = [diagnostics.stopwatch]::new() # ArrayTest Filter Speed
+            $sw7 = [diagnostics.stopwatch]::new() # Total Function Time
+            $sw8 = [diagnostics.stopwatch]::new() # Get-ControlSessions Time
+            $sw7.Start();
+            $sw5.Start();
         }
       
         process {
@@ -51,17 +68,45 @@ namespace FastSearch
         }
       
         end {
+            $sw5.Stop(); #Pipeline time
             If (!$ObjectRebuild) {
                 throw "Error. Input Object is required."
             } Else {
                 #Get all of the Control sessions
+                $sw8.Start();
                 Write-Host -ForegroundColor Green "Getting all control sessions. This may take a few minutes"
-                $ControlSessions = Get-ControlSessions
-    
+                if ($Global:ControlSessions -and $($Global:ControlSessions | measure-object).Count -gt 2000) {
+                    'Skipping ControlSession Collection'
+                } Else {
+                    $Global:ControlSessions = Get-ControlSessions
+                }
+                $sw8.Stop();
+
+                # Get Control Instance ID
+                $RESTRequest = @{
+                    'Method' = 'GET'
+                    'URI' = "$($ControlServer)/App_Extensions/fc234f0e-2e8e-4a1f-b977-ba41b14031f7/Service.ashx/GetInstanceID"
+                    'Credential' = $Script:ControlAPICredentials
+                }
+#                $SCInstanceID = Invoke-RestMethod @RESTRequest
+
                 Write-Host -ForegroundColor Green "Getting all Automate Control GUIDs. This may take a few minutes"
+                $sw1.Start();
+                $AutoControlSessions=@{};
+                $Null=Get-AutomateAPIGeneric -Endpoint "InternalMonitorResults" -allresults -condition "(Name like '%GetControlSessionIDs%')" | foreach-object {$AutoControlSessions.Add($_.computerid,$_.IdentityField)}; 
+                #Select-Object -Property @{Name='ComputerID'; Expression={$_.computerid}},@{Name='SessionID'; Expression={$_.IdentityField}}
+                $sw1.Stop(); 
+
                 foreach ($computer in $ObjectRebuild) {
-                    $GUID = Get-AutomateControlInfo -ComputerID $($computer | Select-Object -ExpandProperty id)
-                    $OnlineStatus = [FastSearch.Search]::Find($ControlSessions, "SessionID", $GUID.SessionID) | Select-Object -ExpandProperty Connected
+                    $sw1.Start();
+                    #$GUID = Get-AutomateControlInfo -ComputerID $($computer | Select-Object -ExpandProperty id)
+                    #$z = Get-AutomateAPIGeneric -Endpoint "computers/$($computer | Select-Object -ExpandProperty id)/services" -allresults -Condition "(Name like '%Screenconnect%$SCInstance')"
+                    #$GUID = $z | Where-object {$_.name -like "*screenconnect*($SCInstanceID)"} | Select-Object -First 1 -Property @{Name='ComputerID'; Expression={$_.computerid}},@{Name='SessionID'; Expression={$_.pathname -replace '^.*?&s=',''-replace '&.*$',''}}
+                    #$GUID = [FastSearch.Search]::Find($AutoControlSessions, "ComputerID", $computer.ID)
+                    $GUID = $AutoControlSessions.$($computer.ID)
+                    $sw1.Stop(); $sw2.Start();
+                    $OnlineStatus = [FastSearch.Search]::Find($Global:ControlSessions, "SessionID", $GUID.SessionID) | Select-Object -ExpandProperty Connected
+                    $sw2.Stop(); $sw3.Start();
                     $Object = ""
                     $Object = [pscustomobject] @{
                         ComputerID = $Computer.ID
@@ -70,11 +115,29 @@ namespace FastSearch
                         OperatingSystemName = $Computer.OperatingSystemName
                         OnlineStatusControl = $(If($OnlineStatus){"Online"}else{"Offline"})
                         OnlineStatusAutomate = $Computer.Status
-                        SessionID = $GUID.SessionID
+                        SessionID = $GUID
                     }
+                    $sw3.Stop(); $sw4.Start();
                     $ArrayTest += $Object
-                }              
+                    $sw4.Stop();
+                }
+                $sw6.Start();
                 $ArrayTest | Where-Object{($_.OnlineStatusControl -eq 'Online') -and ($_.OnlineStatusAutomate -eq 'Offline') }
+                $sw6.Stop();
+                $sw7.Stop();
             }
+
+            $curDebug = $DebugPreference
+            $DebugPreference='Continue'
+            Write-Debug "Get-AutomateControlInfo Time = $(([int32]$sw1.Elapsed.TotalMilliseconds).ToString()) milliseconds."
+            Write-Debug "FastSearch Time = $(([int32]$sw2.Elapsed.TotalMilliseconds).ToString()) milliseconds."
+            Write-Debug "ObjectBuild Time = $(([int32]$sw3.Elapsed.TotalMilliseconds).ToString()) milliseconds."
+            Write-Debug "ArrayBuild Time = $(([int32]$sw4.Elapsed.TotalMilliseconds).ToString()) milliseconds."
+            Write-Debug "Pipeline time = $(([int32]$sw5.Elapsed.TotalMilliseconds).ToString()) milliseconds."
+            Write-Debug "ArrayTest Filter Speed = $(([int32]$sw6.Elapsed.TotalMilliseconds).ToString()) milliseconds."
+            Write-Debug "Get-ControlSessions Time = $(([int32]$sw8.Elapsed.TotalMilliseconds).ToString()) milliseconds."
+            Write-Debug "Total Function Time = $(([int32]$sw7.Elapsed.TotalSeconds).ToString()) seconds."
+            $DebugPreference = $curDebug
+
         }
     }

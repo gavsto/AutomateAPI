@@ -69,7 +69,7 @@ Connect-AutomateAPI -Quiet
 
         If (!$Quiet) {
             While (!($Server -match '.+')) {
-                $Server = Read-Host -Prompt "Please enter your Automate Server address, without the HTTPS, IE: rancor.hostedrmm.com" 
+                $Server = Read-Host -Prompt "Please enter your Automate Server address, IE: rancor.hostedrmm.com" 
             }
         }
         $Server = $Server -replace '^https?://','' -replace '/.*',''
