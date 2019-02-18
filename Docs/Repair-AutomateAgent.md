@@ -12,16 +12,9 @@ Takes changed detected in Compare-AutomateControlStatus and performs a specified
 
 ## SYNTAX
 
-### restart (Default)
 ```
-Repair-AutomateAgent [-AutofixRestartService] [-AutomateControlStatusObject <Object>] [-WhatIf] [-Confirm]
- [<CommonParameters>]
-```
-
-### reinstall
-```
-Repair-AutomateAgent [-AutofixReinstallService] [-AutomateControlStatusObject <Object>] [-WhatIf] [-Confirm]
- [<CommonParameters>]
+Repair-AutomateAgent [[-Action] <String>] [[-BatchSize] <Int32>] [[-AutomateControlStatusObject] <Object>]
+ [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -41,36 +34,32 @@ Get-AutomateComputer -Online $False | Compare-AutomateControlStatus | Repair-Aut
 
 ## PARAMETERS
 
-### -AutofixRestartService
-Restarts Automate Services using the LabTech Powershell Github Module.
-Confirmation is on for each by default, to disable add -Confirm:$False to the cmdlet.
-Runs (new-object Net.WebClient).DownloadString('http://bit.ly/LTPoSh') | iex; Restart-LTService
+### -Action
+{{Fill Action Description}}
 
 ```yaml
-Type: SwitchParameter
-Parameter Sets: restart
+Type: String
+Parameter Sets: (All)
 Aliases:
 
-Required: True
-Position: Named
-Default value: False
+Required: False
+Position: 1
+Default value: Check
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
-### -AutofixReinstallService
-Reinstalls Automate Services using the LabTech Powershell Github Module.
-Confirmation is on for each by default, to disable add -Confirm:$False to the cmdlet.
-(new-object Net.WebClient).DownloadString('http://bit.ly/LTPoSh') | iex; Reinstall-LTService
+### -BatchSize
+{{Fill BatchSize Description}}
 
 ```yaml
-Type: SwitchParameter
-Parameter Sets: reinstall
+Type: Int32
+Parameter Sets: (All)
 Aliases:
 
-Required: True
-Position: Named
-Default value: False
+Required: False
+Position: 2
+Default value: 5
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -84,9 +73,9 @@ Parameter Sets: (All)
 Aliases:
 
 Required: False
-Position: Named
+Position: 3
 Default value: None
-Accept pipeline input: False
+Accept pipeline input: True (ByValue)
 Accept wildcard characters: False
 ```
 

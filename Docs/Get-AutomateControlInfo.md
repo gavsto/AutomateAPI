@@ -12,8 +12,14 @@ Retrieve data from Automate API Control Extension
 
 ## SYNTAX
 
+### ID (Default)
 ```
 Get-AutomateControlInfo [-ComputerID] <Int16[]> [<CommonParameters>]
+```
+
+### pipeline
+```
+Get-AutomateControlInfo -ID <Int16[]> -ComputerObjects <Object> [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -33,13 +39,43 @@ The Automate ComputerID to retrieve information on
 
 ```yaml
 Type: Int16[]
-Parameter Sets: (All)
-Aliases: Id
+Parameter Sets: ID
+Aliases:
 
 Required: True
 Position: 1
 Default value: None
-Accept pipeline input: True (ByPropertyName, ByValue)
+Accept pipeline input: True (ByValue)
+Accept wildcard characters: False
+```
+
+### -ID
+{{Fill ID Description}}
+
+```yaml
+Type: Int16[]
+Parameter Sets: pipeline
+Aliases:
+
+Required: True
+Position: Named
+Default value: None
+Accept pipeline input: True (ByPropertyName)
+Accept wildcard characters: False
+```
+
+### -ComputerObjects
+{{Fill ComputerObjects Description}}
+
+```yaml
+Type: Object
+Parameter Sets: pipeline
+Aliases:
+
+Required: True
+Position: Named
+Default value: None
+Accept pipeline input: True (ByValue)
 Accept wildcard characters: False
 ```
 

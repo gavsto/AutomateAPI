@@ -13,8 +13,8 @@ Will issue a command against a given machine and return the results.
 ## SYNTAX
 
 ```
-Invoke-ControlCommand [-GUID] <Guid> [[-Command] <String>] [[-TimeOut] <Int32>] [-PowerShell]
- [[-Group] <String>] [[-MaxLength] <Int32>] [<CommonParameters>]
+Invoke-ControlCommand [[-Server] <String>] [[-Credentials] <PSCredential>] [-GUID] <Guid> [[-Command] <String>]
+ [[-TimeOut] <Int32>] [-PowerShell] [[-Group] <String>] [[-MaxLength] <Int32>] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -31,12 +31,42 @@ Will return the hostname of the machine.
 
 ### EXAMPLE 2
 ```
-Invoke-ControlCommand -Server $ControlServer -GUID $GUID -User $User -Password $Password -TimeOut 120000 -Command 'iwr -UseBasicParsing "https://bit.ly/ltposh" | iex; Restart-LTService' -PowerShell
+Invoke-ControlCommand -GUID $GUID -User $User -Password $Password -TimeOut 120000 -Command 'iwr -UseBasicParsing "https://bit.ly/ltposh" | iex; Restart-LTService' -PowerShell
 ```
 
 Will restart the Automate agent on the target machine.
 
 ## PARAMETERS
+
+### -Server
+{{Fill Server Description}}
+
+```yaml
+Type: String
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: 1
+Default value: $Script:ControlServer
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Credentials
+{{Fill Credentials Description}}
+
+```yaml
+Type: PSCredential
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: 2
+Default value: $Script:ControlAPICredentials
+Accept pipeline input: False
+Accept wildcard characters: False
+```
 
 ### -GUID
 The GUID identifier for the machine you wish to connect to.
@@ -48,7 +78,7 @@ Parameter Sets: (All)
 Aliases:
 
 Required: True
-Position: 1
+Position: 3
 Default value: None
 Accept pipeline input: False
 Accept wildcard characters: False
@@ -63,7 +93,7 @@ Parameter Sets: (All)
 Aliases:
 
 Required: False
-Position: 2
+Position: 4
 Default value: None
 Accept pipeline input: False
 Accept wildcard characters: False
@@ -79,7 +109,7 @@ Parameter Sets: (All)
 Aliases:
 
 Required: False
-Position: 3
+Position: 5
 Default value: 10000
 Accept pipeline input: False
 Accept wildcard characters: False
@@ -109,7 +139,7 @@ Parameter Sets: (All)
 Aliases:
 
 Required: False
-Position: 4
+Position: 6
 Default value: All Machines
 Accept pipeline input: False
 Accept wildcard characters: False
@@ -124,7 +154,7 @@ Parameter Sets: (All)
 Aliases:
 
 Required: False
-Position: 5
+Position: 7
 Default value: 5000
 Accept pipeline input: False
 Accept wildcard characters: False

@@ -14,7 +14,8 @@ Connect to the Automate API.
 
 ### refresh (Default)
 ```
-Connect-AutomateAPI [-Server <String>] [-Token <String>] [-Quiet] [<CommonParameters>]
+Connect-AutomateAPI [-Server <String>] [-AuthorizationToken <String>] [-SkipCheck] [-Quiet]
+ [<CommonParameters>]
 ```
 
 ### credential
@@ -66,13 +67,13 @@ Aliases:
 
 Required: False
 Position: Named
-Default value: None
+Default value: $Script:CWAServer
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
-### -Token
-Used internally when quietly refreshing the Token
+### -AuthorizationToken
+{{Fill AuthorizationToken Description}}
 
 ```yaml
 Type: String
@@ -82,6 +83,21 @@ Aliases:
 Required: False
 Position: Named
 Default value: ($Script:CWACredentials.Authorization -replace 'Bearer ','')
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -SkipCheck
+{{Fill SkipCheck Description}}
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: refresh
+Aliases:
+
+Required: False
+Position: Named
+Default value: False
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -117,7 +133,8 @@ Accept wildcard characters: False
 ```
 
 ### -Quiet
-Will not output any standard logging messages
+Will not output any standard messages.
+Returns $True if connection was successful.
 
 ```yaml
 Type: SwitchParameter
@@ -139,7 +156,7 @@ For more information, see about_CommonParameters (http://go.microsoft.com/fwlink
 
 ## OUTPUTS
 
-### Three strings into global variables, $CWAUri containing the server address, $CWACredentials containing the bearer token and $CWACredentialsExpirationDate containing the date the credentials expire
+### Three strings into Script variables, $CWAServer containing the server address, $CWACredentials containing the bearer token and $CWACredentialsExpirationDate containing the date the credentials expire
 ## NOTES
 Version:        1.1
 Author:         Gavin Stone

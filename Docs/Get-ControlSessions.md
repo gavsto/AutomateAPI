@@ -8,16 +8,16 @@ schema: 2.0.0
 # Get-ControlSessions
 
 ## SYNOPSIS
-Gets bulk session info from Control using the Automate Control Extension
+Gets bulk session info from Control using the Automate Control Reporting Extension
 
 ## SYNTAX
 
 ```
-Get-ControlSessions [[-SessionGroup] <String>] [<CommonParameters>]
+Get-ControlSessions [<CommonParameters>]
 ```
 
 ## DESCRIPTION
-Gets all Session GUIDs in Control and then gets each session info out 100 at a time
+Gets bulk session info from Control using the Automate Control Reporting Extension
 
 ## EXAMPLES
 
@@ -27,21 +27,6 @@ Get-ControlSesssions
 ```
 
 ## PARAMETERS
-
-### -SessionGroup
-Parameter group - defaults to All Machines
-
-```yaml
-Type: String
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: 1
-Default value: All Machines
-Accept pipeline input: False
-Accept wildcard characters: False
-```
 
 ### CommonParameters
 This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable.

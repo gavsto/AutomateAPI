@@ -12,8 +12,14 @@ Adds credentials required to connect to the Control API
 
 ## SYNTAX
 
+### refresh (Default)
 ```
-Connect-ControlAPI [[-ControlCredentials] <PSCredential>] [[-Server] <String>] [-Quiet] [-TestCredentials]
+Connect-ControlAPI [-Server <String>] [-Quiet] [<CommonParameters>]
+```
+
+### credential
+```
+Connect-ControlAPI [-ControlCredentials <PSCredential>] [-Server <String>] [-Force] [-SkipCheck] [-Quiet]
  [<CommonParameters>]
 ```
 
@@ -39,11 +45,11 @@ Takes a standard powershell credential object, this can be built with $Credentia
 
 ```yaml
 Type: PSCredential
-Parameter Sets: (All)
+Parameter Sets: credential
 Aliases:
 
 Required: False
-Position: 1
+Position: Named
 Default value: None
 Accept pipeline input: False
 Accept wildcard characters: False
@@ -59,8 +65,39 @@ Parameter Sets: (All)
 Aliases:
 
 Required: False
-Position: 2
-Default value: None
+Position: Named
+Default value: $Script:ControlServer
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Force
+\[Parameter(ParameterSetName = 'credential', Mandatory = $False)\]
+\[String\]$TwoFactorToken,
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: credential
+Aliases:
+
+Required: False
+Position: Named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -SkipCheck
+{{Fill SkipCheck Description}}
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: credential
+Aliases:
+
+Required: False
+Position: Named
+Default value: False
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -80,21 +117,6 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
-### -TestCredentials
-Performs a test to the API
-
-```yaml
-Type: SwitchParameter
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: Named
-Default value: [switch]::Present
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
 ### CommonParameters
 This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable.
 For more information, see about_CommonParameters (http://go.microsoft.com/fwlink/?LinkID=113216).
@@ -103,7 +125,7 @@ For more information, see about_CommonParameters (http://go.microsoft.com/fwlink
 
 ## OUTPUTS
 
-### Two script variables with server and credentials
+### Two script variables with server and credentials. Returns True or False
 ## NOTES
 Version:        1.0
 Author:         Gavin Stone
