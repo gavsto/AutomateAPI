@@ -1,4 +1,4 @@
-function FunctionName {
+function Get-CWAIKToken {
     param (
         $Token
     )
