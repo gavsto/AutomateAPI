@@ -1,11 +1,9 @@
 function Get-ControlSessions {
 <#
 .Synopsis
-   Gets bulk session info from Control using the Automate Control Extension
+   Gets bulk session info from Control using the Automate Control Reporting Extension
 .DESCRIPTION
-   Gets all Session GUIDs in Control and then gets each session info out 100 at a time
-.PARAMETER SesssionGroup
-   The session group to target, defaults to all machines
+   Gets bulk session info from Control using the Automate Control Reporting Extension
 .EXAMPLE
    Get-ControlSesssions
 .INPUTS
@@ -15,66 +13,41 @@ function Get-ControlSessions {
 #>
     [CmdletBinding()]
     param (
-        # Parameter group - defaults to All Machines
-        [Parameter(Mandatory = $false)]
-        [string]
-        $SessionGroup = "All Machines"
     )
     
     begin {
-        # Get all the GUIDs out of Control
-        $URlGuids = "$($ControlServer)/App_Extensions/fc234f0e-2e8e-4a1f-b977-ba41b14031f7/Service.ashx/GetSessionGuids"
-        try {
-            $SessionGuids = Invoke-RestMethod -Uri $urlguids -Method Get -Credential $Script:ControlAPICredentials
-        }
-        catch {
-            Write-Error "Unable to get GUIDS out of Control $_.Exception.Message"
-        }
-
-        #Split the GUIDs into chunks of 100 so we can bulk submit them
-        $SplitGUIDsArray = Split-Every -list $SessionGuids -count 100
-
-        $Query = "" 
-        $Version = "5"
-        $FinalArray = @()
-        $Null = Get-RSJob | Remove-RSJob | out-null
     }
     
     process {
     }
     
     end {
-        #Create a result array object
-        $ResultArray = @()
-        for ($i = 0; $i -lt $SplitGUIDsArray.Count; $i++) {
-            $Body = ConvertTo-Json @($SessionGroup,$Query,$SplitGUIDsArray[$i],$Version)
-            $ResultArray += [pscustomobject] @{
-                Body = $Body
-            } 
+        $Body='["SessionConnectionEvent",["SessionID","EventType"],["LastTime"],"SessionConnectionProcessType=\u0027Guest\u0027 AND (EventType = \u0027Connected\u0027 OR EventType = \u0027Disconnected\u0027)",20000]'
+        $SCData = Invoke-RestMethod -Uri "$($Script:ControlServer)/App_Extensions/fc234f0e-2e8e-4a1f-b977-ba41b14031f7/ReportService.ashx/GenerateReportForAutomate" -Method POST -Credential $($Script:ControlAPICredentials) -ContentType "application/json" -Body $Body
+        $SCConnected = @{};
+        $AllData = $SCData.Items.GetEnumerator() | select-object @{Name='SessionID'; Expression={$_[0]}},@{Name='Event'; Expression={$_[1]}},@{Name='Date'; Expression={$_[2]}} | sort-Object SessionID,Event -Descending;  
+        $AllData | ForEach-Object {
+            if (!($_.SessionID -and $_.Date -and $_.Event)) {'WARNING.. Weird data found.'; $_}
+            if ($_.Event -like 'Disconnected') {
+                $SCConnected.Add($_.SessionID,$_.Date)
+            } else {
+                if ($_.Date -ge $SCConnected[$_.SessionID]) {
+                    if ($SCConnected.ContainsKey($_.SessionID)) {
+                        $SCConnected[$_.SessionID]=$True
+                    } else {
+                        $SCConnected.Add($_.SessionID,$True)
+                    }
+                } else {
+                    if ($SCConnected.ContainsKey($_.SessionID)) {
+                        $SCConnected[$_.SessionID]=$False
+                    } else {
+                        $SCConnected.Add($_.SessionID,$False)
+                    }
+                }
+            }
         }
-        
-        
-        $ResultArray | Start-RSJob -Throttle 10 -Name {"Dunno"} -ScriptBlock {
-            Import-Module AutomateAPI -Force
-            try{
-                $SessionGroupof100 = Invoke-RestMethod -Uri "$($using:ControlServer)/App_Extensions/fc234f0e-2e8e-4a1f-b977-ba41b14031f7/Service.ashx/GetSessionsInfo" -Method POST -Credential $($using:ControlAPICredentials) -ContentType "application/json" -Body $($_.Body)
-            }
-            Catch
-            {
-                Write-Output "Error: $_"
-            }
-            return $SessionGroupof100
-        } | out-null
-
-        while ($(Get-RSJob | Where-Object {$_.State -ne 'Completed'} | Measure-Object | Select-Object -ExpandProperty Count) -gt 0) {
-            Start-Sleep -Milliseconds 1000
-            Write-Host -ForegroundColor Yellow "$(Get-Date) - There are currently $(Get-RSJob | Where-Object{$_.State -ne 'Completed'} | Measure-Object | Select-Object -ExpandProperty Count) jobs left to complete"
-         }
-
-        $AllSessionsResult =  Get-RSJob | Receive-RSJob
-        $Null = Get-RSJob | Remove-RSJob | out-null
-
-        return $AllSessionsResult.Sessions
+        Foreach ($sessid IN $( ($SCConnected.GetEnumerator() | Where-Object {$_.Value -ne $True -and $_.Value -ne $False}).Key)) {$SCConnected[$sessid]=$False}
+        return $SCConnected
     }
 }
 
