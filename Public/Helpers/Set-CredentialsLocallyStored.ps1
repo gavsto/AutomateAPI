@@ -64,9 +64,7 @@ function Set-CredentialsLocallyStored {
             @{'Name' = 'CWAServer'; 'Scope' = 'Script'},
             @{'Name' = 'CWACredentials'; 'Scope' = 'Script'},
             @{'Name' = 'CWATokenKey'; 'Scope' = 'Script'},
-            @{'Name' = 'CWAToken'; 'Scope' = 'Script'},
-            @{'Name' = 'CWATokenResult'; 'Scope' = 'Script'},
-            @{'Name' = 'CWATokenExpirationDate'; 'Scope' = 'Script'}
+            @{'Name' = 'CWATokenInfo'; 'Scope' = 'Script'}
         )
         $StoreBlock = [pscustomobject]@{}
         $CredentialPath = "$($CredentialDirectory)Automate - Credentials.txt"
