@@ -41,7 +41,11 @@ function Set-CredentialsLocallyStored {
 
         [Parameter(ParameterSetName = 'Automate')]
         [Parameter(ParameterSetName = 'Control')]
-        [Parameter(ParameterSetName = "Custom",Mandatory=$True)]      
+        [switch]$Save,
+
+        [Parameter(ParameterSetName = 'Automate')]
+        [Parameter(ParameterSetName = 'Control')]
+        [Parameter(ParameterSetName = "Custom",Mandatory=$True)]
         [string]$CredentialDirectory = "$($env:USERPROFILE)\AutomateAPI\"
     )
 
@@ -56,42 +60,92 @@ function Set-CredentialsLocallyStored {
 
 
     if ($Automate) {
+        $StoreVariables = @(
+            @{'Name' = 'CWAServer'; 'Scope' = 'Script'},
+            @{'Name' = 'CWACredentials'; 'Scope' = 'Script'},
+            @{'Name' = 'CWATokenKey'; 'Scope' = 'Script'},
+            @{'Name' = 'CWAToken'; 'Scope' = 'Script'},
+            @{'Name' = 'CWATokenExpirationDate'; 'Scope' = 'Script'}
+        )
+        $StoreBlock = [pscustomobject]@{}
         $CredentialPath = "$($CredentialDirectory)Automate - Credentials.txt"
 
-        $TempAutomateServer = Read-Host -Prompt "Please enter your Automate Server address, without the HTTPS, IE: rancor.hostedrmm.com" 
-        $TempAutomateUsername = Read-Host -Prompt "Please enter your Automate Username"
-        $TempAutomatePassword = Read-Host -Prompt "Please enter your Automate Password" -AsSecureString
-        $TempAutomatePassword = $TempAutomatePassword | ConvertFrom-SecureString
-        
-        Set-Content "$CredentialPath" $TempAutomateUsername -Force
-        Add-Content "$CredentialPath" $TempAutomatePassword
-        Add-Content "$CredentialPath" $TempAutomateServer
+        If ($Save) {
+            Foreach ($SaveVar in $StoreVariables) {
+                If (!(Get-Variable @SaveVar)) {Continue}
+                If ($SaveVar.Name -match 'Credential') {
+                    $Null = $StoreBlock | Add-Member -NotePropertyName $($SaveVar.Name) -NotePropertyValue @{'UserName'=(Get-Variable @SaveVar -ValueOnly).UserName; 'Password'=((Get-Variable @SaveVar -ValueOnly).Password|ConvertFrom-SecureString)}
+                } ElseIf ($SaveVar.Name -match 'Key') {
+                    $Null = $StoreBlock | Add-Member -NotePropertyName $($SaveVar.Name) -NotePropertyValue (Get-Variable @SaveVar -ValueOnly|ConvertFrom-SecureString)
+                } Else {
+                    $Null = $StoreBlock | Add-Member -NotePropertyName $($SaveVar.Name) -NotePropertyValue (Get-Variable @SaveVar -ValueOnly)
+                }
+            }
+        } Else {
+            $TempAutomateServer = Read-Host -Prompt "Please enter your Automate Server address, without the HTTPS, IE: rancor.hostedrmm.com" 
+            $TempAutomateUsername = Read-Host -Prompt "Please enter your Automate Username"
+            $TempAutomatePassword = Read-Host -Prompt "Please enter your Automate Password" -AsSecureString
+#            $TempAutomatePassword = $TempAutomatePassword | ConvertFrom-SecureString
+            $Null = $StoreBlock | Add-Member -NotePropertyName 'CWAServer' -NotePropertyValue $TempAutomateServer
+            $Null = $StoreBlock | Add-Member -NotePropertyName 'CWACredentials' -NotePropertyValue @{'UserName'=$TempAutomateUsername; 'Password'=($TempAutomatePassword | ConvertFrom-SecureString)}
+        }
+
+        $StoreBlock | ConvertTo-JSON -Depth 10 | Out-File -FilePath $CredentialPath -Force -NoNewline
+
+#        Set-Content "$CredentialPath" $TempAutomateUsername -Force
+#        Add-Content "$CredentialPath" $TempAutomatePassword
+#        Add-Content "$CredentialPath" $TempAutomateServer
         Write-Output "Automate Credentials Set"
     }
 
     if ($Control) {
+        $StoreVariables = @(
+            @{'Name' = 'ControlAPICredentials'; 'Scope' = 'Script'},
+            @{'Name' = 'ControlServer'; 'Scope' = 'Script'},
+            @{'Name' = 'ControlAPIKey'; 'Scope' = 'Script'}
+        )
+        $StoreBlock = [pscustomobject]@{}
         $CredentialPath = "$($CredentialDirectory)Control - Credentials.txt"
 
-        $TempControlServer = Read-Host -Prompt "Please enter your Control Server address, the full URL. IE https://control.rancorthebeast.com:8040" 
-        $TempControlUsername = Read-Host -Prompt "Please enter your Control Username"
-        $TempControlPassword = Read-Host -Prompt "Please enter your Control Password" -AsSecureString
-        $TempControlPassword = $TempControlPassword | ConvertFrom-SecureString
+        If ($Save) {
+            Foreach ($SaveVar in $StoreVariables) {
+                If (!(Get-Variable @SaveVar -ErrorAction 0)) {Continue}
+                If ($SaveVar.Name -match 'Credential') {
+                    $Null = $StoreBlock | Add-Member -NotePropertyName $($SaveVar.Name) -NotePropertyValue @{'UserName'=(Get-Variable @SaveVar -ValueOnly).UserName; 'Password'=((Get-Variable @SaveVar -ValueOnly).Password|ConvertFrom-SecureString)}
+                } ElseIf ($SaveVar.Name -match 'Key') {
+                    $Null = $StoreBlock | Add-Member -NotePropertyName $($SaveVar.Name) -NotePropertyValue (Get-Variable @SaveVar -ValueOnly|ConvertFrom-SecureString)
+                } Else {
+                    $Null = $StoreBlock | Add-Member -NotePropertyName $($SaveVar.Name) -NotePropertyValue (Get-Variable @SaveVar -ValueOnly)
+                }
+            }
+        } Else {
+            $TempControlServer = Read-Host -Prompt "Please enter your Control Server address, the full URL. IE https://control.rancorthebeast.com:8040" 
+            $TempControlUsername = Read-Host -Prompt "Please enter your Control Username"
+            $TempControlPassword = Read-Host -Prompt "Please enter your Control Password" -AsSecureString
+#            $TempControlPassword = $TempControlPassword | ConvertFrom-SecureString
+            $Null = $StoreBlock | Add-Member -NotePropertyName 'ControlServer' -NotePropertyValue $TempControlServer
+            $Null = $StoreBlock | Add-Member -NotePropertyName 'ControlAPICredentials' -NotePropertyValue @{'UserName'=$TempControlUsername; 'Password'=($TempControlPassword | ConvertFrom-SecureString)}
+        }
         
-        Set-Content "$CredentialPath" $TempControlUsername -Force
-        Add-Content "$CredentialPath" $TempControlPassword 
-        Add-Content "$CredentialPath" $TempControlServer 
+        $StoreBlock | ConvertTo-JSON -Depth 10 | Out-File -FilePath $CredentialPath -Force -NoNewline
+#        Set-Content "$CredentialPath" $TempControlUsername -Force
+#        Add-Content "$CredentialPath" $TempControlPassword 
+#        Add-Content "$CredentialPath" $TempControlServer 
         Write-Output "Control Credentials Set"
     }
 
     if ($Custom) {
+        $StoreBlock = [pscustomobject]@{}
         $CredentialPath = "$($CredentialDirectory)\$($CredentialDisplayName).txt"
         $CustomCredentials = Get-Credential -Message "Please enter the Custom Username and Password to store"
-        $CustomUsername = $CustomCredentials.UserName
-        $CustomPasswordSecureString = $CustomCredentials.Password
-        $CustomPassword = $CustomPasswordSecureString | ConvertFrom-SecureString
-        
-        Set-Content "$CredentialPath" $CustomUsername -Force
-        Add-Content "$CredentialPath" $CustomPassword
+#        $CustomUsername = $CustomCredentials.UserName
+#        $CustomPasswordSecureString = $CustomCredentials.Password
+#        $CustomPassword = $CustomPasswordSecureString | ConvertFrom-SecureString
+        $Null = $StoreBlock | Add-Member -NotePropertyName 'CustomCredentials' -NotePropertyValue @{'UserName'=$CustomCredentials.Password; 'Password'=($CustomCredentials.Password | ConvertFrom-SecureString)}
+
+        $StoreBlock | ConvertTo-JSON -Depth 10 | Out-File -FilePath $CredentialPath -Force -NoNewline
+ #       Set-Content "$CredentialPath" $CustomUsername -Force
+ #       Add-Content "$CredentialPath" $CustomPassword
         Write-Output "Custom Credentials Set"
     }
 
