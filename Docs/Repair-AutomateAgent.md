@@ -24,12 +24,12 @@ Takes changed detected in Compare-AutomateControlStatus and performs a specified
 
 ### EXAMPLE 1
 ```
-Get-AutomateComputer -Online $False | Compare-AutomateControlStatus | Repair-AutomateAgent -AutofixRestartService
+Get-AutomateComputer -Online $False | Compare-AutomateControlStatus | Repair-AutomateAgent -Check Restart
 ```
 
 ### EXAMPLE 2
 ```
-Get-AutomateComputer -Online $False | Compare-AutomateControlStatus | Repair-AutomateAgent -AutofixReinstallService
+Get-AutomateComputer -Online $False | Compare-AutomateControlStatus | Repair-AutomateAgent -Check Reinstall
 ```
 
 ## PARAMETERS
