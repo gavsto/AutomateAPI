@@ -23,6 +23,7 @@ function Get-CredentialsLocallyStored {
             @{'Name' = 'CWACredentials'; 'Scope' = 'Script'},
             @{'Name' = 'CWATokenKey'; 'Scope' = 'Script'},
             @{'Name' = 'CWAToken'; 'Scope' = 'Script'},
+            @{'Name' = 'CWATokenResult'; 'Scope' = 'Script'},
             @{'Name' = 'CWATokenExpirationDate'; 'Scope' = 'Script'}
         )
         $StoreBlock = Get-Content "$($CredentialDirectory)Automate - Credentials.txt" | ConvertFrom-Json

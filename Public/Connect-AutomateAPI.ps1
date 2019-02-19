@@ -44,7 +44,7 @@ Connect-AutomateAPI -Quiet
         [String]$Server = $Script:CWAServer,
 
         [Parameter(ParameterSetName = 'refresh', Mandatory = $False)]
-        [String]$AuthorizationToken = ($Script:CWACredentials.Authorization -replace 'Bearer ',''),
+        [String]$AuthorizationToken = ($Script:CWAToken.Authorization -replace 'Bearer ',''),
 
         [Parameter(ParameterSetName = 'refresh', Mandatory = $False)]
         [Switch]$SkipCheck,
@@ -84,7 +84,7 @@ Connect-AutomateAPI -Quiet
             $Null = $AutomateToken.Add("Authorization", "Bearer $AuthorizationToken")
             Write-Debug "Setting Credentials to $($AutomateToken.Authorization)"
             $Script:CWAServer = ("https://" + $Server)
-            $Script:CWACredentials = $AutomateToken
+            $Script:CWAToken = $AutomateToken
             Return
         }
         Do {
@@ -123,6 +123,8 @@ Connect-AutomateAPI -Quiet
                 $AutomateAPITokenResult = Invoke-RestMethod -Method Post -Uri $AutomateAPIURI -Body $PostBody -ContentType "application/json"
             }
             Catch {
+                $Script:CWAToken = $Null
+                $Script:CWATokenKey = $Null
                 $Script:CWACredentials = $Null
                 $Script:CWACredentialsExpirationDate = $Null
                 If ($AutomateCredentials) {
@@ -154,8 +156,11 @@ Connect-AutomateAPI -Quiet
             Write-Debug "Setting Credentials to $($AutomateToken.Authorization)"
             #Create Script Variables for this session in order to use the token
             $Script:CWAServer = ("https://" + $Server)
-            $Script:CWACredentials = $AutomateToken
+            $Script:CWACredentials = $AutomateCredentials
+            $Script:CWATokenKey = ConvertTo-SecureString $AutomateAPITokenResult.AccessToken -AsPlainText -Force
+            $Script:CWAToken = $AutomateToken
             $Script:CWACredentialsExpirationDate = $AutomateAPITokenResult.ExpirationDate
+            $Script:CWATokenResult = $AutomateAPITokenResult
 
             If (!$Quiet) {
                 Write-Host -BackgroundColor Green -ForegroundColor Black "Successfully tested and connected to the Automate REST API. Token will expire at $($AutomateAPITokenResult.ExpirationDate)"

@@ -63,7 +63,7 @@ Get-AutomateControlInfo -ComputerId 123
             }
             $url = ($Script:CWAServer + "/cwa/api/v1/extensionactions/control/$($Computer.ID)")
             Try {
-                $Result = Invoke-RestMethod -Uri $url -Headers $script:CWACredentials -ContentType "application/json"
+                $Result = Invoke-RestMethod -Uri $url -Headers $script:CWAToken -ContentType "application/json"
 
                 $ResultMatch=$Result|select-string -Pattern '^(https?://[^?]*)\??(.*)' -AllMatches
                 If ($ResultMatch.Matches) {
