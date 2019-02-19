@@ -126,7 +126,7 @@ Connect-AutomateAPI -Quiet
                 $Script:CWACredentials = $Null
                 $Script:CWACredentialsExpirationDate = $Null
                 If ($AutomateCredentials) {
-                    Throw "Attempt to authenticated to the Automate API has failed with error $_.Exception.Message"
+                    Throw "Attempt to authenticate to the Automate API has failed with error $_.Exception.Message"
                     Return
                 }
             }
