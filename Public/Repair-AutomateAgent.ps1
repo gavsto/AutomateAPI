@@ -82,7 +82,7 @@ function Repair-AutomateAgent {
             $ServiceRestartAttempt = Invoke-ControlCommand -Server $using:ControlServer -Credential $using:ControlAPICredentials -GUID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString('http://bit.ly/LTPoSh') | iex; Restart-LTService" -TimeOut 120000 -MaxLength 10240
             return $ServiceRestartAttempt
             } | out-null
-         } ElseIf ($Action -eq 'Restart') {
+         } ElseIf ($Action -eq 'Reinstall') {
             $ObjectCapture | Start-RSJob -Throttle $BatchSize -Name {"$($_.ComputerName) - $($_.ComputerID) - ReInstall Service"} -ScriptBlock {
             Import-Module AutomateAPI -Force
             $ServiceRestartAttempt = Invoke-ControlCommand -Server $using:ControlServer -Credential $using:ControlAPICredentials -GUID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString('http://bit.ly/LTPoSh') | iex; ReInstall-LTService" -TimeOut 360000 -MaxLength 10240
