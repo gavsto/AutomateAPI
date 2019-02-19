@@ -4,16 +4,12 @@ function Repair-AutomateAgent {
    Takes changed detected in Compare-AutomateControlStatus and performs a specified repair on them
 .DESCRIPTION
    Takes changed detected in Compare-AutomateControlStatus and performs a specified repair on them
-.PARAMETER AutofixRestartService
-   Restarts Automate Services using the LabTech Powershell Github Module. Confirmation is on for each by default, to disable add -Confirm:$False to the cmdlet. Runs (new-object Net.WebClient).DownloadString('http://bit.ly/LTPoSh') | iex; Restart-LTService
-.PARAMETER AutofixReinstallService
-   Reinstalls Automate Services using the LabTech Powershell Github Module. Confirmation is on for each by default, to disable add -Confirm:$False to the cmdlet. (new-object Net.WebClient).DownloadString('http://bit.ly/LTPoSh') | iex; Reinstall-LTService
 .PARAMETER Check
    Triggers a different type of check depending on what is passed either Update, Restart, Reinstall or Check
 .EXAMPLE
-   Get-AutomateComputer -Online $False | Compare-AutomateControlStatus | Repair-AutomateAgent -AutofixRestartService
+   Get-AutomateComputer -Online $False | Compare-AutomateControlStatus | Repair-AutomateAgent -Action Check
 .EXAMPLE
-   Get-AutomateComputer -Online $False | Compare-AutomateControlStatus | Repair-AutomateAgent -AutofixReinstallService
+   Get-AutomateComputer -Online $False | Compare-AutomateControlStatus | Repair-AutomateAgent -Action Restart
 .INPUTS
    Compare-AutomateControlStatus Object
 .OUTPUTS
