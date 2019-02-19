@@ -7,6 +7,9 @@ function Get-CredentialsLocallyStored {
         [Parameter(ParameterSetName = 'Control')]
         [switch]$Control,
 
+        [Parameter(ParameterSetName="All")]
+        [switch]$All,
+
         [Parameter(ParameterSetName = 'Custom',Mandatory=$True)]
         [string]$CredentialPath,
 
@@ -15,6 +18,11 @@ function Get-CredentialsLocallyStored {
         [string]$CredentialDirectory = "$($env:USERPROFILE)\AutomateAPI\"
 
     )
+
+    if ($All) {
+        $Automate = $True
+        $Control = $True
+    }
 
     if ($Automate) {
         if (-not (Test-Path "$($CredentialDirectory)Automate - Credentials.txt")) {    throw [System.IO.FileNotFoundException] "Automate Credentials not found at $($CredentialDirectory)Automate - Credentials.txt"}
