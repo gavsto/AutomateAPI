@@ -38,7 +38,7 @@ function Connect-ControlAPI {
         [String]$Server = $Script:ControlServer,
 
         [Parameter(ParameterSetName = 'apikey', Mandatory = $False)]
-        [String]$APIKey = ($Script:ControlAPIKey),
+        $APIKey = ($Script:ControlAPIKey),
 
 #        [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
 #        [String]$TwoFactorToken,
@@ -72,6 +72,7 @@ function Connect-ControlAPI {
     Process {
         If (!($Server -match 'https?://[a-z0-9][a-z0-9\.\-]*(:[1-9][0-9]*)?$')) {throw "Control Server address is in invalid format."; return}
         If ($SkipCheck -and $PSCmdlet.ParameterSetName -eq 'credential' -and $Null -ne $ControlCredentials) {
+            Write-Debug "Skipping validation. Setting Server=$($Server) and Credentials=$($ControlCredentials.Username)"
             $Script:ControlAPICredentials = $ControlCredentials
             $Script:ControlServer = $Server
             Return
@@ -83,7 +84,7 @@ function Connect-ControlAPI {
                 # Retrieve Control Instance ID to verify APIKey
                 $RESTRequest = @{
                     'Method' = 'GET'
-                    'URI' = "$($Server)/App_Extensions/fc234f0e-2e8e-4a1f-b977-ba41b14031f7/Service.ashx/GetInstanceID"
+                    'URI' = "$($Server)/App_Extensions/fc234f0e-2e8e-4a1f-b977-ba41b14031f7/Service.ashx/GetServerVersion"
                     'Headers' = @{'CWAIKToken' = (Get-CWAIKToken -APIKey $APIKey)}
                 }
                 Try {
@@ -96,26 +97,34 @@ function Connect-ControlAPI {
             }
             Return
         } Else {
-            If (!$AuthorizationToken) {$AuthorizationToken = $Script:ControlAPICredentials}
+            If (!$testCredentials) {$testCredentials = $Script:ControlAPICredentials}
             Do {
                 $ControlAPITestURI = ($Server + '/Services/PageService.ashx/GetHostSessionInfo')
                 If (!$Quiet) {
-                    If (!$ControlCredentials -and ($Force -or !$AuthorizationToken)) {
-                        $AuthorizationToken = $Null
+                    If (!$ControlCredentials -and ($Force -or !$testCredentials)) {
+                        Write-Debug "No Credentials were provided and no existing Token was found, or -Force was specified"
+                        $testCredentials = $Null
                         $Username = Read-Host -Prompt "Please enter your Control Username"
                         $Password = Read-Host -Prompt "Please enter your Control Password" -AsSecureString
                         $ControlCredentials = New-Object System.Management.Automation.PSCredential ($Username, $Password)
                     }
                     If ($TwoFactorNeeded -eq $True -and $TwoFactorToken -match '') {
+                        Write-Debug "2FA detected as required. (Someday)"
                         $TwoFactorToken = Read-Host -Prompt "Please enter your 2FA Token"
                     }
                 }
 
-                #Invoke the REST Method
                 Write-Debug "Submitting Request to $ControlAPITestURI"
-                If (!$AuthorizationToken) {$AuthorizationToken=$ControlCredentials}
+                If (!$testCredentials) {$testCredentials=$ControlCredentials}
+                #Invoke the REST Method
+                $RESTRequest = @{
+                    'URI' = "$ControlAPITestURI"
+                    'Method' = 'GET'
+                    'ContentType' = 'application/json'
+                    'Credential' = $testCredentials
+                }
                 Try {
-                    $ControlAPITokenResult = Invoke-RestMethod -Uri $ControlAPITestURI -Method Get -Credential $AuthorizationToken
+                    $ControlAPITokenResult = Invoke-RestMethod @RESTRequest
                 }
                 Catch {
                     $Script:ControlAPICredentials = $Null
@@ -124,7 +133,8 @@ function Connect-ControlAPI {
                         Return
                     }
                 }
-                $AuthorizationResult=$ControlAPITokenResult.Version
+                Write-Debug "Request Results: $($ControlAPITokenResult|ConvertTo-Json -Depth 5 -Compress)"
+                $AuthorizationResult=$ControlAPITokenResult.ProductVersion
                 $TwoFactorNeeded=$ControlAPITokenResult.IsTwoFactorRequired
             } Until ($Quiet -or ![string]::IsNullOrEmpty($AuthorizationResult) -or 
                     ($TwoFactorNeeded -ne $True -and $ControlCredentials) -or 
@@ -134,7 +144,7 @@ function Connect-ControlAPI {
     }
     
     End {
-        If (($PSCmdlet.ParameterSetName -eq 'apikey' -and !$APIKey) -or ($PSCmdlet.ParameterSetName -ne 'apikey' -and [string]::IsNullOrEmpty($AuthorizationToken))) {
+        If (($PSCmdlet.ParameterSetName -eq 'apikey' -and !$APIKey) -or ($PSCmdlet.ParameterSetName -ne 'apikey' -and [string]::IsNullOrEmpty($testCredentials))) {
             Throw "Unable to get Access Token. Either the credentials your entered are incorrect or you did not pass a valid two factor token" 
             If ($Quiet) {
                 Return $False
@@ -143,7 +153,7 @@ function Connect-ControlAPI {
             If ($PSCmdlet.ParameterSetName -eq 'apikey') {
                 $Script:ControlAPIKey = $APIKey
             } Else {
-                $Script:ControlAPICredentials = $AuthorizationToken
+                $Script:ControlAPICredentials = $testCredentials
             }
             $Script:ControlServer = $Server
             If (!$Quiet) {
