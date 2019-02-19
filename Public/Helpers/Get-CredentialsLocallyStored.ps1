@@ -22,9 +22,7 @@ function Get-CredentialsLocallyStored {
             @{'Name' = 'CWAServer'; 'Scope' = 'Script'},
             @{'Name' = 'CWACredentials'; 'Scope' = 'Script'},
             @{'Name' = 'CWATokenKey'; 'Scope' = 'Script'},
-            @{'Name' = 'CWAToken'; 'Scope' = 'Script'},
-            @{'Name' = 'CWATokenResult'; 'Scope' = 'Script'},
-            @{'Name' = 'CWATokenExpirationDate'; 'Scope' = 'Script'}
+            @{'Name' = 'CWATokenInfo'; 'Scope' = 'Script'}
         )
         $StoreBlock = Get-Content "$($CredentialDirectory)Automate - Credentials.txt" | ConvertFrom-Json
         Foreach ($SaveVar in $StoreVariables) {
@@ -36,6 +34,12 @@ function Get-CredentialsLocallyStored {
             } Else {
                 $Null = Set-Variable @SaveVar -Value $($StoreBlock.$($SaveVar.Name))
             }
+        }
+        If ($Script:CWATokenKey -and $Script:CWATokenKey.GetType() -match 'SecureString') {
+            $AuthorizationToken = $([Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($Script:CWATokenKey)))
+            $AutomateToken = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
+            $AutomateToken.Add("Authorization", "Bearer $AuthorizationToken")
+            $Script:CWAToken = $AutomateToken
         }
 
 #        $LocalAutomateUsername = $LocalAutomateCredentials[0]
