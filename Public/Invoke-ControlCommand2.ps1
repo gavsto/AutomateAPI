@@ -1,4 +1,4 @@
-function Invoke-ControlCommand {
+function Invoke-ControlCommand2 {
     <#
     .SYNOPSIS
         Will issue a command against a given machine and return the results.
@@ -39,7 +39,6 @@ function Invoke-ControlCommand {
         [string]$Command,
         [int]$TimeOut = 10000,
         [switch]$PowerShell,
-#        [string]$Group = "All Machines",
         [int]$MaxLength = 5000
     )
 
@@ -117,22 +116,15 @@ function Invoke-ControlCommand {
         return
     }
 
-    #Get time command was executed
-#    $epoch = $((New-TimeSpan -Start $(Get-Date -Date "01/01/1970") -End $(Get-Date)).TotalSeconds)
-#    $ExecuteTime = $epoch - ((($SessionDetails.events | Where-Object {$_.EventType -eq 44})[-1]).Time /1000)
-#    $ExecuteDate = $origin.AddSeconds($ExecuteTime)
-
-    # Look for results of command - We SHOULD be getting the SessionConnectionEvent data.
-    $Body=ConvertTo-Json @("SessionConnectionEvent",@(""),@("SessionID","Time","Data"),"SessionID='$GUID' AND EventType='RanCommand' AND Time>='$EventDate'","",100) -Compress
-#    $Body=ConvertTo-Json @("SessionConnectionEvent",@(""),@("SessionID","Time","Data"),"SessionID=""$GUID""","",100) -Compress
-#    $Body=ConvertTo-Json @("SessionEvent",@("SessionID"),@("SessionID","Time"),"","",100) -Compress
-#    $Body=ConvertTo-Json @("SessionEvent",@("SessionID","Time","Data"),@(""),'SessionID="19d61321-9c2e-42e5-addc-fe416d1e88be"',"",10) -Compress
+    # Look for results of command
+    $Body=ConvertTo-Json @("SessionConnectionEvent",@(),@("SessionID","Time","Data"),"SessionID='$GUID' AND EventType='RanCommand' AND Time>='$EventDate'","",100) -Compress
     $RESTRequest = @{
         'URI' = "$Server/App_Extensions/fc234f0e-2e8e-4a1f-b977-ba41b14031f7/ReportService.ashx/GenerateReportForAutomate"
         'Method' = 'POST'
         'ContentType' = 'application/json'
         'Body' = $Body
     }
+
     If ($Script:ControlAPIKey) {
         $RESTRequest.Add('Headers',@{'CWAIKToken' = (Get-CWAIKToken)})
     } Else {
@@ -142,25 +134,19 @@ function Invoke-ControlCommand {
     $Looking = $True
     $TimeOutDateTime = (Get-Date).AddMilliseconds($TimeOut)
     while ($Looking) {
+        Start-Sleep -Seconds 1
         try {
-            $SessionDetails = Invoke-RestMethod @RESTRequest
+            $SessionEvents = Invoke-RestMethod @RESTRequest
         }
         catch {
             Write-Error $($_.Exception.Message)
             return
         }
 
-        $ConnectionsWithData = @()
-        Foreach ($Connection in $SessionDetails.connections) {
-            $ConnectionsWithData += $Connection | Where-Object {$_.Events.EventType -eq 70}
-        }
-
-        $Events = ($ConnectionsWithData.events | Where-Object {$_.EventType -eq 70 -and $_.Time})
+        $FNames=$SessionEvents.FieldNames
+        $Events = ($SessionEvents.Items | ForEach-Object {$x=$_; $SCEventRecord = [pscustomobject]@{}; for($i=0; $i -lt $FNames.Length; $i++){$Null = $SCEventRecord | Add-Member -NotePropertyName $FNames[$i] -NotePropertyValue $x[$i]}; $SCEventRecord})
         foreach ($Event in $Events) {
-            $epoch = $((New-TimeSpan -Start $(Get-Date -Date "01/01/1970") -End $(Get-Date)).TotalSeconds)
-            $CheckTime = $epoch - ($Event.Time /1000)
-            $CheckDate = $origin.AddSeconds($CheckTime)
-            if ($CheckDate -gt $ExecuteDate) {
+            if ($Event.Time -ge $EventDate) {
                 $Looking = $False
                 $Output = $Event.Data -split '[\r\n]' | Where-Object {$_}
                 if(!$PowerShell){
@@ -170,8 +156,7 @@ function Invoke-ControlCommand {
             }
         }
 
-        Start-Sleep -Seconds 1
-        if ($(Get-Date) -gt $TimeOutDateTime.AddSeconds(1)) {
+        if ($Looking -and $(Get-Date) -gt $TimeOutDateTime.AddSeconds(1)) {
             $Looking = $False
             $Output = "Command timed out when sent to Agent"
         }

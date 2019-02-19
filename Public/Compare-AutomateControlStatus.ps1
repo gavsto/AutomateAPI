@@ -30,7 +30,7 @@ function Compare-AutomateControlStatus {
         If(!$Quiet){Write-Host -BackgroundColor Blue -ForegroundColor White "Checking to see if the recommended Internal Monitor is present"}
         $AutoControlSessions=@{};
         $InternalMonitorMethod = $false
-        $Null=Get-AutomateAPIGeneric -Endpoint "InternalMonitorResults" -allresults -condition "(Name like '%GetControlSessionIDs%')" | foreach-object {$AutoControlSessions.Add($_.computerid,$_.IdentityField)};
+        $Null=Get-AutomateAPIGeneric -Endpoint "InternalMonitorResults" -allresults -condition "(Name like '%GetControlSessionIDs%')" | Where-Object {($_.computerid -and $_.computerid -gt 0 -and $_.IdentityField -and $_.IdentityField -match '.+')} | ForEach-Object {$AutoControlSessions.Add($_.computerid,$_.IdentityField)};
 
         # Check to see if the Internal Monitor method has results
         if ($AutoControlSessions.Count -gt 0){$InternalMonitorMethod = $true; If(!$Quiet){Write-Host -BackgroundColor Green -ForegroundColor Black "Internal monitor found. Processing results."} } Else {If(!$Quiet){Write-Host -ForegroundColor Black -BackgroundColor Yellow "Internal monitor not found. This cmdlet is significantly faster with it. See https://www.github.com/gavsto/automateapi"}}
