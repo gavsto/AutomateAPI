@@ -41,6 +41,7 @@ function Set-CredentialsLocallyStored {
 
         [Parameter(ParameterSetName = 'Automate')]
         [Parameter(ParameterSetName = 'Control')]
+        [Parameter(ParameterSetName = 'All')]
         [switch]$Save,
 
         [Parameter(ParameterSetName = 'Automate')]
