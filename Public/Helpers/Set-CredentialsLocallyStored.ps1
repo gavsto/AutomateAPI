@@ -65,6 +65,7 @@ function Set-CredentialsLocallyStored {
             @{'Name' = 'CWACredentials'; 'Scope' = 'Script'},
             @{'Name' = 'CWATokenKey'; 'Scope' = 'Script'},
             @{'Name' = 'CWAToken'; 'Scope' = 'Script'},
+            @{'Name' = 'CWATokenResult'; 'Scope' = 'Script'},
             @{'Name' = 'CWATokenExpirationDate'; 'Scope' = 'Script'}
         )
         $StoreBlock = [pscustomobject]@{}
@@ -72,7 +73,7 @@ function Set-CredentialsLocallyStored {
 
         If ($Save) {
             Foreach ($SaveVar in $StoreVariables) {
-                If (!(Get-Variable @SaveVar)) {Continue}
+                If (!(Get-Variable @SaveVar -ErrorAction 0)) {Continue}
                 If ($SaveVar.Name -match 'Credential') {
                     $Null = $StoreBlock | Add-Member -NotePropertyName $($SaveVar.Name) -NotePropertyValue @{'UserName'=(Get-Variable @SaveVar -ValueOnly).UserName; 'Password'=((Get-Variable @SaveVar -ValueOnly).Password|ConvertFrom-SecureString)}
                 } ElseIf ($SaveVar.Name -match 'Key') {
