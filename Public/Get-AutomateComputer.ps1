@@ -12,6 +12,12 @@ function Get-AutomateComputer {
     A custom condition to build searches that can be used to search for specific things. Supported operators are '=', 'eq', '>', '>=', '<', '<=', 'and', 'or', '()', 'like', 'contains', 'in', 'not'.
     The 'not' operator is only used with 'in', 'like', or 'contains'. The '=' and 'eq' operator are the same. String values can be surrounded with either single or double quotes. IE (RemoteAgentLastContact <= 2019-12-18T00:50:19.575Z)
     Boolean values are specified as 'true' or 'false'. Parenthesis can be used to control the order of operations and group conditions.
+.PARAMETER IncludeFields
+    A comma separated list of fields that you want including in the returned computer object.
+.PARAMETER ExcludeFields
+    A comma separated list of fields that you want excluding in the returned computer object.
+.PARAMETER OrderBy
+    A comma separated list of fields that you want to order by finishing with either an asc or desc.  
 .PARAMETER ClientName
     Client name to search for, uses wildcards so full client name is not needed
 .PARAMETER LocationName
@@ -104,8 +110,23 @@ function Get-AutomateComputer {
         [Parameter(Mandatory = $false, ParameterSetName = "AllResults")]
         [switch]$AllComputers,
         
-        [Parameter(Mandatory = $false, Position = 0, ParameterSetName = "ByCondition")]
+        [Parameter(Mandatory = $false, ParameterSetName = "ByCondition")]
         [string]$Condition,
+
+        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
+        [Parameter(Mandatory = $false, ParameterSetName = "AllResults")]
+        [Parameter(Mandatory = $false, ParameterSetName = "ByCondition")]
+        [string]$IncludeFields,
+
+        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
+        [Parameter(Mandatory = $false, ParameterSetName = "AllResults")]
+        [Parameter(Mandatory = $false, ParameterSetName = "ByCondition")]
+        [string]$ExcludeFields,
+
+        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
+        [Parameter(Mandatory = $false, ParameterSetName = "AllResults")]
+        [Parameter(Mandatory = $false, ParameterSetName = "ByCondition")]
+        [string]$OrderBy,
 
         [Alias("Client")]
         [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
@@ -240,11 +261,11 @@ function Get-AutomateComputer {
     }
 
     if ($AllComputers) {
-        Return Get-AutomateAPIGeneric -AllResults -Endpoint "computers"
+        Return Get-AutomateAPIGeneric -AllResults -Endpoint "computers" -IncludeFields $IncludeFields -ExcludeFields $ExcludeFields -OrderBy $OrderBy
     }
 
     if ($Condition) {
-        Return Get-AutomateAPIGeneric -AllResults -Endpoint "computers" -Condition $Condition
+        Return Get-AutomateAPIGeneric -AllResults -Endpoint "computers" -Condition $Condition -IncludeFields $IncludeFields -ExcludeFields $ExcludeFields -OrderBy $OrderBy
     }
 
     if ($ClientName) {
@@ -406,7 +427,7 @@ function Get-AutomateComputer {
     
     $FinalCondition = Get-ConditionsStacked -ArrayOfConditions $ArrayOfConditions
 
-    $FinalResult = Get-AutomateAPIGeneric -AllResults -Endpoint "computers" -Condition $FinalCondition
+    $FinalResult = Get-AutomateAPIGeneric -AllResults -Endpoint "computers" -Condition $FinalCondition -IncludeFields $IncludeFields -ExcludeFields $ExcludeFields -OrderBy $OrderBy
 
     return $FinalResult
 }
