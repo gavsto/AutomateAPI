@@ -52,6 +52,7 @@ function Connect-ControlAPI {
         [Switch]$Verify,
 
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
+        [Parameter(ParameterSetName = 'apikey', Mandatory = $False)]
         [Switch]$SkipCheck,
 
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
@@ -77,36 +78,31 @@ function Connect-ControlAPI {
     
     Process {
         If (!($Server -match 'https?://[a-z0-9][a-z0-9\.\-]*(:[1-9][0-9]*)?$')) {throw "Control Server address is in invalid format."; return}
-        If ($SkipCheck -and $PSCmdlet.ParameterSetName -eq 'credential' -and !($Null -eq $Credential)) {
-            Write-Debug "Skipping validation. Setting Server=$($Server) and Credential=$($Credential.Username)"
-            $Script:ControlAPICredentials = $Credential
-            $Script:ControlServer = $Server
+        If ($SkipCheck) {
             Return
         }
         If (($PSCmdlet.ParameterSetName -eq 'apikey' -or $PSCmdlet.ParameterSetName -eq 'verify') -and $Null -ne $APIKey) {
             If ($APIKey.GetType() -notmatch 'SecureString') {
                 [SecureString]$APIKey = ConvertTo-SecureString $APIKey -AsPlainText -Force 
             }
-            If (!$SkipCheck) {
-                # Retrieve Control Instance ID to verify APIKey
-                $RESTRequest = @{
-                    'Method' = 'GET'
-                    'URI' = "$($Server)/App_Extensions/fc234f0e-2e8e-4a1f-b977-ba41b14031f7/Service.ashx/GetServerVersion"
-                    'Headers' = @{'CWAIKToken' = (Get-CWAIKToken -APIKey $APIKey)}
-                }
-                Write-Debug "Submitting Request to $($RESTRequest.URI)"
-                Try {
-                    $AuthorizationResult = Invoke-RestMethod @RESTRequest
-                } Catch {
-                    Write-Debug "Result: $($AuthorizationResult | Select-Object -Property * | ConvertTo-Json -Depth 10 -Compress)"
-                    Remove-Variable ControlAPIKey -Scope Script -ErrorAction 0
-                    $APIKey=$Null
-                    Throw "Attempt to authenticate the Control API Key has failed with error $_.Exception.Message"
-                    If ($Quiet) {
-                        Return $False
-                    } Else {
-                        Return
-                    }
+            # Retrieve Control Instance ID to verify APIKey
+            $RESTRequest = @{
+                'Method' = 'GET'
+                'URI' = "$($Server)/App_Extensions/fc234f0e-2e8e-4a1f-b977-ba41b14031f7/Service.ashx/GetServerVersion"
+                'Headers' = @{'CWAIKToken' = (Get-CWAIKToken -APIKey $APIKey)}
+            }
+            Write-Debug "Submitting Request to $($RESTRequest.URI)"
+            Try {
+                $AuthorizationResult = Invoke-RestMethod @RESTRequest
+            } Catch {
+                Write-Debug "Result: $($AuthorizationResult | Select-Object -Property * | ConvertTo-Json -Depth 10 -Compress)"
+                Remove-Variable ControlAPIKey -Scope Script -ErrorAction 0
+                $APIKey=$Null
+                Throw "Attempt to authenticate the Control API Key has failed with error $_.Exception.Message"
+                If ($Quiet) {
+                    Return $False
+                } Else {
+                    Return
                 }
             }
             Return
@@ -173,13 +169,37 @@ function Connect-ControlAPI {
 
     End {
         If ($SkipCheck) {
-            If ($Quiet) {Return $True} 
-            Else {
-                Write-Host -BackgroundColor Green -ForegroundColor Black "Skipping validation. Setting Server=$($Server) and Credentials=$($Credential.Username)"
+            If ($PSCmdlet.ParameterSetName -eq 'apikey' -and !($Null -eq $APIKey)) {
+                If ($APIKey.GetType() -notmatch 'SecureString') {
+                    [SecureString]$APIKey = ConvertTo-SecureString $APIKey -AsPlainText -Force 
+                }
+                Write-Debug "Skipping validation. Setting Server=$($Server) and APIKey."
+                $Script:ControlServer = $Server
+                $Script:ControlAPIKey = $APIKey
+                If ($Quiet) {
+                    Return $True
+                } Else {
+                    Write-Host -BackgroundColor Green -ForegroundColor Black "Successfully stored the Server and APIKey values."
+                    Return
+                }
+            } ElseIf ($PSCmdlet.ParameterSetName -eq 'credential' -and !($Null -eq $Credential)) {
+                Write-Debug "Skipping validation. Setting Server=$($Server) and Credential=$($Credential.Username)"
+                $Script:ControlServer = $Server
+                $Script:ControlAPICredentials = $Credential
+                If ($Quiet) {
+                    Return $True
+                } Else {
+                    Write-Host -BackgroundColor Green -ForegroundColor Black "Successfully stored the Server and Credential values."
+                    Return
+                }
             }
-            Return
-        }
-        If (($PSCmdlet.ParameterSetName -eq 'apikey' -and !$APIKey)) {
+            Throw "SkipCheck failed because the Server, APIKey, or Credentials were not provided."
+            If ($Quiet) {
+                Return $False
+            } Else {
+                Return
+            }
+        } ElseIf (($PSCmdlet.ParameterSetName -eq 'apikey' -and !$APIKey)) {
             Remove-Variable ControlAPIKey -Scope Script -ErrorAction 0
             Throw "Unable to validate the APIKey provided." 
             If ($Quiet) {
