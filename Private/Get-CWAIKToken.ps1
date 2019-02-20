@@ -18,6 +18,8 @@ function Get-CWAIKToken {
     $epochsteps = [long]$((New-TimeSpan -Start $origin -End $(get-date).ToUniversalTime()).TotalSeconds/$TimeStepSeconds)
     $barray=[System.BitConverter]::GetBytes($epochsteps); [array]::Reverse($barray)
     $hmacsha = [System.Security.Cryptography.HMACSHA256]::new([Convert]::FromBase64String($APIKey))
-    $Local:CWAIKToken = [Convert]::ToBase64String($hmacsha.ComputeHash($barray))
+    If ($hmacsha) {
+        $Local:CWAIKToken = [Convert]::ToBase64String($hmacsha.ComputeHash($barray))
+    }
     Return $Local:CWAIKToken
 }
