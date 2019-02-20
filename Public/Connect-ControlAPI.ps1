@@ -10,7 +10,8 @@ function Connect-ControlAPI {
     Takes a standard powershell credential object, this can be built with $CredentialsToPass = Get-Credential, then pass $CredentialsToPass
     .PARAMETER APIKey
     Automate APIKey for Control Extension
-
+    .PARAMETER Verify
+    Attempt to verify Cached API key or Credentials. Invalid results will be removed.
     .PARAMETER Quiet
     Will not output any standard logging messages
     .OUTPUTS
@@ -29,15 +30,17 @@ function Connect-ControlAPI {
     [CmdletBinding(DefaultParameterSetName = 'refresh')]
     param (
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
-        [System.Management.Automation.PSCredential]$Credentials,
+        [Parameter(ParameterSetName = 'verify', Mandatory = $False)]
+        [System.Management.Automation.PSCredential]$Credential,
 
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
         [Parameter(ParameterSetName = 'refresh', Mandatory = $False)]
         [Parameter(ParameterSetName = 'apikey', Mandatory = $False)]
+        [Parameter(ParameterSetName = 'verify', Mandatory = $False)]
         [String]$Server = $Script:ControlServer,
 
         [Parameter(ParameterSetName = 'apikey', Mandatory = $False)]
-        $APIKey = ($Script:ControlAPIKey),
+        $APIKey = ([SecureString]$Script:ControlAPIKey),
 
 #        [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
 #        [String]$TwoFactorToken,
@@ -45,12 +48,16 @@ function Connect-ControlAPI {
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
         [Switch]$Force,
 
+        [Parameter(ParameterSetName = 'verify', Mandatory = $False)]
+        [Switch]$Verify,
+
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
         [Switch]$SkipCheck,
 
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
         [Parameter(ParameterSetName = 'refresh', Mandatory = $False)]
         [Parameter(ParameterSetName = 'apikey', Mandatory = $False)]
+        [Parameter(ParameterSetName = 'verify', Mandatory = $False)]
         [Switch]$Quiet
 
     )
@@ -70,13 +77,14 @@ function Connect-ControlAPI {
     
     Process {
         If (!($Server -match 'https?://[a-z0-9][a-z0-9\.\-]*(:[1-9][0-9]*)?$')) {throw "Control Server address is in invalid format."; return}
-        If ($SkipCheck -and $PSCmdlet.ParameterSetName -eq 'credential' -and !($Null -eq $Credentials)) {
-            Write-Debug "Skipping validation. Setting Server=$($Server) and Credentials=$($Credentials.Username)"
-            $Script:ControlAPICredentials = $Credentials
+        If ($SkipCheck -and $PSCmdlet.ParameterSetName -eq 'credential' -and !($Null -eq $Credential)) {
+            Write-Debug "Skipping validation. Setting Server=$($Server) and Credential=$($Credential.Username)"
+            $Script:ControlAPICredentials = $Credential
             $Script:ControlServer = $Server
             Return
-        } ElseIf ($PSCmdlet.ParameterSetName -eq 'apikey' -and $Null -ne $APIKey) {
-            If ($APIKey -notmatch '[a-f0-9]{100,}') {
+        }
+        If (($PSCmdlet.ParameterSetName -eq 'apikey' -or $PSCmdlet.ParameterSetName -eq 'verify') -and $Null -ne $APIKey) {
+            If ($APIKey.GetType() -notmatch 'SecureString') {
                 [SecureString]$APIKey = ConvertTo-SecureString $APIKey -AsPlainText -Force 
             }
             If (!$SkipCheck) {
@@ -90,31 +98,36 @@ function Connect-ControlAPI {
                 Try {
                     $AuthorizationResult = Invoke-RestMethod @RESTRequest
                 } Catch {
-                    $Script:ControlAPIKey = $Null
+                    Write-Debug "Result: $($AuthorizationResult | Select-Object -Property * | ConvertTo-Json -Depth 10 -Compress)"
+                    Remove-Variable ControlAPIKey -Scope Script -ErrorAction 0
                     $APIKey=$Null
                     Throw "Attempt to authenticate the Control API Key has failed with error $_.Exception.Message"
-                    Return
+                    If ($Quiet) {
+                        Return $False
+                    } Else {
+                        Return
+                    }
                 }
             }
             Return
         } Else {
             If (!$testCredentials -and !$Force) {
-                If (!$Credentials) {
+                If (!$Credential) {
                     $testCredentials = $Script:ControlAPICredentials
                 } Else {
-                    $testCredentials = $Credentials
+                    $testCredentials = $Credential
                 }
             }
             Do {
                 $ControlAPITestURI = ($Server + '/Services/PageService.ashx/GetHostSessionInfo')
                 If (!$Quiet) {
-                    If (!$Credentials) {
+                    If (!$Credential) {
                         If (!$testCredentials -or $Force) {
                             Write-Debug "No Credentials were provided and no existing Token was found, or -Force was specified"
                             $testCredentials = $Null
                             $Username = Read-Host -Prompt "Please enter your Control Username"
                             $Password = Read-Host -Prompt "Please enter your Control Password" -AsSecureString
-                            $Credentials = New-Object System.Management.Automation.PSCredential ($Username, $Password)
+                            $Credential = New-Object System.Management.Automation.PSCredential ($Username, $Password)
                         } Else {
                             $Force = $True
                         }
@@ -125,7 +138,7 @@ function Connect-ControlAPI {
                     }
                 }
 
-                If (!$testCredentials) {$testCredentials=$Credentials}
+                If (!$testCredentials) {$testCredentials=$Credential}
                 #Invoke the REST Method
                 $RESTRequest = @{
                     'URI' = $ControlAPITestURI
@@ -138,17 +151,21 @@ function Connect-ControlAPI {
                     $ControlAPITokenResult = Invoke-RestMethod @RESTRequest
                 }
                 Catch {
-                    $Script:ControlAPICredentials = $Null
-                    If ($Credentials) {
+                    Remove-Variable ControlAPICredentials -Scope Script -ErrorAction 0
+                    If ($Credential) {
                         Throw "Unable to connect to Control. Server Address or Control Credentials are wrong. This module does not support 2FA for Control Users"
-                        Return
+                        If ($Quiet) {
+                            Return $False
+                        } Else {
+                            Return
+                        }
                     }
                 }
                 Write-Debug "Request Results: $($ControlAPITokenResult|ConvertTo-Json -Depth 5 -Compress)"
                 $AuthorizationResult=$ControlAPITokenResult.ProductVersion
                 $TwoFactorNeeded=$ControlAPITokenResult.IsTwoFactorRequired
             } Until ($Quiet -or ![string]::IsNullOrEmpty($AuthorizationResult) -or 
-                    ($TwoFactorNeeded -ne $True -and $Credentials) -or 
+                    ($TwoFactorNeeded -ne $True -and $Credential) -or 
                     ($TwoFactorNeeded -eq $True -and $TwoFactorToken -ne '')
                 )
         }
@@ -158,12 +175,12 @@ function Connect-ControlAPI {
         If ($SkipCheck) {
             If ($Quiet) {Return $True} 
             Else {
-                Write-Host -BackgroundColor Green -ForegroundColor Black "Skipping validation. Setting Server=$($Server) and Credentials=$($Credentials.Username)"
+                Write-Host -BackgroundColor Green -ForegroundColor Black "Skipping validation. Setting Server=$($Server) and Credentials=$($Credential.Username)"
             }
             Return
         }
         If (($PSCmdlet.ParameterSetName -eq 'apikey' -and !$APIKey)) {
-            $Script:ControlAPIKey = $Null
+            Remove-Variable ControlAPIKey -Scope Script -ErrorAction 0
             Throw "Unable to validate the APIKey provided." 
             If ($Quiet) {
                 Return $False
@@ -171,8 +188,8 @@ function Connect-ControlAPI {
                 Return
             }
         } ElseIf ($PSCmdlet.ParameterSetName -ne 'apikey' -and [string]::IsNullOrEmpty($AuthorizationResult)) {
-            $Script:ControlAPICredentials = $Null
-            Throw "Unable to get Access Token. Either the credentials your entered are incorrect or you did not pass a valid two factor token" 
+            Remove-Variable ControlAPICredentials -Scope Script -ErrorAction 0
+            Throw "Unable to get Access Token. Either the credentials provided are incorrect or you did not pass a valid two factor token" 
             If ($Quiet) {
                 Return $False
             } Else {

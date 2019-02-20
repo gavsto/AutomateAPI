@@ -164,10 +164,9 @@ Connect-AutomateAPI -Quiet
                 $AutomateAPITokenResult = Invoke-RestMethod @RESTRequest
             }
             Catch {
-                $Script:CWAToken = $Null
-                $Script:CWATokenKey = $Null
+                Remove-Variable CWAToken,CWATokenKey -Scope Script -ErrorAction 0
                 If ($testCredentials) {
-                    $Script:CWACredentials = $Null
+                    Remove-Variable CWACredentials -Scope Script -ErrorAction 0
                 }
                 If ($Credential) {
                     Throw "Attempt to authenticate to the Automate API has failed with error $_.Exception.Message"
@@ -194,6 +193,7 @@ Connect-AutomateAPI -Quiet
                 Return
             }
         } ElseIf ([string]::IsNullOrEmpty($AuthorizationToken)) {
+            Remove-Variable CWAToken -Scope Script -ErrorAction 0
             Throw "Unable to get Access Token. Either the credentials you entered are incorrect or you did not pass a valid two factor token" 
             If ($Quiet) {
                 Return $False

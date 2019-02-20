@@ -21,5 +21,10 @@ function Get-CWAIKToken {
     If ($hmacsha) {
         $Local:CWAIKToken = [Convert]::ToBase64String($hmacsha.ComputeHash($barray))
     }
+    If ($Local:CWAIKToken) {
+        Write-Debug "Generated CWAIKToken ""$($Local:CWAIKToken)"""
+    } Else {
+        Write-Debug "Error. CWAIKToken was not generated using APIKey $APIKey."
+    }
     Return $Local:CWAIKToken
 }
