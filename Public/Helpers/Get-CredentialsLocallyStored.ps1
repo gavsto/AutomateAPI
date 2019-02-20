@@ -60,6 +60,9 @@ function Get-CredentialsLocallyStored {
             $AutomateToken.Add("Authorization", "Bearer $AuthorizationToken")
             $Script:CWAToken = $AutomateToken
         }
+        If (!(Connect-AutomateAPI -Verify -Quiet -ErrorAction 0)) {
+            Write-Error "Automate Credentials failed to successfully validate. Call Connect-AutomateAPI to establish a valid session." -ErrorAction 'Continue'
+        }
     }
 
     If ($Control) {
@@ -91,6 +94,9 @@ function Get-CredentialsLocallyStored {
             } Else {
                 $Null = Set-Variable @SaveVar -Value $($StoreBlock.$($SaveVar.Name))
             }
+        }
+        If (!(Connect-ControlAPI -Verify -Quiet -ErrorAction 0)) {
+            Write-Error "Control Credentials failed to successfully validate. Call Connect-ControlAPI to establish a valid session." -ErrorAction 'Continue'
         }
     }
 
