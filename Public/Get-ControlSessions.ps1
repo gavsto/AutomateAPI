@@ -22,7 +22,7 @@ function Get-ControlSessions {
     }
     
     end {
-        $Body=ConvertTo-Json @("SessionConnectionEvent",@("SessionID","EventType"),@("LastTime"),"SessionConnectionProcessType=""Guest"" AND (EventType = ""Connected"" OR EventType = ""Disconnected"")", "", 20000) -Compress
+        $Body=ConvertTo-Json @("SessionConnectionEvent",@("SessionID","EventType"),@("LastTime"),"SessionConnectionProcessType='Guest' AND (EventType = 'Connected' OR EventType = 'Disconnected')", "", 20000) -Compress
         $RESTRequest = @{
             'URI' = "${Script:ControlServer}/App_Extensions/fc234f0e-2e8e-4a1f-b977-ba41b14031f7/ReportService.ashx/GenerateReportForAutomate"
             'Method' = 'POST'
@@ -36,8 +36,10 @@ function Get-ControlSessions {
         }
         
         $SCConnected = @{};
+        Write-Debug "Submitting Request to $($RESTRequest.URI)`nHeaders:`n$($RESTRequest.Headers|ConvertTo-JSON -Depth 5)`nBody:`n$($RESTRequest.Body|ConvertTo-JSON -Depth 5)"
         Try {
             $SCData = Invoke-RestMethod @RESTRequest
+            Write-Debug "Request Result: $($SCData | select-object -property * | convertto-json -Depth 10)"
             If ($SCData.FieldNames -contains 'SessionID' -and $SCData.FieldNames -contains 'EventType' -and $SCData.FieldNames -contains 'LastTime') {
                 $AllData = $SCData.Items.GetEnumerator() | select-object @{Name='SessionID'; Expression={$_[0]}},@{Name='Event'; Expression={$_[1]}},@{Name='Date'; Expression={$_[2]}} | sort-Object SessionID,Event -Descending;  
                 $AllData | ForEach-Object {
@@ -64,7 +66,9 @@ function Get-ControlSessions {
                 Throw "Attempt to authenticate the Control API Key has failed with error $_.Exception.Message"
                 Return
             }
-        } Catch { }
+        } Catch {
+            Write-Debug "FAILED! Request Result: $($SCData | select-object -property * | convertto-json -Depth 10)"
+         }
         return $SCConnected
     }
 }
