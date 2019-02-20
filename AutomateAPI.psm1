@@ -9,4 +9,6 @@ $Private = @( Get-ChildItem -Recurse -Path "$PSScriptRoot\Private\" -filter *.ps
     }
 }
 
+$Script:LTPoShURI='http://bit.ly/LTPoSh'
+
 Export-ModuleMember -Function $Public.BaseName
