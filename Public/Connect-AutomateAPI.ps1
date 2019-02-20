@@ -12,6 +12,8 @@ Takes a standard powershell credential object, this can be built with $Credentia
 Takes a string that represents the 2FA number
 .PARAMETER Token
 Used internally when quietly refreshing the Token
+.PARAMETER Verify
+Specifies to test the current token, and if it is not valid attempt to obtain a new one using the current credentials. Does not refresh (re-issue) the current token.
 .PARAMETER Force
 Will not attempt to refresh a current session
 .PARAMETER Quiet
@@ -41,13 +43,18 @@ Connect-AutomateAPI -Quiet
 
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
         [Parameter(ParameterSetName = 'refresh', Mandatory = $False)]
+        [Parameter(ParameterSetName = 'verify', Mandatory = $False)]
         [String]$Server = $Script:CWAServer,
 
         [Parameter(ParameterSetName = 'refresh', Mandatory = $False)]
+        [Parameter(ParameterSetName = 'verify', Mandatory = $False)]
         [String]$AuthorizationToken = ($Script:CWAToken.Authorization -replace 'Bearer ',''),
 
         [Parameter(ParameterSetName = 'refresh', Mandatory = $False)]
         [Switch]$SkipCheck,
+
+        [Parameter(ParameterSetName = 'verify', Mandatory = $False)]
+        [Switch]$Verify,
 
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
         [String]$TwoFactorToken,
@@ -57,6 +64,7 @@ Connect-AutomateAPI -Quiet
 
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
         [Parameter(ParameterSetName = 'refresh', Mandatory = $False)]
+        [Parameter(ParameterSetName = 'verify', Mandatory = $False)]
         [Switch]$Quiet
     )
 
@@ -87,13 +95,22 @@ Connect-AutomateAPI -Quiet
             $Script:CWAToken = $AutomateToken
             Return
         }
+        If (!$AuthorizationToken -and $PSCmdlet.ParameterSetName -eq 'verify') {
+            Throw "Attempt to verify token failed. No token was provided or was cached."
+            Return
+        }
         Do {
-            $AutomateAPIURI = ('https://' + $Server + '/cwa/api/v1/apitoken')
+            Write-Debug "Starting Authorizaton Test."
+            $AutomateAPIURI = ('https://' + $Server + '/cwa/api/v1')
             If (!$Quiet) {
                 If (!$AutomateCredentials -and ($Force -or !$AuthorizationToken)) {
-                    $Username = Read-Host -Prompt "Please enter your Automate Username"
-                    $Password = Read-Host -Prompt "Please enter your Automate Password" -AsSecureString
-                    $AutomateCredentials = New-Object System.Management.Automation.PSCredential ($Username, $Password)
+                    If ($PSCmdlet.ParameterSetName -eq 'verify' -and $Script:CWACredentials) {
+                        $AutomateCredentials = $Script:CWACredentials
+                    } Else {
+                        $Username = Read-Host -Prompt "Please enter your Automate Username"
+                        $Password = Read-Host -Prompt "Please enter your Automate Password" -AsSecureString
+                        $AutomateCredentials = New-Object System.Management.Automation.PSCredential ($Username, $Password)
+                    }
                 }
                 If ($TwoFactorNeeded -eq $True -and $TwoFactorToken -match '') {
                     $TwoFactorToken = Read-Host -Prompt "Please enter your 2FA Token"
@@ -102,38 +119,67 @@ Connect-AutomateAPI -Quiet
 
             If ($AutomateCredentials) {
                 #Build the headers for the Authentication
-                $PostHeaders = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
-                $PostHeaders.Add("username", $AutomateCredentials.UserName)
-                $PostHeaders.Add("password", $AutomateCredentials.GetNetworkCredential().Password)
+                $PostBody = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
+                $PostBody.Add("username", $AutomateCredentials.UserName)
+                $PostBody.Add("password", $AutomateCredentials.GetNetworkCredential().Password)
                 If (!([string]::IsNullOrEmpty($TwoFactorToken))) {
                     #Remove any spaces that were added
                     $TwoFactorToken = $TwoFactorToken -replace '\s', ''
-                    $PostHeaders.Add("TwoFactorPasscode", $TwoFactorToken)
+                    $PostBody.Add("TwoFactorPasscode", $TwoFactorToken)
                 }
-            } Else {
-                $AutomateAPIURI = $AutomateAPIURI + '/refresh'
-                $PostHeaders = $AuthorizationToken -replace 'Bearer ',''
+                $RESTRequest = @{
+                    'URI' = ($AutomateAPIURI + '/apitoken')
+                    'Method' = 'POST'
+                    'ContentType' = 'application/json'
+                    'Body' = $($PostBody | ConvertTo-Json -Compress)
+                }
+            } ElseIf ($PSCmdlet.ParameterSetName -eq 'refresh') {
+                $PostBody = $AuthorizationToken -replace 'Bearer ',''
+                $RESTRequest = @{
+                    'URI' = ($AutomateAPIURI + '/apitoken/refresh')
+                    'Method' = 'POST'
+                    'ContentType' = 'application/json'
+                    'Body' = $PostBody | ConvertTo-Json -Compress
+                }
+            } ElseIf ($PSCmdlet.ParameterSetName -eq 'verify') {
+                $PostBody = $AuthorizationToken -replace 'Bearer ',''
+                $RESTRequest = @{
+                    'URI' = ($AutomateAPIURI + '/DatabaseServerTime')
+                    'Method' = 'GET'
+                    'ContentType' = 'application/json'
+                    'Headers' = @{'Authorization' = "Bearer $PostBody"}
+                }
             }
-            #Convert the body to JSON for Posting
-            $PostBody = $PostHeaders | ConvertTo-Json -Compress
 
             #Invoke the REST Method
-            Write-Debug "Submitting Request to $AutomateAPIURI with body: `n$PostBody"
+            Write-Debug "Submitting Request to $($RESTRequest.URI)`nHeaders:`n$($RESTRequest.Headers|ConvertTo-JSON -Depth 5)`nBody:`n$($RESTRequest.Body|ConvertTo-JSON -Depth 5)"
             Try {
-                $AutomateAPITokenResult = Invoke-RestMethod -Method Post -Uri $AutomateAPIURI -Body $PostBody -ContentType "application/json"
+                $AutomateAPITokenResult = Invoke-RestMethod @RESTRequest
             }
             Catch {
+                Write-Debug "Request failed. Clearing Cached Token."
                 $Script:CWAToken = $Null
                 $Script:CWATokenKey = $Null
-                $Script:CWACredentials = $Null
-                $Script:CWACredentialsExpirationDate = $Null
+                If ($AutomateCredentials -or $PSCmdlet.ParameterSetName -ne 'verify') {
+                    Write-Debug "Request failed with credentials. Clearing Cached Credentials."
+                    $Script:CWACredentials = $Null
+                }
                 If ($AutomateCredentials) {
                     Throw "Attempt to authenticate to the Automate API has failed with error $_.Exception.Message"
                     Return
                 }
             }
+#            Write-Debug "Member Info: $(($AutomateAPITokenResult | Get-Member) -split '`n')"
+#            Write-Debug "JSON View: $(($AutomateAPITokenResult | ConvertTo-Json -Depth 100) -split '`n')"
+#            Write-Debug "Request Result: $($AutomateAPITokenResult|ConvertTo-JSON -Depth 5 -Compress)"
+            
             $AuthorizationToken=$AutomateAPITokenResult.Accesstoken
             $TwoFactorNeeded=$AutomateAPITokenResult.IsTwoFactorRequired
+            If ($PSCmdlet.ParameterSetName -eq 'verify' -and [string]::IsNullOrEmpty($AuthorizationToken)) {
+                Write-Debug "Re-Initializing AuthorizationToken with ""$($Script:CWAToken.Authorization)"""
+                $AuthorizationToken = $Script:CWAToken.Authorization -replace 'Bearer ',''
+            }
+            Write-Debug "Authorization Token Value: ""$($AuthorizationToken)"""
         } Until ($Quiet -or ![string]::IsNullOrEmpty($AuthorizationToken) -or 
                 ($TwoFactorNeeded -ne $True -and $AutomateCredentials) -or 
                 ($TwoFactorNeeded -eq $True -and $TwoFactorToken -ne '')
@@ -147,23 +193,23 @@ Connect-AutomateAPI -Quiet
                 Return $False
             }
         } Else {
-
-            Write-Verbose "Token retrieved: $AuthorizationToken, expiration is $($AutomateAPITokenResult.ExpirationDate)"
-
             #Build the returned token
             $AutomateToken = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
             $AutomateToken.Add("Authorization", "Bearer $AuthorizationToken")
             Write-Debug "Setting Credentials to $($AutomateToken.Authorization)"
             #Create Script Variables for this session in order to use the token
             $Script:CWAServer = ("https://" + $Server)
-            $Script:CWACredentials = $AutomateCredentials
-            $Script:CWATokenKey = ConvertTo-SecureString $AutomateAPITokenResult.AccessToken -AsPlainText -Force
+            If ($AutomateCredentials -or $PSCmdlet.ParameterSetName -ne 'verify') {
+                $Script:CWACredentials = $AutomateCredentials
+                $Script:CWATokenKey = ConvertTo-SecureString $AuthorizationToken -AsPlainText -Force
+                $AutomateAPITokenResult.PSObject.properties.remove('AccessToken')
+                $Script:CWATokenInfo = $AutomateAPITokenResult
+            }
             $Script:CWAToken = $AutomateToken
-            $AutomateAPITokenResult.PSObject.properties.remove('AccessToken')
-            $Script:CWATokenInfo = $AutomateAPITokenResult
+            Write-Verbose "Token retrieved: $AuthorizationToken, expiration is $($Script:CWATokenInfo.ExpirationDate)"
 
             If (!$Quiet) {
-                Write-Host -BackgroundColor Green -ForegroundColor Black "Successfully tested and connected to the Automate REST API. Token will expire at $($AutomateAPITokenResult.ExpirationDate)"
+                Write-Host -BackgroundColor Green -ForegroundColor Black "Successfully tested and connected to the Automate REST API. Token will expire at $($Script:CWATokenInfo.ExpirationDate)"
             } Else {
                 Return $True
             }
