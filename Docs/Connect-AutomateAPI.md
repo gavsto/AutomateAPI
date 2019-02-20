@@ -20,7 +20,7 @@ Connect-AutomateAPI [-Server <String>] [-AuthorizationToken <String>] [-SkipChec
 
 ### credential
 ```
-Connect-AutomateAPI [-AutomateCredentials <PSCredential>] [-Server <String>] [-TwoFactorToken <String>]
+Connect-AutomateAPI [-Credentials <PSCredential>] [-Server <String>] [-TwoFactorToken <String>]
  [-Force] [-Quiet] [<CommonParameters>]
 ```
 
@@ -31,7 +31,7 @@ Connects to the Automate API and returns a bearer token which when passed with e
 
 ### EXAMPLE 1
 ```
-Connect-AutomateAPI -Server "rancor.hostedrmm.com" -AutomateCredentials $CredentialObject -TwoFactorToken "999999"
+Connect-AutomateAPI -Server "rancor.hostedrmm.com" -Credentials $CredentialObject -TwoFactorToken "999999"
 ```
 
 ### EXAMPLE 2
@@ -41,7 +41,7 @@ Connect-AutomateAPI -Quiet
 
 ## PARAMETERS
 
-### -AutomateCredentials
+### -Credentials
 Takes a standard powershell credential object, this can be built with $CredentialsToPass = Get-Credential, then pass $CredentialsToPass
 
 ```yaml

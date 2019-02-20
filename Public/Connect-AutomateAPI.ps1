@@ -6,7 +6,7 @@ Connect to the Automate API.
 Connects to the Automate API and returns a bearer token which when passed with each requests grants up to an hours worth of access.
 .PARAMETER Server
 The address to your Automate Server. Example 'rancor.hostedrmm.com'
-.PARAMETER AutomateCredentials
+.PARAMETER Credentials
 Takes a standard powershell credential object, this can be built with $CredentialsToPass = Get-Credential, then pass $CredentialsToPass
 .PARAMETER TwoFactorToken
 Takes a string that represents the 2FA number
@@ -31,7 +31,7 @@ Author:         Darren White
 Purpose/Change: Credential and 2FA prompting is only if needed. Supports Token Refresh.
 
 .EXAMPLE
-Connect-AutomateAPI -Server "rancor.hostedrmm.com" -AutomateCredentials $CredentialObject -TwoFactorToken "999999"
+Connect-AutomateAPI -Server "rancor.hostedrmm.com" -Credentials $CredentialObject -TwoFactorToken "999999"
 
 .EXAMPLE
 Connect-AutomateAPI -Quiet
@@ -39,7 +39,7 @@ Connect-AutomateAPI -Quiet
     [CmdletBinding(DefaultParameterSetName = 'refresh')]
     param (
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
-        [System.Management.Automation.PSCredential]$AutomateCredentials,
+        [System.Management.Automation.PSCredential]$Credential,
 
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
         [Parameter(ParameterSetName = 'refresh', Mandatory = $False)]
@@ -51,6 +51,7 @@ Connect-AutomateAPI -Quiet
         [String]$AuthorizationToken = ($Script:CWAToken.Authorization -replace 'Bearer ',''),
 
         [Parameter(ParameterSetName = 'refresh', Mandatory = $False)]
+        [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
         [Switch]$SkipCheck,
 
         [Parameter(ParameterSetName = 'verify', Mandatory = $False)]
@@ -72,7 +73,7 @@ Connect-AutomateAPI -Quiet
         # Check for locally stored credentials
 #        [string]$CredentialDirectory = "$($env:USERPROFILE)\AutomateAPI\"
 #        $LocalCredentialsExist = Test-Path "$($CredentialDirectory)Automate - Credentials.txt"
-        if ($TwoFactorToken -match '.+') {$Force=$True}
+        If ($TwoFactorToken -match '.+') {$Force=$True}
         $TwoFactorNeeded=$False
 
         If (!$Quiet) {
@@ -85,14 +86,20 @@ Connect-AutomateAPI -Quiet
     } #End Begin
     
     Process {
-        if (!($Server -match '^[a-z0-9][a-z0-9\.\-]*$')) {throw "Server address is missing or in invalid format."; return}
-        if ($SkipCheck) {
-            #Build the returned token
-            $AutomateToken = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
-            $Null = $AutomateToken.Add("Authorization", "Bearer $AuthorizationToken")
-            Write-Debug "Setting Credentials to $($AutomateToken.Authorization)"
+        If (!($Server -match '^[a-z0-9][a-z0-9\.\-]*$')) {Throw "Server address is missing or in invalid format."; Return}
+        If ($SkipCheck) {
             $Script:CWAServer = ("https://" + $Server)
-            $Script:CWAToken = $AutomateToken
+            If ($Credential) {
+                Write-Debug "Setting Credentials to $($Credential.UserName)"
+                $Script:CWAToken = $AutomateToken
+            }
+            If ($AuthorizationToken) {
+                #Build the token
+                $AutomateToken = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
+                $Null = $AutomateToken.Add("Authorization", "Bearer $AuthorizationToken")
+                Write-Debug "Setting Authorization Token to $($AutomateToken.Authorization)"
+                $Script:CWAToken = $AutomateToken
+            }
             Return
         }
         If (!$AuthorizationToken -and $PSCmdlet.ParameterSetName -eq 'verify') {
@@ -100,16 +107,16 @@ Connect-AutomateAPI -Quiet
             Return
         }
         Do {
-            Write-Debug "Starting Authorizaton Test."
             $AutomateAPIURI = ('https://' + $Server + '/cwa/api/v1')
             If (!$Quiet) {
-                If (!$AutomateCredentials -and ($Force -or !$AuthorizationToken)) {
-                    If ($PSCmdlet.ParameterSetName -eq 'verify' -and $Script:CWACredentials) {
-                        $AutomateCredentials = $Script:CWACredentials
+                If (!$Credential -and ($Force -or !$AuthorizationToken)) {
+                    If (!$Force -and $Script:CWACredentials) {
+                        $testCredentials = $Script:CWACredentials
                     } Else {
                         $Username = Read-Host -Prompt "Please enter your Automate Username"
                         $Password = Read-Host -Prompt "Please enter your Automate Password" -AsSecureString
-                        $AutomateCredentials = New-Object System.Management.Automation.PSCredential ($Username, $Password)
+                        $Credential = New-Object System.Management.Automation.PSCredential ($Username, $Password)
+                        $testCredentials=$Credential
                     }
                 }
                 If ($TwoFactorNeeded -eq $True -and $TwoFactorToken -match '') {
@@ -117,11 +124,11 @@ Connect-AutomateAPI -Quiet
                 }
             }
 
-            If ($AutomateCredentials) {
+            If ($testCredentials) {
                 #Build the headers for the Authentication
                 $PostBody = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
-                $PostBody.Add("username", $AutomateCredentials.UserName)
-                $PostBody.Add("password", $AutomateCredentials.GetNetworkCredential().Password)
+                $PostBody.Add("username", $testCredentials.UserName)
+                $PostBody.Add("password", $testCredentials.GetNetworkCredential().Password)
                 If (!([string]::IsNullOrEmpty($TwoFactorToken))) {
                     #Remove any spaces that were added
                     $TwoFactorToken = $TwoFactorToken -replace '\s', ''
@@ -157,55 +164,57 @@ Connect-AutomateAPI -Quiet
                 $AutomateAPITokenResult = Invoke-RestMethod @RESTRequest
             }
             Catch {
-                Write-Debug "Request failed. Clearing Cached Token."
                 $Script:CWAToken = $Null
                 $Script:CWATokenKey = $Null
-                If ($AutomateCredentials -or $PSCmdlet.ParameterSetName -ne 'verify') {
-                    Write-Debug "Request failed with credentials. Clearing Cached Credentials."
+                If ($testCredentials) {
                     $Script:CWACredentials = $Null
                 }
-                If ($AutomateCredentials) {
+                If ($Credential) {
                     Throw "Attempt to authenticate to the Automate API has failed with error $_.Exception.Message"
                     Return
                 }
             }
-#            Write-Debug "Member Info: $(($AutomateAPITokenResult | Get-Member) -split '`n')"
-#            Write-Debug "JSON View: $(($AutomateAPITokenResult | ConvertTo-Json -Depth 100) -split '`n')"
-#            Write-Debug "Request Result: $($AutomateAPITokenResult|ConvertTo-JSON -Depth 5 -Compress)"
             
             $AuthorizationToken=$AutomateAPITokenResult.Accesstoken
-            $TwoFactorNeeded=$AutomateAPITokenResult.IsTwoFactorRequired
-            If ($PSCmdlet.ParameterSetName -eq 'verify' -and [string]::IsNullOrEmpty($AuthorizationToken)) {
-                Write-Debug "Re-Initializing AuthorizationToken with ""$($Script:CWAToken.Authorization)"""
+            If ($PSCmdlet.ParameterSetName -eq 'verify' -and !$AuthorizationToken -and $AutomateAPITokenResult) {
                 $AuthorizationToken = $Script:CWAToken.Authorization -replace 'Bearer ',''
             }
-            Write-Debug "Authorization Token Value: ""$($AuthorizationToken)"""
+            $TwoFactorNeeded=$AutomateAPITokenResult.IsTwoFactorRequired
         } Until ($Quiet -or ![string]::IsNullOrEmpty($AuthorizationToken) -or 
-                ($TwoFactorNeeded -ne $True -and $AutomateCredentials) -or 
+                ($TwoFactorNeeded -ne $True -and $Credential) -or 
                 ($TwoFactorNeeded -eq $True -and $TwoFactorToken -ne '')
             )
     } #End Process
 
     End {
-        If ([string]::IsNullOrEmpty($AuthorizationToken)) {
+        If ($SkipCheck) {
+            If ($Quiet) {
+                Return $False
+            } Else {
+                Return
+            }
+        } ElseIf ([string]::IsNullOrEmpty($AuthorizationToken)) {
             Throw "Unable to get Access Token. Either the credentials you entered are incorrect or you did not pass a valid two factor token" 
             If ($Quiet) {
                 Return $False
+            } Else {
+                Return
             }
         } Else {
             #Build the returned token
             $AutomateToken = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
             $AutomateToken.Add("Authorization", "Bearer $AuthorizationToken")
-            Write-Debug "Setting Credentials to $($AutomateToken.Authorization)"
             #Create Script Variables for this session in order to use the token
+            $Script:CWATokenKey = ConvertTo-SecureString $AuthorizationToken -AsPlainText -Force
             $Script:CWAServer = ("https://" + $Server)
-            If ($AutomateCredentials -or $PSCmdlet.ParameterSetName -ne 'verify') {
-                $Script:CWACredentials = $AutomateCredentials
-                $Script:CWATokenKey = ConvertTo-SecureString $AuthorizationToken -AsPlainText -Force
+            $Script:CWAToken = $AutomateToken
+            If ($Credential) {
+                $Script:CWACredentials = $Credential
+            }
+            If ($PSCmdlet.ParameterSetName -ne 'verify') {
                 $AutomateAPITokenResult.PSObject.properties.remove('AccessToken')
                 $Script:CWATokenInfo = $AutomateAPITokenResult
             }
-            $Script:CWAToken = $AutomateToken
             Write-Verbose "Token retrieved: $AuthorizationToken, expiration is $($Script:CWATokenInfo.ExpirationDate)"
 
             If (!$Quiet) {

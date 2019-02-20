@@ -69,6 +69,7 @@ function Set-CredentialsLocallyStored {
             If (!(Get-Variable @SaveVar -ErrorAction 0)) {Continue}
             If ($SaveVar.Name -match 'Credential') {
                 Try {
+                    Write-Debug "Trying to save $($SaveVar.Name)"
                     $x_Credential = @{'UserName'=(Get-Variable @SaveVar -ValueOnly).UserName; 'Password'=((Get-Variable @SaveVar -ValueOnly).Password|ConvertFrom-SecureString)}
                     $Null = $StoreBlock | Add-Member -NotePropertyName $($SaveVar.Name) -NotePropertyValue $x_Credential
                 } Catch {
