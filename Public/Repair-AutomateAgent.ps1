@@ -38,15 +38,26 @@ function Repair-AutomateAgent {
       $ResultArray = @()
       $ObjectCapture = @()
       $null = Get-RSJob | Remove-RSJob | Out-Null
-      $ControlAPICredentials = $Script:ControlAPICredentials
       $ControlServer = $Script:ControlServer
-      If (!($ControlServer -and $ControlAPICredentials)) {
-         Throw "Control Server information must be assigned with Connect-ControlAPI function first."
-         Continue
-      }
+      $ControlAPIKey = $Script:ControlAPIKey
+      $ControlAPICredentials = $Script:ControlAPICredentials
+      $ConnectOptions=$Null
    }
 
    Process {
+      If ($ControlServer -and $ControlAPIKey) {
+         $ConnectOptions = @{
+            'Server' = $ControlServer
+            'APIKey' = $ControlAPIKey
+         }
+      } ElseIf ($ControlServer -and $ControlAPICredentials) {
+         $ConnectOptions = @{
+            'Server' = $ControlServer
+            'Credential' = $ControlAPICredentials
+         }
+      } Else {
+         Return
+      }
       Foreach ($igu in $AutomateControlStatusObject) {
          If ($igu.ComputerID -and $igu.SessionID) {
             If ($PSCmdlet.ShouldProcess("Automate Services on $($igu.ComputerID) - $($igu.ComputerName)",$Action)) {
@@ -64,32 +75,47 @@ function Repair-AutomateAgent {
    }
 
    End {
-      Write-Host -ForegroundColor Green "Starting fixes"
+      If (!$ConnectOptions) {
+         Throw "Control Server information must be assigned with Connect-ControlAPI function first."
+         Return
+      }
       if ($ObjectCapture) {
-
+         Write-Host -ForegroundColor Green "Starting fixes"
          If ($Action -eq 'Check') {
             $ObjectCapture | Start-RSJob -Throttle $BatchSize -Name {"$($_.ComputerName) - $($_.ComputerID) - Check Service"} -ScriptBlock {
             Import-Module AutomateAPI -Force
-            $ServiceRestartAttempt = Invoke-ControlCommand -Server $($using:ControlServer) -Credential $($using:ControlAPICredentials) -SessionID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString($Using:LTPoShURI) | iex; Get-LTServiceInfo" -TimeOut 60000 -MaxLength 10240
-            return $ServiceRestartAttempt
+            $ConnectOptions=$Using:ConnectOptions
+            If (Connect-ControlAPI @ConnectOptions -SkipCheck -Quiet) {
+               $ServiceRestartAttempt = Invoke-ControlCommand -SessionID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString('$($Using:LTPoShURI)') | iex; Get-LTServiceInfo" -TimeOut 60000 -MaxLength 10240
+               return $ServiceRestartAttempt
+            }
             } | out-null
          } ElseIf ($Action -eq 'Update') {
             $ObjectCapture | Start-RSJob -Throttle $BatchSize -Name {"$($_.ComputerName) - $($_.ComputerID) - Update Service"} -ScriptBlock {
             Import-Module AutomateAPI -Force
-            $ServiceRestartAttempt = Invoke-ControlCommand -Server $using:ControlServer -Credential $using:ControlAPICredentials -SessionID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString($Using:LTPoShURI) | iex; Update-LTService" -TimeOut 120000 -MaxLength 10240
-            return $ServiceRestartAttempt
+            $ConnectOptions=$Using:ConnectOptions
+            If (Connect-ControlAPI @ConnectOptions -SkipCheck -Quiet) {
+               $ServiceRestartAttempt = Invoke-ControlCommand -SessionID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString('$($Using:LTPoShURI)') | iex; Update-LTService" -TimeOut 60000 -MaxLength 10240
+               return $ServiceRestartAttempt
+            }
             } | out-null
          } ElseIf ($Action -eq 'Restart') {
             $ObjectCapture | Start-RSJob -Throttle $BatchSize -Name {"$($_.ComputerName) - $($_.ComputerID) - Restart Service"} -ScriptBlock {
             Import-Module AutomateAPI -Force
-            $ServiceRestartAttempt = Invoke-ControlCommand -Server $using:ControlServer -Credential $using:ControlAPICredentials -SessionID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString($Using:LTPoShURI) | iex; Restart-LTService" -TimeOut 120000 -MaxLength 10240
-            return $ServiceRestartAttempt
+            $ConnectOptions=$Using:ConnectOptions
+            If (Connect-ControlAPI @ConnectOptions -SkipCheck -Quiet) {
+               $ServiceRestartAttempt = Invoke-ControlCommand -SessionID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString('$($Using:LTPoShURI)') | iex; Restart-LTService" -TimeOut 60000 -MaxLength 10240
+               return $ServiceRestartAttempt
+            }
             } | out-null
          } ElseIf ($Action -eq 'Reinstall') {
             $ObjectCapture | Start-RSJob -Throttle $BatchSize -Name {"$($_.ComputerName) - $($_.ComputerID) - ReInstall Service"} -ScriptBlock {
             Import-Module AutomateAPI -Force
-            $ServiceRestartAttempt = Invoke-ControlCommand -Server $using:ControlServer -Credential $using:ControlAPICredentials -SessionID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString($Using:LTPoShURI) | iex; ReInstall-LTService" -TimeOut 360000 -MaxLength 10240
-            return $ServiceRestartAttempt
+            $ConnectOptions=$Using:ConnectOptions
+            If (Connect-ControlAPI @ConnectOptions -SkipCheck -Quiet) {
+               $ServiceRestartAttempt = Invoke-ControlCommand -SessionID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString('$($Using:LTPoShURI)') | iex; ReInstall-LTService" -TimeOut 60000 -MaxLength 10240
+               return $ServiceRestartAttempt
+            }
             } | out-null
          } Else {
             Write-Host -BackgroundColor Yellow -ForegroundColor Red "Action $Action is not currently supported."
