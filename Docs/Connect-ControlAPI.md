@@ -17,10 +17,20 @@ Adds credentials required to connect to the Control API
 Connect-ControlAPI [-Server <String>] [-Quiet] [<CommonParameters>]
 ```
 
+### verify
+```
+Connect-ControlAPI [-Credential <PSCredential>] [-Server <String>] [-Verify] [-Quiet] [<CommonParameters>]
+```
+
 ### credential
 ```
-Connect-ControlAPI [-ControlCredentials <PSCredential>] [-Server <String>] [-Force] [-SkipCheck] [-Quiet]
+Connect-ControlAPI [-Credential <PSCredential>] [-Server <String>] [-Force] [-SkipCheck] [-Quiet]
  [<CommonParameters>]
+```
+
+### apikey
+```
+Connect-ControlAPI [-Server <String>] [-APIKey <Object>] [-SkipCheck] [-Quiet] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -36,16 +46,16 @@ All values will be prompted for one by one:
 
 Connect-ControlAPI
 All values needed to Automatically create appropriate output
-Connect-ControlAPI -Server "https://control.rancorthebeast.com:8040" -ControlCredentials $CredentialsToPass
+Connect-ControlAPI -Server "https://control.rancorthebeast.com:8040" -Credentials $CredentialsToPass
 
 ## PARAMETERS
 
-### -ControlCredentials
+### -Credential
 Takes a standard powershell credential object, this can be built with $CredentialsToPass = Get-Credential, then pass $CredentialsToPass
 
 ```yaml
 Type: PSCredential
-Parameter Sets: credential
+Parameter Sets: verify, credential
 Aliases:
 
 Required: False
@@ -71,6 +81,21 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
+### -APIKey
+Automate APIKey for Control Extension
+
+```yaml
+Type: Object
+Parameter Sets: apikey
+Aliases:
+
+Required: False
+Position: Named
+Default value: ([SecureString]$Script:ControlAPIKey)
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
 ### -Force
 \[Parameter(ParameterSetName = 'credential', Mandatory = $False)\]
 \[String\]$TwoFactorToken,
@@ -87,12 +112,28 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
-### -SkipCheck
-{{Fill SkipCheck Description}}
+### -Verify
+Attempt to verify Cached API key or Credentials.
+Invalid results will be removed.
 
 ```yaml
 Type: SwitchParameter
-Parameter Sets: credential
+Parameter Sets: verify
+Aliases:
+
+Required: False
+Position: Named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -SkipCheck
+Used internally when quietly refreshing the Token
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: credential, apikey
 Aliases:
 
 Required: False

@@ -6,7 +6,7 @@ function Connect-ControlAPI {
     Creates a Control hashtable in memory containing the server and username/password so that it can be used in other functions that connect to ConnectWise Control. Unfortunately the Control API does not support 2FA.
     .PARAMETER Server
     The address to your Control Server. Example 'https://control.rancorthebeast.com:8040'
-    .PARAMETER Credentials
+    .PARAMETER Credential
     Takes a standard powershell credential object, this can be built with $CredentialsToPass = Get-Credential, then pass $CredentialsToPass
     .PARAMETER APIKey
     Automate APIKey for Control Extension
@@ -14,6 +14,8 @@ function Connect-ControlAPI {
     Attempt to verify Cached API key or Credentials. Invalid results will be removed.
     .PARAMETER Quiet
     Will not output any standard logging messages
+    .PARAMETER SkipCheck
+    Used internally when quietly refreshing the Token
     .OUTPUTS
     Two script variables with server and credentials. Returns True or False
     .NOTES

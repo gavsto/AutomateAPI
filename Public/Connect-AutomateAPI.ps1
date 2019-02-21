@@ -10,7 +10,9 @@ The address to your Automate Server. Example 'rancor.hostedrmm.com'
 Takes a standard powershell credential object, this can be built with $CredentialsToPass = Get-Credential, then pass $CredentialsToPass
 .PARAMETER TwoFactorToken
 Takes a string that represents the 2FA number
-.PARAMETER Token
+.PARAMETER AuthorizationToken
+Used internally when quietly refreshing the Token
+.PARAMETER SkipCheck
 Used internally when quietly refreshing the Token
 .PARAMETER Verify
 Specifies to test the current token, and if it is not valid attempt to obtain a new one using the current credentials. Does not refresh (re-issue) the current token.

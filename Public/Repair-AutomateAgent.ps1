@@ -4,8 +4,14 @@ function Repair-AutomateAgent {
    Takes changed detected in Compare-AutomateControlStatus and performs a specified repair on them
 .DESCRIPTION
    Takes changed detected in Compare-AutomateControlStatus and performs a specified repair on them
-.PARAMETER Check
-   Triggers a different type of check depending on what is passed either Update, Restart, Reinstall or Check
+.PARAMETER Action
+   Takes either Update, Restart, Reinstall or Check
+.PARAMETER BatchSize
+   When multiple jobs are run, they run in Parallel. Batch size determines how many jobs can run at once. Default is 10
+.PARAMETER LTPoShURI 
+   If you do not wish to use the LT Posh module on GitHub you can use your own link to the LTPosh Module with this parameter
+.PARAMETER AutomateControlStatusObject
+   Object taken from the Pipeline from Compare-AutomateControlStatus
 .EXAMPLE
    Get-AutomateComputer -Online $False | Compare-AutomateControlStatus | Repair-AutomateAgent -Action Check
 .EXAMPLE
@@ -25,7 +31,7 @@ function Repair-AutomateAgent {
    [Parameter(Mandatory = $False)]
    [ValidateRange(1,50)]
    [int]
-   $BatchSize = 5,
+   $BatchSize = 10,
 
    [Parameter(Mandatory = $False)]
    [String]$LTPoShURI = $Script:LTPoShURI,

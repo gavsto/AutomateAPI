@@ -14,17 +14,17 @@ Sets credential objects on a server that has never had them before
 
 ### Automate
 ```
-Set-CredentialsLocallyStored [-Automate] [-CredentialDirectory <String>] [<CommonParameters>]
+Set-CredentialsLocallyStored [-Automate] [-Save] [-CredentialDirectory <String>] [<CommonParameters>]
 ```
 
 ### All
 ```
-Set-CredentialsLocallyStored [-All] [<CommonParameters>]
+Set-CredentialsLocallyStored [-All] [-Save] [<CommonParameters>]
 ```
 
 ### Control
 ```
-Set-CredentialsLocallyStored [-Control] [-CredentialDirectory <String>] [<CommonParameters>]
+Set-CredentialsLocallyStored [-Control] [-Save] [-CredentialDirectory <String>] [<CommonParameters>]
 ```
 
 ### Custom
@@ -45,22 +45,7 @@ Set-CredentialsLocallyStored -Automate
 
 ### EXAMPLE 2
 ```
-Set-CredentialsLocallyStored -ITGlue
-```
-
-### EXAMPLE 3
-```
-Set-CredentialsLocallyStored -MySQL
-```
-
-### EXAMPLE 4
-```
-Set-CredentialsLocallyStored -Office365
-```
-
-### EXAMPLE 5
-```
-Set-CredentialsLocallyStored -Custom -CredentialPath "C:\Credentials\Custom Credentials.txt"
+Set-CredentialsLocallyStored -Custom -CredentialDisplayName 'Office365' -CredentialDirectory "C:\Credentials"
 ```
 
 ## PARAMETERS
@@ -136,6 +121,21 @@ Aliases:
 Required: True
 Position: Named
 Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Save
+{{Fill Save Description}}
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: Automate, All, Control
+Aliases:
+
+Required: False
+Position: Named
+Default value: False
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
