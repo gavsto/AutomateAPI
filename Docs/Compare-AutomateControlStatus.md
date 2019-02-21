@@ -8,7 +8,7 @@ schema: 2.0.0
 # Compare-AutomateControlStatus
 
 ## SYNOPSIS
-{{Fill in the Synopsis}}
+Compares Automate Online Status with Control, and outputs all machines online in Control and not in Automate
 
 ## SYNTAX
 
@@ -17,36 +17,24 @@ Compare-AutomateControlStatus [[-ComputerObject] <Object>] [-AllResults] [-Quiet
 ```
 
 ## DESCRIPTION
-{{Fill in the Description}}
+Compares Automate Online Status with Control, and outputs all machines online in Control and not in Automate
 
 ## EXAMPLES
 
-### Example 1
-```powershell
-PS C:\> {{ Add example code here }}
+### EXAMPLE 1
+```
+Get-AutomateComputer -ComputerID 5 | Compare-AutomateControlStatus
 ```
 
-{{ Add example description here }}
+### EXAMPLE 2
+```
+Get-AutomateComputer -Online $False | Compare-AutomateControlStatus
+```
 
 ## PARAMETERS
 
-### -AllResults
-{{Fill AllResults Description}}
-
-```yaml
-Type: SwitchParameter
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: Named
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
 ### -ComputerObject
-{{Fill ComputerObject Description}}
+Can be taken from the pipeline in the form of Get-AutomateComputer -ComputerID 5 | Compare-AutomateControlStatus
 
 ```yaml
 Type: Object
@@ -54,14 +42,14 @@ Parameter Sets: (All)
 Aliases:
 
 Required: False
-Position: 0
+Position: 1
 Default value: None
 Accept pipeline input: True (ByValue)
 Accept wildcard characters: False
 ```
 
-### -Quiet
-{{Fill Quiet Description}}
+### -AllResults
+Instead of outputting a comparison it outputs everything, which include two columns indicating online status
 
 ```yaml
 Type: SwitchParameter
@@ -70,7 +58,22 @@ Aliases:
 
 Required: False
 Position: Named
-Default value: None
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Quiet
+Doesn't output any log messages
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: False
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -81,11 +84,13 @@ For more information, see about_CommonParameters (http://go.microsoft.com/fwlink
 
 ## INPUTS
 
-### System.Object
-
 ## OUTPUTS
 
-### System.Object
+### An object containing Online status for Control and Automate
 ## NOTES
+Version:        1.1
+Author:         Gavin Stone
+Creation Date:  20/01/2019
+Purpose/Change: Initial script development
 
 ## RELATED LINKS

@@ -19,17 +19,20 @@ Get-AutomateComputer [[-ComputerID] <Int32[]>] [<CommonParameters>]
 
 ### AllResults
 ```
-Get-AutomateComputer [-AllComputers] [<CommonParameters>]
+Get-AutomateComputer [-AllComputers] [-IncludeFields <String>] [-ExcludeFields <String>] [-OrderBy <String>]
+ [<CommonParameters>]
 ```
 
 ### ByCondition
 ```
-Get-AutomateComputer [[-Condition] <String>] [<CommonParameters>]
+Get-AutomateComputer [-Condition <String>] [-IncludeFields <String>] [-ExcludeFields <String>]
+ [-OrderBy <String>] [<CommonParameters>]
 ```
 
 ### CustomBuiltCondition
 ```
-Get-AutomateComputer [-ClientName <String>] [-ClientId <Int32>] [-LocationId <Int32>] [-LocationName <String>]
+Get-AutomateComputer [-IncludeFields <String>] [-ExcludeFields <String>] [-OrderBy <String>]
+ [-ClientName <String>] [-ClientId <Int32>] [-LocationId <Int32>] [-LocationName <String>]
  [-ComputerName <String>] [-OpenPort <String>] [-OperatingSystem <String>] [-DomainName <String>]
  [-NotSeenInDays <Int32>] [-Comment <String>] [-LastWindowsUpdateInDays <Int32>]
  [-AntiVirusDefinitionInDays <String>] [-LocalIPAddress <String>] [-GatewayIPAddress <String>]
@@ -114,7 +117,52 @@ Parameter Sets: ByCondition
 Aliases:
 
 Required: False
-Position: 1
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -IncludeFields
+A comma separated list of fields that you want including in the returned computer object.
+
+```yaml
+Type: String
+Parameter Sets: AllResults, ByCondition, CustomBuiltCondition
+Aliases:
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -ExcludeFields
+A comma separated list of fields that you want excluding in the returned computer object.
+
+```yaml
+Type: String
+Parameter Sets: AllResults, ByCondition, CustomBuiltCondition
+Aliases:
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -OrderBy
+A comma separated list of fields that you want to order by finishing with either an asc or desc.
+
+```yaml
+Type: String
+Parameter Sets: AllResults, ByCondition, CustomBuiltCondition
+Aliases:
+
+Required: False
+Position: Named
 Default value: None
 Accept pipeline input: False
 Accept wildcard characters: False
