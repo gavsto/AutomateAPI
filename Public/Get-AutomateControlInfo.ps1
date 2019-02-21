@@ -6,6 +6,10 @@ Retrieve data from Automate API Control Extension
 Connects to the Automate API Control Extension and returns an object with Control Session data
 .PARAMETER ComputerID
 The Automate ComputerID to retrieve information on
+.PARAMETER ID
+Taken from the Pipeline, IE Get-AutomateComputer -ComputerID 5 | Get-AutomateControlInfo
+.PARAMETER ComputerObjects
+Used for Pipeline input from Get-AutomateComputer
 .OUTPUTS
 Custom object with the ComputerID and Control SessionID. Additional properties from the return data will be included.
 .NOTES

@@ -1,4 +1,27 @@
 function Compare-AutomateControlStatus {
+    <#
+    .SYNOPSIS
+    Compares Automate Online Status with Control, and outputs all machines online in Control and not in Automate
+    .DESCRIPTION
+    Compares Automate Online Status with Control, and outputs all machines online in Control and not in Automate
+    .PARAMETER ComputerObject
+    Can be taken from the pipeline in the form of Get-AutomateComputer -ComputerID 5 | Compare-AutomateControlStatus
+    .PARAMETER AllResults
+    Instead of outputting a comparison it outputs everything, which include two columns indicating online status
+    .PARAMETER Quiet
+    Doesn't output any log messages
+    .OUTPUTS
+    An object containing Online status for Control and Automate
+    .NOTES
+    Version:        1.1
+    Author:         Gavin Stone
+    Creation Date:  20/01/2019
+    Purpose/Change: Initial script development
+    .EXAMPLE
+    Get-AutomateComputer -ComputerID 5 | Compare-AutomateControlStatus
+    .EXAMPLE
+    Get-AutomateComputer -Online $False | Compare-AutomateControlStatus
+    #>
     [CmdletBinding()]
     param (
         [Parameter(ValueFromPipeline = $true)]
@@ -45,11 +68,19 @@ function Compare-AutomateControlStatus {
                 $AutomateControlGUID = $AutoControlSessions[[int]$Computer.ID]
             }
 
+            If([string]::IsNullOrEmpty($Computer.Client.Name))
+            {
+                $FiClientName = $Computer.ClientName
+            }
+            else {
+                $FiClientName = $Computer.Client.Name
+            }
+
             $FinalComputerObject = ""
             $FinalComputerObject = [pscustomobject] @{
                 ComputerID = $Computer.ID
                 ComputerName = $Computer.ComputerName
-                ClientName = $Computer.Client.Name
+                ClientName = $FiClientName
                 OperatingSystemName = $Computer.OperatingSystemName
                 OnlineStatusAutomate = $Computer.Status
                 OnlineStatusControl = ''

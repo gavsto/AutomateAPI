@@ -20,8 +20,13 @@ Connect-AutomateAPI [-Server <String>] [-AuthorizationToken <String>] [-SkipChec
 
 ### credential
 ```
-Connect-AutomateAPI [-Credentials <PSCredential>] [-Server <String>] [-TwoFactorToken <String>]
+Connect-AutomateAPI [-Credential <PSCredential>] [-Server <String>] [-SkipCheck] [-TwoFactorToken <String>]
  [-Force] [-Quiet] [<CommonParameters>]
+```
+
+### verify
+```
+Connect-AutomateAPI [-Server <String>] [-AuthorizationToken <String>] [-Verify] [-Quiet] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -41,8 +46,8 @@ Connect-AutomateAPI -Quiet
 
 ## PARAMETERS
 
-### -Credentials
-Takes a standard powershell credential object, this can be built with $CredentialsToPass = Get-Credential, then pass $CredentialsToPass
+### -Credential
+{{Fill Credential Description}}
 
 ```yaml
 Type: PSCredential
@@ -73,26 +78,42 @@ Accept wildcard characters: False
 ```
 
 ### -AuthorizationToken
-{{Fill AuthorizationToken Description}}
+Used internally when quietly refreshing the Token
 
 ```yaml
 Type: String
-Parameter Sets: refresh
+Parameter Sets: refresh, verify
 Aliases:
 
 Required: False
 Position: Named
-Default value: ($Script:CWACredentials.Authorization -replace 'Bearer ','')
+Default value: ($Script:CWAToken.Authorization -replace 'Bearer ','')
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
 ### -SkipCheck
-{{Fill SkipCheck Description}}
+Used internally when quietly refreshing the Token
 
 ```yaml
 Type: SwitchParameter
-Parameter Sets: refresh
+Parameter Sets: refresh, credential
+Aliases:
+
+Required: False
+Position: Named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Verify
+Specifies to test the current token, and if it is not valid attempt to obtain a new one using the current credentials.
+Does not refresh (re-issue) the current token.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: verify
 Aliases:
 
 Required: False

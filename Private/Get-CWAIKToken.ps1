@@ -13,6 +13,8 @@ function Get-CWAIKToken {
         $APIKey = $([Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($APIKey)))
     }
 
+    # If you bothered to actually inspect this module thoroughly, come PM @Gavsto in Slack and win a free Gavsto Karma Point ;)
+
     $TimeStepSeconds = 600
     $origin = New-Object -Type DateTime -ArgumentList 1970, 1, 1, 0, 0, 0, 0
     $epochsteps = [long]$((New-TimeSpan -Start $origin -End $(get-date).ToUniversalTime()).TotalSeconds/$TimeStepSeconds)
