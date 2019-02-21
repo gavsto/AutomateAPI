@@ -13,8 +13,8 @@ Takes changed detected in Compare-AutomateControlStatus and performs a specified
 ## SYNTAX
 
 ```
-Repair-AutomateAgent [[-Action] <String>] [[-BatchSize] <Int32>] [[-AutomateControlStatusObject] <Object>]
- [-WhatIf] [-Confirm] [<CommonParameters>]
+Repair-AutomateAgent [[-Action] <String>] [[-BatchSize] <Int32>] [[-LTPoShURI] <String>]
+ [[-AutomateControlStatusObject] <Object>] [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -24,18 +24,18 @@ Takes changed detected in Compare-AutomateControlStatus and performs a specified
 
 ### EXAMPLE 1
 ```
-Get-AutomateComputer -Online $False | Compare-AutomateControlStatus | Repair-AutomateAgent -Check Restart
+Get-AutomateComputer -Online $False | Compare-AutomateControlStatus | Repair-AutomateAgent -Action Check
 ```
 
 ### EXAMPLE 2
 ```
-Get-AutomateComputer -Online $False | Compare-AutomateControlStatus | Repair-AutomateAgent -Check Reinstall
+Get-AutomateComputer -Online $False | Compare-AutomateControlStatus | Repair-AutomateAgent -Action Restart
 ```
 
 ## PARAMETERS
 
 ### -Action
-{{Fill Action Description}}
+Takes either Update, Restart, Reinstall or Check
 
 ```yaml
 Type: String
@@ -50,7 +50,9 @@ Accept wildcard characters: False
 ```
 
 ### -BatchSize
-{{Fill BatchSize Description}}
+When multiple jobs are run, they run in Parallel.
+Batch size determines how many jobs can run at once.
+Default is 10
 
 ```yaml
 Type: Int32
@@ -59,13 +61,28 @@ Aliases:
 
 Required: False
 Position: 2
-Default value: 5
+Default value: 10
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -LTPoShURI
+If you do not wish to use the LT Posh module on GitHub you can use your own link to the LTPosh Module with this parameter
+
+```yaml
+Type: String
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: 3
+Default value: $Script:LTPoShURI
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
 ### -AutomateControlStatusObject
-{{Fill AutomateControlStatusObject Description}}
+Object taken from the Pipeline from Compare-AutomateControlStatus
 
 ```yaml
 Type: Object
@@ -73,7 +90,7 @@ Parameter Sets: (All)
 Aliases:
 
 Required: False
-Position: 3
+Position: 4
 Default value: None
 Accept pipeline input: True (ByValue)
 Accept wildcard characters: False

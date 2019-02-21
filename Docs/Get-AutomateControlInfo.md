@@ -50,7 +50,7 @@ Accept wildcard characters: False
 ```
 
 ### -ID
-{{Fill ID Description}}
+Taken from the Pipeline, IE Get-AutomateComputer -ComputerID 5 | Get-AutomateControlInfo
 
 ```yaml
 Type: Int16[]
@@ -65,7 +65,7 @@ Accept wildcard characters: False
 ```
 
 ### -ComputerObjects
-{{Fill ComputerObjects Description}}
+Used for Pipeline input from Get-AutomateComputer
 
 ```yaml
 Type: Object

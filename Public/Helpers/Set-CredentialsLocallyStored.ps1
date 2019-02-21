@@ -9,17 +9,8 @@ function Set-CredentialsLocallyStored {
 .EXAMPLE
    Set-CredentialsLocallyStored -Automate
 
-.EXAMPLE
-   Set-CredentialsLocallyStored -ITGlue
-
-.EXAMPLE
-   Set-CredentialsLocallyStored -MySQL
-
-.EXAMPLE
-   Set-CredentialsLocallyStored -Office365
-
 .Example
-   Set-CredentialsLocallyStored -Custom -CredentialPath "C:\Credentials\Custom Credentials.txt"
+   Set-CredentialsLocallyStored -Custom -CredentialDisplayName 'Office365' -CredentialDirectory "C:\Credentials"
 
 #>
     [CmdletBinding()]
@@ -41,58 +32,112 @@ function Set-CredentialsLocallyStored {
 
         [Parameter(ParameterSetName = 'Automate')]
         [Parameter(ParameterSetName = 'Control')]
-        [Parameter(ParameterSetName = "Custom",Mandatory=$True)]      
+        [Parameter(ParameterSetName = 'All')]
+        [switch]$Save,
+
+        [Parameter(ParameterSetName = 'Automate')]
+        [Parameter(ParameterSetName = 'Control')]
+        [Parameter(ParameterSetName = "Custom",Mandatory=$True)]
         [string]$CredentialDirectory = "$($env:USERPROFILE)\AutomateAPI\"
     )
 
-    if ($All) {
+    If ($All) {
         $Automate = $True
         $Control = $True
     }
 
-    if (-not (Test-Path $CredentialDirectory)) {
+    If (-not (Test-Path $CredentialDirectory)) {
         New-Item -ItemType Directory -Force -Path $CredentialDirectory | ForEach-Object{$_.Attributes = "hidden"}
     }
 
+    If ($Automate) {
+        If (!$Save) {
+            Connect-AutomateAPI -Server '' -Force
+        }
 
-    if ($Automate) {
-        $CredentialPath = "$($CredentialDirectory)Automate - Credentials.txt"
+        $StoreVariables = @(
+            @{'Name' = 'CWAServer'; 'Scope' = 'Script'},
+            @{'Name' = 'CWACredentials'; 'Scope' = 'Script'},
+            @{'Name' = 'CWATokenKey'; 'Scope' = 'Script'},
+            @{'Name' = 'CWATokenInfo'; 'Scope' = 'Script'}
+        )
 
-        $TempAutomateServer = Read-Host -Prompt "Please enter your Automate Server address, without the HTTPS, IE: rancor.hostedrmm.com" 
-        $TempAutomateUsername = Read-Host -Prompt "Please enter your Automate Username"
-        $TempAutomatePassword = Read-Host -Prompt "Please enter your Automate Password" -AsSecureString
-        $TempAutomatePassword = $TempAutomatePassword | ConvertFrom-SecureString
-        
-        Set-Content "$CredentialPath" $TempAutomateUsername -Force
-        Add-Content "$CredentialPath" $TempAutomatePassword
-        Add-Content "$CredentialPath" $TempAutomateServer
+        $StoreBlock = [pscustomobject]@{}
+        $CredentialPath = "$($CredentialDirectory)\Automate - Credentials.txt"
+
+        Foreach ($SaveVar in $StoreVariables) {
+            If (!(Get-Variable @SaveVar -ErrorAction 0)) {Continue}
+            If ($SaveVar.Name -match 'Credential') {
+                Try {
+                    Write-Debug "Trying to save $($SaveVar.Name)"
+                    $x_Credential = @{'UserName'=(Get-Variable @SaveVar -ValueOnly).UserName; 'Password'=((Get-Variable @SaveVar -ValueOnly).Password|ConvertFrom-SecureString)}
+                    $Null = $StoreBlock | Add-Member -NotePropertyName $($SaveVar.Name) -NotePropertyValue $x_Credential
+                } Catch {
+                    Write-Warning "Failed to store $($SaveVar.Name), it is not a valid Credential."
+                }
+            } ElseIf ($SaveVar.Name -match 'Key') {
+                Try {
+                    $x_Key = (Get-Variable @SaveVar -ValueOnly|ConvertFrom-SecureString)
+                    $Null = $StoreBlock | Add-Member -NotePropertyName $($SaveVar.Name) -NotePropertyValue $x_Key
+                } Catch {
+                    Write-Warning "Failed to store $($SaveVar.Name), it is not a valid Secure String."
+                }
+            } Else {
+                $Null = $StoreBlock | Add-Member -NotePropertyName $($SaveVar.Name) -NotePropertyValue (Get-Variable @SaveVar -ValueOnly)
+            }
+        }
+
+        $StoreBlock | ConvertTo-JSON -Depth 10 | Out-File -FilePath $CredentialPath -Force -NoNewline
         Write-Output "Automate Credentials Set"
     }
 
-    if ($Control) {
-        $CredentialPath = "$($CredentialDirectory)Control - Credentials.txt"
+    If ($Control) {
+        If (!$Save) {
+            Connect-ControlAPI -Server '' -Force
+        }
 
-        $TempControlServer = Read-Host -Prompt "Please enter your Control Server address, the full URL. IE https://control.rancorthebeast.com:8040" 
-        $TempControlUsername = Read-Host -Prompt "Please enter your Control Username"
-        $TempControlPassword = Read-Host -Prompt "Please enter your Control Password" -AsSecureString
-        $TempControlPassword = $TempControlPassword | ConvertFrom-SecureString
-        
-        Set-Content "$CredentialPath" $TempControlUsername -Force
-        Add-Content "$CredentialPath" $TempControlPassword 
-        Add-Content "$CredentialPath" $TempControlServer 
+        $StoreVariables = @(
+            @{'Name' = 'ControlAPICredentials'; 'Scope' = 'Script'},
+            @{'Name' = 'ControlServer'; 'Scope' = 'Script'},
+            @{'Name' = 'ControlAPIKey'; 'Scope' = 'Script'}
+        )
+
+        $StoreBlock = [pscustomobject]@{}
+        $CredentialPath = "$($CredentialDirectory)\Control - Credentials.txt"
+
+        Foreach ($SaveVar in $StoreVariables) {
+            If (!(Get-Variable @SaveVar -ErrorAction 0)) {Continue}
+            If ($SaveVar.Name -match 'Credential') {
+                Try {
+                    $x_Credential = @{'UserName'=(Get-Variable @SaveVar -ValueOnly).UserName; 'Password'=((Get-Variable @SaveVar -ValueOnly).Password|ConvertFrom-SecureString)}
+                    $Null = $StoreBlock | Add-Member -NotePropertyName $($SaveVar.Name) -NotePropertyValue $x_Credential
+                } Catch {
+                    Write-Warning "Failed to store $($SaveVar.Name), it is not a valid Credential."
+                }
+            } ElseIf ($SaveVar.Name -match 'Key') {
+                Try {
+                    $x_Key = (Get-Variable @SaveVar -ValueOnly|ConvertFrom-SecureString)
+                    $Null = $StoreBlock | Add-Member -NotePropertyName $($SaveVar.Name) -NotePropertyValue $x_Key
+                } Catch {
+                    Write-Warning "Failed to store $($SaveVar.Name), it is not a valid Secure String."
+                }
+            } Else {
+                $Null = $StoreBlock | Add-Member -NotePropertyName $($SaveVar.Name) -NotePropertyValue (Get-Variable @SaveVar -ValueOnly)
+            }
+        }
+
+        $StoreBlock | ConvertTo-JSON -Depth 10 | Out-File -FilePath $CredentialPath -Force -NoNewline
         Write-Output "Control Credentials Set"
     }
 
-    if ($Custom) {
+    If ($Custom) {
+        $StoreBlock = [pscustomobject]@{}
         $CredentialPath = "$($CredentialDirectory)\$($CredentialDisplayName).txt"
         $CustomCredentials = Get-Credential -Message "Please enter the Custom Username and Password to store"
-        $CustomUsername = $CustomCredentials.UserName
-        $CustomPasswordSecureString = $CustomCredentials.Password
-        $CustomPassword = $CustomPasswordSecureString | ConvertFrom-SecureString
-        
-        Set-Content "$CredentialPath" $CustomUsername -Force
-        Add-Content "$CredentialPath" $CustomPassword
-        Write-Output "Custom Credentials Set"
+        $Null = $StoreBlock | Add-Member -NotePropertyName 'CustomCredentials' -NotePropertyValue @{'UserName'=$CustomCredentials.UserName; 'Password'=($CustomCredentials.Password | ConvertFrom-SecureString)}
+
+        $StoreBlock | ConvertTo-JSON -Depth 10 | Out-File -FilePath $CredentialPath -Force -NoNewline
+        Write-Output "Custom Credentials Set for $($CredentialDisplayName)"
     }
 
 }
