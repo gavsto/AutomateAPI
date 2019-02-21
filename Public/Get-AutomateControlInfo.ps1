@@ -6,6 +6,10 @@ Retrieve data from Automate API Control Extension
 Connects to the Automate API Control Extension and returns an object with Control Session data
 .PARAMETER ComputerID
 The Automate ComputerID to retrieve information on
+.PARAMETER ID
+Taken from the Pipeline, IE Get-AutomateComputer -ComputerID 5 | Get-AutomateControlInfo
+.PARAMETER ComputerObjects
+Used for Pipeline input from Get-AutomateComputer
 .OUTPUTS
 Custom object with the ComputerID and Control SessionID. Additional properties from the return data will be included.
 .NOTES
@@ -63,7 +67,7 @@ Get-AutomateControlInfo -ComputerId 123
             }
             $url = ($Script:CWAServer + "/cwa/api/v1/extensionactions/control/$($Computer.ID)")
             Try {
-                $Result = Invoke-RestMethod -Uri $url -Headers $script:CWACredentials -ContentType "application/json"
+                $Result = Invoke-RestMethod -Uri $url -Headers $script:CWAToken -ContentType "application/json"
 
                 $ResultMatch=$Result|select-string -Pattern '^(https?://[^?]*)\??(.*)' -AllMatches
                 If ($ResultMatch.Matches) {

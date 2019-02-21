@@ -1,4 +1,27 @@
 function Compare-AutomateControlStatus {
+    <#
+    .SYNOPSIS
+    Compares Automate Online Status with Control, and outputs all machines online in Control and not in Automate
+    .DESCRIPTION
+    Compares Automate Online Status with Control, and outputs all machines online in Control and not in Automate
+    .PARAMETER ComputerObject
+    Can be taken from the pipeline in the form of Get-AutomateComputer -ComputerID 5 | Compare-AutomateControlStatus
+    .PARAMETER AllResults
+    Instead of outputting a comparison it outputs everything, which include two columns indicating online status
+    .PARAMETER Quiet
+    Doesn't output any log messages
+    .OUTPUTS
+    An object containing Online status for Control and Automate
+    .NOTES
+    Version:        1.1
+    Author:         Gavin Stone
+    Creation Date:  20/01/2019
+    Purpose/Change: Initial script development
+    .EXAMPLE
+    Get-AutomateComputer -ComputerID 5 | Compare-AutomateControlStatus
+    .EXAMPLE
+    Get-AutomateComputer -Online $False | Compare-AutomateControlStatus
+    #>
     [CmdletBinding()]
     param (
         [Parameter(ValueFromPipeline = $true)]
@@ -11,51 +34,53 @@ function Compare-AutomateControlStatus {
         [switch]$Quiet
     )
     
-    begin {
+    Begin {
         $ComputerArray = @()
         $ObjectRebuild = @()
         $ReturnedObject = @()
     }
     
-    process {
-        if ($ComputerObject) {
+    Process {
+        If ($ComputerObject) {
             $ObjectRebuild += $ComputerObject 
         }
-
     }
     
-    end {
+    End {
         # The primary concern now is to get out the ComputerIDs of the machines of the objects
         # We want to support all ComputerIDs being called if no computer object is passed in
-        If(!$Quiet){Write-Host -BackgroundColor Blue -ForegroundColor White "Checking to see if the recommended Internal Monitor is present"}
+        If (!$Quiet){Write-Host -BackgroundColor Blue -ForegroundColor White "Checking to see if the recommended Internal Monitor is present"}
         $AutoControlSessions=@{};
-        $InternalMonitorMethod = $false
-        $Null=Get-AutomateAPIGeneric -Endpoint "InternalMonitorResults" -allresults -condition "(Name like '%GetControlSessionIDs%')" | foreach-object {$AutoControlSessions.Add($_.computerid,$_.IdentityField)};
-
-        # Check to see if the Internal Monitor method has results
-        if ($AutoControlSessions.Count -gt 0){$InternalMonitorMethod = $true; If(!$Quiet){Write-Host -BackgroundColor Green -ForegroundColor Black "Internal monitor found. Processing results."} } Else {If(!$Quiet){Write-Host -ForegroundColor Black -BackgroundColor Yellow "Internal monitor not found. This cmdlet is significantly faster with it. See https://www.github.com/gavsto/automateapi"}}
+        $Null=Get-AutomateAPIGeneric -Endpoint "InternalMonitorResults" -allresults -condition "(Name like '%GetControlSessionIDs%')" -EA 0 | Where-Object {($_.computerid -and $_.computerid -gt 0 -and $_.IdentityField -and $_.IdentityField -match '.+')} | ForEach-Object {$AutoControlSessions.Add($_.computerid,$_.IdentityField)};
 
         # Check to see if any Computers were specified in the incoming object
-        if(!$ObjectRebuild.Count -gt 0){$FullLookupMethod = $true}
+        If (!$ObjectRebuild.Count -gt 0){$FullLookupMethod = $true}
 
-        if ($FullLookupMethod) {
-            $ObjectRebuild = Get-AutomateComputer -AllComputers | Select Id, ComputerName, @{Name = 'ClientName'; Expression = {$_.Client.Name}}, OperatingSystemName, Status 
+        If ($FullLookupMethod) {
+            $ObjectRebuild = Get-AutomateComputer -AllComputers | Select-Object Id, ComputerName, @{Name = 'ClientName'; Expression = {$_.Client.Name}}, OperatingSystemName, Status 
         }
 
-        foreach ($computer in $ObjectRebuild) {
-            If(!$InternalMonitorMethod)
+        Foreach ($computer in $ObjectRebuild) {
+            If (!$AutoControlSessions[[int]$Computer.ID])
             {
                 $AutomateControlGUID = Get-AutomateControlInfo -ComputerID $($computer | Select-Object -ExpandProperty id) | Select-Object -ExpandProperty SessionID
+            } Else {
+                $AutomateControlGUID = $AutoControlSessions[[int]$Computer.ID]
+            }
+
+            If([string]::IsNullOrEmpty($Computer.Client.Name))
+            {
+                $FiClientName = $Computer.ClientName
             }
             else {
-                $AutomateControlGUID = $AutoControlSessions[[int]$Computer.ID]
+                $FiClientName = $Computer.Client.Name
             }
 
             $FinalComputerObject = ""
             $FinalComputerObject = [pscustomobject] @{
                 ComputerID = $Computer.ID
                 ComputerName = $Computer.ComputerName
-                ClientName = $Computer.Client.Name
+                ClientName = $FiClientName
                 OperatingSystemName = $Computer.OperatingSystemName
                 OnlineStatusAutomate = $Computer.Status
                 OnlineStatusControl = ''
@@ -71,23 +96,18 @@ function Compare-AutomateControlStatus {
         #Control Sessions
         $ControlSessions = Get-ControlSessions
 
-        foreach ($final in $ComputerArray) {
+        Foreach ($final in $ComputerArray) {
             
-            if (![string]::IsNullOrEmpty($Final.SessionID)) {
-                if ($ControlSessions.Containskey($Final.SessionID)) {
+            If (![string]::IsNullOrEmpty($Final.SessionID)) {
+                If ($ControlSessions.Containskey($Final.SessionID)) {
                     $ResultControlSessionStatus = $ControlSessions[$Final.SessionID]
-                }
-                else
-                {
+                } Else {
                     $ResultControlSessionStatus = "GUID Not in Control or No Connection Events"
                 } 
-            }
-            else
-            {
+            } Else {
                 $ResultControlSessionStatus = "Control not installed or GUID not in Automate"
             }
 
-        
             $CAReturn = ""
             $CAReturn = [pscustomobject] @{
                 ComputerID = $final.ComputerID
@@ -102,14 +122,10 @@ function Compare-AutomateControlStatus {
             $ReturnedObject += $CAReturn
         }
         
-        if ($AllResults) {
+        If ($AllResults) {
             $ReturnedObject
-        }
-        else
-        {
+        } Else {
             $ReturnedObject | Where-Object{($_.OnlineStatusControl -eq $true) -and ($_.OnlineStatusAutomate -eq 'Offline') }
         }
-        
-
     }
 }
