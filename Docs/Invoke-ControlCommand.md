@@ -13,8 +13,8 @@ Will issue a command against a given machine and return the results.
 ## SYNTAX
 
 ```
-Invoke-ControlCommand [[-Server] <String>] [[-Credentials] <PSCredential>] [-GUID] <Guid> [[-Command] <String>]
- [[-TimeOut] <Int32>] [-PowerShell] [[-Group] <String>] [[-MaxLength] <Int32>] [<CommonParameters>]
+Invoke-ControlCommand [[-Server] <String>] [[-Credentials] <PSCredential>] [-SessionID] <Guid[]>
+ [[-Command] <String>] [[-TimeOut] <Int32>] [-PowerShell] [[-MaxLength] <Int32>] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -24,14 +24,19 @@ Will issue a command against a given machine and return the results.
 
 ### EXAMPLE 1
 ```
-Invoke-ControlCommand -GUID $GUID -Command 'hostname'
+Get-AutomateComputer -ComputerID 5 | Get-ControlSessions | Invoke-ControlCommand -Powershell -Command "Get-Service"
+```
+
+### EXAMPLE 2
+```
+Invoke-ControlCommand -SessionID $SessionID -Command 'hostname'
 ```
 
 Will return the hostname of the machine.
 
-### EXAMPLE 2
+### EXAMPLE 3
 ```
-Invoke-ControlCommand -GUID $GUID -User $User -Password $Password -TimeOut 120000 -Command 'iwr -UseBasicParsing "https://bit.ly/ltposh" | iex; Restart-LTService' -PowerShell
+Invoke-ControlCommand -SessionID $SessionID -User $User -Password $Password -TimeOut 120000 -Command 'iwr -UseBasicParsing "https://bit.ly/ltposh" | iex; Restart-LTService' -PowerShell
 ```
 
 Will restart the Automate agent on the target machine.
@@ -68,19 +73,21 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
-### -GUID
+### -SessionID
 The GUID identifier for the machine you wish to connect to.
-You can retrieve session info with the 'Get-CWCSessions' commandlet
+You can retrieve session info with the 'Get-ControlSessions' commandlet
+SessionIDs can be provided via the pipeline.
+IE - Get-AutomateComputer -ComputerID 5 | Get-ControlSessions | Invoke-ControlCommand -Powershell -Command "Get-Service"
 
 ```yaml
-Type: Guid
+Type: Guid[]
 Parameter Sets: (All)
 Aliases:
 
 Required: True
 Position: 3
 Default value: None
-Accept pipeline input: False
+Accept pipeline input: True (ByPropertyName, ByValue)
 Accept wildcard characters: False
 ```
 
@@ -130,21 +137,6 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
-### -Group
-Name of session group to use.
-
-```yaml
-Type: String
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: 6
-Default value: All Machines
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
 ### -MaxLength
 {{Fill MaxLength Description}}
 
@@ -154,7 +146,7 @@ Parameter Sets: (All)
 Aliases:
 
 Required: False
-Position: 7
+Position: 6
 Default value: 5000
 Accept pipeline input: False
 Accept wildcard characters: False
@@ -170,10 +162,17 @@ For more information, see about_CommonParameters (http://go.microsoft.com/fwlink
 
 ### The output of the Command provided.
 ## NOTES
-Version:        1.0
+Version:        2.0
 Author:         Chris Taylor
 Modified By:    Gavin Stone 
+Modified By:    Darren White
 Creation Date:  1/20/2016
 Purpose/Change: Initial script development
+
+Update Date:    2019-02-19
+Author:         Darren White
+Purpose/Change: Enable Pipeline support.
+Enable processing using Automate Control Extension.
+The cached APIKey will be used if present.
 
 ## RELATED LINKS

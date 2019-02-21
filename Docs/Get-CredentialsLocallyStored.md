@@ -22,9 +22,14 @@ Get-CredentialsLocallyStored [-Automate] [-CredentialDirectory <String>] [<Commo
 Get-CredentialsLocallyStored [-Control] [-CredentialDirectory <String>] [<CommonParameters>]
 ```
 
+### All
+```
+Get-CredentialsLocallyStored [-All] [<CommonParameters>]
+```
+
 ### Custom
 ```
-Get-CredentialsLocallyStored [-CredentialPath <String>] [<CommonParameters>]
+Get-CredentialsLocallyStored -CredentialPath <String> [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -40,6 +45,21 @@ PS C:\> {{ Add example code here }}
 {{ Add example description here }}
 
 ## PARAMETERS
+
+### -All
+{{Fill All Description}}
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: All
+Aliases:
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
 
 ### -Automate
 {{Fill Automate Description}}
@@ -94,7 +114,7 @@ Type: String
 Parameter Sets: Custom
 Aliases:
 
-Required: False
+Required: True
 Position: Named
 Default value: None
 Accept pipeline input: False

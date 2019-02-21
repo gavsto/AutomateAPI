@@ -6,8 +6,9 @@ function Invoke-ControlCommand {
         Will issue a command against a given machine and return the results.
     .PARAMETER SessionID
         The GUID identifier for the machine you wish to connect to.
-        You can retrieve session info with the 'Get-CWCSessions' commandlet
+        You can retrieve session info with the 'Get-ControlSessions' commandlet
         SessionIDs can be provided via the pipeline.
+        IE - Get-AutomateComputer -ComputerID 5 | Get-ControlSessions | Invoke-ControlCommand -Powershell -Command "Get-Service"
     .PARAMETER Command
         The command you wish to issue to the machine.
     .PARAMETER TimeOut
@@ -29,7 +30,8 @@ function Invoke-ControlCommand {
         Update Date:    2019-02-19
         Author:         Darren White
         Purpose/Change: Enable Pipeline support. Enable processing using Automate Control Extension. The cached APIKey will be used if present.
-
+    .EXAMPLE
+        Get-AutomateComputer -ComputerID 5 | Get-ControlSessions | Invoke-ControlCommand -Powershell -Command "Get-Service"
     .EXAMPLE
         Invoke-ControlCommand -SessionID $SessionID -Command 'hostname'
             Will return the hostname of the machine.
