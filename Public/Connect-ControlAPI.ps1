@@ -68,7 +68,7 @@ function Connect-ControlAPI {
 #        if ($TwoFactorToken -match '.+') {$Force=$True}
         $TwoFactorNeeded=$False
 
-        If (!$Quiet) {
+        If (!$Quiet -and !$Verify) {
             While (!($Server -match '.+')) {
                 $Server = Read-Host -Prompt "Please enter your Control Server address, the full URL. IE https://control.rancorthebeast.com:8040" 
             }
@@ -117,7 +117,7 @@ function Connect-ControlAPI {
             Do {
                 $ControlAPITestURI = ($Server + '/Services/PageService.ashx/GetHostSessionInfo')
                 If (!$Quiet) {
-                    If (!$Credential) {
+                    If (!$Credential -and !$Verify) {
                         If (!$testCredentials -or $Force) {
                             Write-Debug "No Credentials were provided and no existing Token was found, or -Force was specified"
                             $testCredentials = $Null
@@ -160,7 +160,7 @@ function Connect-ControlAPI {
                 Write-Debug "Request Results: $($ControlAPITokenResult|ConvertTo-Json -Depth 5 -Compress)"
                 $AuthorizationResult=$ControlAPITokenResult.ProductVersion
                 $TwoFactorNeeded=$ControlAPITokenResult.IsTwoFactorRequired
-            } Until ($Quiet -or ![string]::IsNullOrEmpty($AuthorizationResult) -or 
+            } Until ($Quiet -or $Verify -or ![string]::IsNullOrEmpty($AuthorizationResult) -or 
                     ($TwoFactorNeeded -ne $True -and $Credential) -or 
                     ($TwoFactorNeeded -eq $True -and $TwoFactorToken -ne '')
                 )
