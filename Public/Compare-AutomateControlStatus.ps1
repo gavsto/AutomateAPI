@@ -13,10 +13,14 @@ function Compare-AutomateControlStatus {
     .OUTPUTS
     An object containing Online status for Control and Automate
     .NOTES
-    Version:        1.1
+    Version:        1.2
     Author:         Gavin Stone
     Creation Date:  20/01/2019
     Purpose/Change: Initial script development
+
+    Update Date:    2019-02-23
+    Author:         Darren White
+    Purpose/Change: Added SessionID parameter to Get-ControlSessions call.
     .EXAMPLE
     Get-AutomateComputer -ComputerID 5 | Compare-AutomateControlStatus
     .EXAMPLE
@@ -91,10 +95,11 @@ function Compare-AutomateControlStatus {
         }
 
         #GUIDs to get Control information for
-        #$GUIDsToLookupInControl = $ComputerArray | Select-Object -ExpandProperty SessionID
+        $GUIDsToLookupInControl = $ComputerArray | Select-Object -ExpandProperty SessionID
+        If ($GUIDsToLookupInControl.Count -gt 100) {$GUIDsToLookupInControl=$Null} #For larger groups, just retrieve all sessions.
 
         #Control Sessions
-        $ControlSessions = Get-ControlSessions
+        $ControlSessions = Get-ControlSessions -SessionID $GUIDsToLookupInControl
 
         Foreach ($final in $ComputerArray) {
             
