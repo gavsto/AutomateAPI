@@ -4,6 +4,8 @@ function Get-ControlSessions {
    Gets bulk session info from Control using the Automate Control Reporting Extension
 .DESCRIPTION
    Gets bulk session info from Control using the Automate Control Reporting Extension
+.PARAMETER SessionID
+    The GUID identifier for the machine you want status information on. If none is provided, all sessions will be returned.
 .EXAMPLE
    Get-ControlSesssions
 .INPUTS
@@ -13,22 +15,32 @@ function Get-ControlSessions {
 #>
     [CmdletBinding()]
     param (
+        [Parameter(Mandatory=$False,ValueFromPipeline=$True,ValueFromPipelineByPropertyName=$True)]
+        [guid[]]$SessionID
     )
     
     begin {
+        $SessionIDCollection=@()
     }
     
     process {
+        If ($SessionID) {
+            $SessionIDCollection+=$SessionID
+        }
     }
     
     end {
-        $Body=ConvertTo-Json @("SessionConnectionEvent",@("SessionID","EventType"),@("LastTime"),"SessionConnectionProcessType='Guest' AND (EventType = 'Connected' OR EventType = 'Disconnected')", "", 20000) -Compress
+        $GuidCondition=$(ForEach ($GUID in $SessionIDCollection) {"sessionid='$GUID'"}) -join ' OR '
+        If ($GuidCondition) {$GuidCondition="($GuidCondition) AND"}
+        $Body=ConvertTo-Json @("SessionConnectionEvent",@("SessionID","EventType"),@("LastTime"),"$GuidCondition SessionConnectionProcessType='Guest' AND (EventType = 'Connected' OR EventType = 'Disconnected')", "", 20000) -Compress
         $RESTRequest = @{
             'URI' = "${Script:ControlServer}/App_Extensions/fc234f0e-2e8e-4a1f-b977-ba41b14031f7/ReportService.ashx/GenerateReportForAutomate"
             'Method' = 'POST'
             'ContentType' = 'application/json'
             'Body' = $Body
         }
+
+
         If ($Script:ControlAPIKey) {
             $RESTRequest.Add('Headers',@{'CWAIKToken' = (Get-CWAIKToken)})
         } Else {
@@ -36,10 +48,10 @@ function Get-ControlSessions {
         }
         
         $SCConnected = @{};
-        Write-Debug "Submitting Request to $($RESTRequest.URI)`nHeaders:`n$($RESTRequest.Headers|ConvertTo-JSON -Depth 5)`nBody:`n$($RESTRequest.Body|ConvertTo-JSON -Depth 5)"
+        Write-Debug "Submitting Request to $($RESTRequest.URI)`nHeaders:`n$($RESTRequest.Headers|ConvertTo-JSON -Depth 5 -Compress)`nBody:`n$($RESTRequest.Body|Out-String)"
         Try {
             $SCData = Invoke-RestMethod @RESTRequest
-            Write-Debug "Request Result: $($SCData | select-object -property * | convertto-json -Depth 10)"
+            Write-Debug "Request Result: $($SCData | select-object -property * | convertto-json -Depth 10 -Compress)"
             If ($SCData.FieldNames -contains 'SessionID' -and $SCData.FieldNames -contains 'EventType' -and $SCData.FieldNames -contains 'LastTime') {
                 $AllData = $SCData.Items.GetEnumerator() | select-object @{Name='SessionID'; Expression={$_[0]}},@{Name='Event'; Expression={$_[1]}},@{Name='Date'; Expression={$_[2]}} | sort-Object SessionID,Event -Descending;  
                 $AllData | ForEach-Object {
