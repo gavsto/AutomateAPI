@@ -101,7 +101,7 @@ function Repair-AutomateAgent {
             Import-Module AutomateAPI -Force
             $ConnectOptions=$Using:ConnectOptions
             If (Connect-ControlAPI @ConnectOptions -SkipCheck -Quiet) {
-               $ServiceRestartAttempt = Invoke-ControlCommand -SessionID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString('$($Using:LTPoShURI)') | iex; Update-LTService" -TimeOut 60000 -MaxLength 10240
+               $ServiceRestartAttempt = Invoke-ControlCommand -SessionID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString('$($Using:LTPoShURI)') | iex; Update-LTService" -TimeOut 300000 -MaxLength 10240
                return $ServiceRestartAttempt
             }
             } | out-null
@@ -110,7 +110,7 @@ function Repair-AutomateAgent {
             Import-Module AutomateAPI -Force
             $ConnectOptions=$Using:ConnectOptions
             If (Connect-ControlAPI @ConnectOptions -SkipCheck -Quiet) {
-               $ServiceRestartAttempt = Invoke-ControlCommand -SessionID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString('$($Using:LTPoShURI)') | iex; Restart-LTService" -TimeOut 60000 -MaxLength 10240
+               $ServiceRestartAttempt = Invoke-ControlCommand -SessionID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString('$($Using:LTPoShURI)') | iex; Restart-LTService" -TimeOut 120000 -MaxLength 10240
                return $ServiceRestartAttempt
             }
             } | out-null
@@ -119,7 +119,7 @@ function Repair-AutomateAgent {
             Import-Module AutomateAPI -Force
             $ConnectOptions=$Using:ConnectOptions
             If (Connect-ControlAPI @ConnectOptions -SkipCheck -Quiet) {
-               $ServiceRestartAttempt = Invoke-ControlCommand -SessionID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString('$($Using:LTPoShURI)') | iex; ReInstall-LTService" -TimeOut 60000 -MaxLength 10240
+               $ServiceRestartAttempt = Invoke-ControlCommand -SessionID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString('$($Using:LTPoShURI)') | iex; ReInstall-LTService" -TimeOut 300000 -MaxLength 10240
                return $ServiceRestartAttempt
             }
             } | out-null
