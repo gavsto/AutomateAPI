@@ -7,7 +7,7 @@ function Get-ControlSessions {
 .PARAMETER SessionID
     The GUID identifier for the machine you want status information on. If not provided, all sessions will be returned.
 .NOTES
-    Version:        1.2
+    Version:        1.3
     Author:         Gavin Stone 
     Modified By:    Darren White
     Purpose/Change: Initial script development
@@ -15,6 +15,10 @@ function Get-ControlSessions {
     Update Date:    2019-02-23
     Author:         Darren White
     Purpose/Change: Added SessionID parameter to return information only for requested sessions.
+
+    Update Date:    2019-02-26
+    Author:         Darren White
+    Purpose/Change: Include LastConnected value if reported.
 .EXAMPLE
    Get-ControlSesssions
 .INPUTS
@@ -42,6 +46,8 @@ function Get-ControlSessions {
         $SessionIDCollection = $SessionIDCollection | Select-Object -Unique
         $SplitGUIDsArray = @(Split-Every -list $SessionIDCollection -count 100)
         If (!$SplitGUIDsArray) {$SplitGUIDsArray=@('')}
+        $SCStatus=@{}
+        $Now = Get-Date
         ForEach ($GUIDs in $SplitGUIDsArray) {
             If ('' -ne $GUIDS) {
                 Write-Verbose "Starting on a new array $($GUIDs)"
@@ -77,27 +83,35 @@ function Get-ControlSessions {
             }
             $SCConnected = @{};
             $AllData | ForEach-Object {
-                if ($_.Event -like 'Disconnected') {
+                If ($_.Event -like 'Disconnected') {
                     $SCConnected.Add($_.SessionID,$_.Date)
-                } else {
-                    if ($_.Date -ge $SCConnected[$_.SessionID]) {
-                        if ($SCConnected.ContainsKey($_.SessionID)) {
+                } Else {
+                    If ($_.Date -ge $SCConnected[$_.SessionID]) {
+                        If ($SCConnected.ContainsKey($_.SessionID)) {
                             $SCConnected[$_.SessionID]=$True
-                        } else {
+                        } Else {
                             $SCConnected.Add($_.SessionID,$True)
-                        }
-                    } else {
-                        if ($SCConnected.ContainsKey($_.SessionID)) {
-                            $SCConnected[$_.SessionID]=$False
-                        } else {
-                            $SCConnected.Add($_.SessionID,$False)
                         }
                     }
                 }
             }
-            Foreach ($sessid IN $( ($SCConnected.GetEnumerator() | Where-Object {$_.Value -ne $True -and $_.Value -ne $False}).Key)) {$SCConnected[$sessid]=$False}
+            Foreach ($sessid IN $($SCConnected.Keys)) {
+                $SessionResult = [pscustomobject]@{
+                    SessionID = $sessid
+                    OnlineStatusControl = $Null
+                    LastConnected = $Null
+                    }
+                If ($SCConnected[$sessid]=$True) {
+                    $SessionResult.OnlineStatusControl = $True
+                    $SessionResult.LastConnected = $Now
+                } Else {
+                    $SessionResult.OnlineStatusControl = $False
+                    $SessionResult.LastConnected = $SCConnected[$sessid]
+                }
+                $SCStatus.Add($sessid,$SessionResult)
+            }
         }
-        return $SCConnected
+        Return $SCStatus
     }
 }
 
