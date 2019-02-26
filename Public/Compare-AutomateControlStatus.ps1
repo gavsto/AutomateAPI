@@ -98,18 +98,17 @@ function Compare-AutomateControlStatus {
 
         Foreach ($final in $ComputerArray) {
             
+            $CAReturn = $final
             If (![string]::IsNullOrEmpty($Final.SessionID)) {
                 If ($ControlSessions.Containskey($Final.SessionID)) {
-                    $ResultControlSessionStatus = $ControlSessions[$Final.SessionID]
+                    $Null = $CAReturn | Add-Member -MemberType NoteProperty -Name OnlineStatusControl -Value $($ControlSessions[$Final.SessionID].OnlineStatusControl) -Force -EA 0
+                    $Null = $CAReturn | Add-Member -MemberType NoteProperty -Name LastConnectedControl -Value $($ControlSessions[$Final.SessionID].LastConnected) -Force -EA 0
                 } Else {
-                    $ResultControlSessionStatus = "GUID Not in Control or No Connection Events"
+                    $Null = $CAReturn | Add-Member -MemberType NoteProperty -Name OnlineStatusControl -Value "GUID Not in Control or No Connection Events" -Force -EA 0
                 } 
             } Else {
-                $ResultControlSessionStatus = "Control not installed or GUID not in Automate"
+                $Null = $CAReturn | Add-Member -MemberType NoteProperty -Name OnlineStatusControl -Value "Control not installed or GUID not in Automate" -Force -EA 0
             }
-
-            $CAReturn = $final
-            $Null = $CAReturn | Add-Member -MemberType NoteProperty -Name OnlineStatusControl -Value $ResultControlSessionStatus -Force -EA 0
 
             $ReturnedObject += $CAReturn
         }
