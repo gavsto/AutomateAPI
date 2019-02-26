@@ -13,7 +13,7 @@ function Compare-AutomateControlStatus {
     .OUTPUTS
     An object containing Online status for Control and Automate
     .NOTES
-    Version:        1.2
+    Version:        1.3
     Author:         Gavin Stone
     Creation Date:  20/01/2019
     Purpose/Change: Initial script development
@@ -21,6 +21,10 @@ function Compare-AutomateControlStatus {
     Update Date:    2019-02-23
     Author:         Darren White
     Purpose/Change: Added SessionID parameter to Get-ControlSessions call.
+
+    Update Date:    2019-02-26
+    Author:         Darren White
+    Purpose/Change: Reuse incoming object to preserve properties passed on the pipeline.
     .EXAMPLE
     Get-AutomateComputer -ComputerID 5 | Compare-AutomateControlStatus
     .EXAMPLE
@@ -72,30 +76,21 @@ function Compare-AutomateControlStatus {
                 $AutomateControlGUID = $AutoControlSessions[[int]$Computer.ID]
             }
 
-            If([string]::IsNullOrEmpty($Computer.Client.Name))
-            {
-                $FiClientName = $Computer.ClientName
+            $FinalComputerObject = $computer
+            $Null = $FinalComputerObject | Add-Member -MemberType NoteProperty -Name ComputerID -Value $Computer.ID -Force -EA 0
+            $Null = $FinalComputerObject | Add-Member -MemberType NoteProperty -Name OnlineStatusAutomate -Value $Computer.Status -Force -EA 0
+            $Null = $FinalComputerObject | Add-Member -MemberType NoteProperty -Name SessionID -Value $AutomateControlGUID -Force -EA 0
+            If([string]::IsNullOrEmpty($Computer.ClientName)) {
+                $Null = $FinalComputerObject | Add-Member -MemberType NoteProperty -Name ClientName -Value $Computer.Client.Name -Force -EA 0
             }
-            else {
-                $FiClientName = $Computer.Client.Name
-            }
-
-            $FinalComputerObject = ""
-            $FinalComputerObject = [pscustomobject] @{
-                ComputerID = $Computer.ID
-                ComputerName = $Computer.ComputerName
-                ClientName = $FiClientName
-                OperatingSystemName = $Computer.OperatingSystemName
-                OnlineStatusAutomate = $Computer.Status
-                OnlineStatusControl = ''
-                SessionID = $AutomateControlGUID
-            }
+            $Null = $FinalComputerObject.PSObject.properties.remove('ID')
+            $Null = $FinalComputerObject.PSObject.properties.remove('Status')
 
             $ComputerArray += $FinalComputerObject
         }
 
         #GUIDs to get Control information for
-        $GUIDsToLookupInControl = $ComputerArray | Select-Object -ExpandProperty SessionID
+        $GUIDsToLookupInControl = $ComputerArray | Where-Object {$_.SessionID -match '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'} | Select-Object -ExpandProperty SessionID
         If ($GUIDsToLookupInControl.Count -gt 100) {$GUIDsToLookupInControl=$Null} #For larger groups, just retrieve all sessions.
 
         #Control Sessions
@@ -113,16 +108,8 @@ function Compare-AutomateControlStatus {
                 $ResultControlSessionStatus = "Control not installed or GUID not in Automate"
             }
 
-            $CAReturn = ""
-            $CAReturn = [pscustomobject] @{
-                ComputerID = $final.ComputerID
-                ComputerName = $final.ComputerName
-                ClientName = $final.ClientName
-                OperatingSystemName = $final.OperatingSystemName
-                OnlineStatusAutomate = $final.OnlineStatusAutomate
-                OnlineStatusControl = $ResultControlSessionStatus
-                SessionID = $final.SessionID
-            }
+            $CAReturn = $final
+            $Null = $CAReturn | Add-Member -MemberType NoteProperty -Name OnlineStatusControl -Value $ResultControlSessionStatus -Force -EA 0
 
             $ReturnedObject += $CAReturn
         }
