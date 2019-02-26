@@ -101,7 +101,7 @@ function Get-ControlSessions {
                     OnlineStatusControl = $Null
                     LastConnected = $Null
                     }
-                If ($SCConnected[$sessid]=$True) {
+                If ($SCConnected[$sessid] -eq $True) {
                     $SessionResult.OnlineStatusControl = $True
                     $SessionResult.LastConnected = $Now
                 } Else {
