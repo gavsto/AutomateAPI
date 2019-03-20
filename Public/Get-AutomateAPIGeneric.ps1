@@ -75,7 +75,11 @@ function Get-AutomateAPIGeneric {
 
         [Parameter(Mandatory = $false)]
         [string]
-        $IDs
+        $IDs,
+
+        [Parameter(Mandatory = $false)]
+        [string]
+        $Expand
     )
     
     begin {
@@ -115,6 +119,11 @@ function Get-AutomateAPIGeneric {
         #Include only these IDs
         if ($IDs) {
             $Body.Add("ids", "$IDs")
+        }
+
+        #Expands in the returned object
+        if ($Expand) {
+          $Body.Add("expand", "$Expand")
         }
     }
     
