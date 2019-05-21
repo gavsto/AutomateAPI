@@ -47,21 +47,15 @@ function Connect-ControlAPI {
 #        [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
 #        [String]$TwoFactorToken,
 
-        [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
-        [Switch]$Force,
+        [Parameter(ParameterSetName = 'refresh', Mandatory = $False)]
+        [Switch]$Refresh,
 
-        [Parameter(ParameterSetName = 'verify', Mandatory = $False)]
+        [Parameter(ParameterSetName = 'verify', Mandatory = $True)]
         [Switch]$Verify,
 
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
         [Parameter(ParameterSetName = 'apikey', Mandatory = $False)]
-        [Switch]$SkipCheck,
-
-        [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
-        [Parameter(ParameterSetName = 'refresh', Mandatory = $False)]
-        [Parameter(ParameterSetName = 'apikey', Mandatory = $False)]
-        [Parameter(ParameterSetName = 'verify', Mandatory = $False)]
-        [Switch]$Quiet
+        [Switch]$SkipCheck
 
     )
     
@@ -70,7 +64,7 @@ function Connect-ControlAPI {
 #        if ($TwoFactorToken -match '.+') {$Force=$True}
         $TwoFactorNeeded=$False
 
-        If (!$Quiet -and !$Verify) {
+        If (!$Verify) {
             While (!($Server -match '.+')) {
                 $Server = Read-Host -Prompt "Please enter your Control Server address, the full URL. IE https://control.rancorthebeast.com:8040" 
             }
@@ -119,6 +113,10 @@ function Connect-ControlAPI {
             Do {
                 $ControlAPITestURI = ($Server + '/Services/PageService.ashx/GetHostSessionInfo')
                 If (!$Quiet) {
+                    If($Credential)
+                    {
+                        $testCredentials=$Credential
+                    }
                     If (!$Credential -and !$Verify) {
                         If (!$testCredentials -or $Force) {
                             Write-Debug "No Credentials were provided and no existing Token was found, or -Force was specified"
