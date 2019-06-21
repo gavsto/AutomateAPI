@@ -165,7 +165,7 @@ function Invoke-ControlCommand {
                         if(!$PowerShell){
                             $Output = $Output | Select-Object -skip 1
                         }
-                        return $Output 
+                        return $Output -Join ""
                     }
                 }
 
