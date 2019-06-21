@@ -83,12 +83,12 @@ Connect-AutomateAPI -Quiet
                 $Server = Read-Host -Prompt "Please enter your Automate Server address, IE: rancor.hostedrmm.com" 
             }
         }
-        $Server = $Server -replace '^https?://','' -replace '/.*',''
+        $Server = $Server -replace '^https?://','' -replace '/[^\/]*$',''
         $AuthorizationToken = $AuthorizationToken -replace 'Bearer ',''
     } #End Begin
     
     Process {
-        If (!($Server -match '^[a-z0-9][a-z0-9\.\-]*$')) {Throw "Server address is missing or in invalid format."; Return}
+        If (!($Server -match '^[a-z0-9][a-z0-9\.\-\/]*$')) {Throw "Server address ($Server) is missing or in invalid format."; Return}
         If ($SkipCheck) {
             $Script:CWAServer = ("https://" + $Server)
             If ($Credential) {
