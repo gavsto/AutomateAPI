@@ -12,6 +12,8 @@ function Connect-ControlAPI {
     Automate APIKey for Control Extension
     .PARAMETER Verify
     Attempt to verify Cached API key or Credentials. Invalid results will be removed.
+    .PARAMETER Force
+    Do not use Cached Credentials. Prompt for the username and password.
     .PARAMETER Quiet
     Will not output any standard logging messages
     .PARAMETER SkipCheck
@@ -31,7 +33,7 @@ function Connect-ControlAPI {
     #>
     [CmdletBinding(DefaultParameterSetName = 'refresh')]
     param (
-        [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
+        [Parameter(ParameterSetName = 'credential', Mandatory = $True)]
         [Parameter(ParameterSetName = 'verify', Mandatory = $False)]
         [System.Management.Automation.PSCredential]$Credential,
 
@@ -79,7 +81,7 @@ function Connect-ControlAPI {
     }
     
     Process {
-        If (!($Server -match 'https?://[a-z0-9][a-z0-9\.\-]*(:[1-9][0-9]*)?$')) {throw "Control Server address is in invalid format."; return}
+        If (!($Server -match 'https?://[a-z0-9][a-z0-9\.\-]*(:[1-9][0-9]*)?(\/[a-z0-9\.\-\/]*)?$')) {throw "Control Server address ($Server) is in invalid format."; return}
         If ($SkipCheck) {
             Return
         }
