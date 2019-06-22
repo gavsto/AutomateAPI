@@ -49,21 +49,21 @@ function Connect-ControlAPI {
 #        [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
 #        [String]$TwoFactorToken,
 
-        [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
-        [Switch]$Force,
+        [Parameter(ParameterSetName = 'refresh', Mandatory = $True)]
+        [Switch]$Refresh,
 
         [Parameter(ParameterSetName = 'verify', Mandatory = $True)]
         [Switch]$Verify,
 
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
-        [Parameter(ParameterSetName = 'apikey', Mandatory = $False)]
-        [Switch]$SkipCheck,
-
-        [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
         [Parameter(ParameterSetName = 'refresh', Mandatory = $False)]
         [Parameter(ParameterSetName = 'apikey', Mandatory = $False)]
         [Parameter(ParameterSetName = 'verify', Mandatory = $False)]
-        [Switch]$Quiet
+        [Switch]$Quiet,
+
+        [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
+        [Parameter(ParameterSetName = 'apikey', Mandatory = $False)]
+        [Switch]$SkipCheck
 
     )
     
@@ -121,6 +121,10 @@ function Connect-ControlAPI {
             Do {
                 $ControlAPITestURI = ($Server + '/Services/PageService.ashx/GetHostSessionInfo')
                 If (!$Quiet) {
+                    If($Credential)
+                    {
+                        $testCredentials=$Credential
+                    }
                     If (!$Credential -and !$Verify) {
                         If (!$testCredentials -or $Force) {
                             Write-Debug "No Credentials were provided and no existing Token was found, or -Force was specified"

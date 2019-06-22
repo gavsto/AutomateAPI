@@ -112,6 +112,10 @@ Connect-AutomateAPI -Quiet
             $AutomateAPIURI = ('https://' + $Server + '/cwa/api/v1')
             $testCredentials=$Credential
             If (!$Quiet) {
+                If($Credential)
+                {
+                    $testCredentials=$Credential
+                }
                 If (!$Credential -and ($Force -or !$AuthorizationToken)) {
                     If (!$Force -and $Script:CWACredentials) {
                         $testCredentials = $Script:CWACredentials

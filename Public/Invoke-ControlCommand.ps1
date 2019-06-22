@@ -218,6 +218,7 @@ function Invoke-ControlCommand {
                             'Output'    = 'Command was queued for the session.'
                             }
                         }
+                        return $Output -Join ""
                     }
                 }
 
