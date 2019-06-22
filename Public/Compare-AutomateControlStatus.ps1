@@ -94,11 +94,11 @@ function Compare-AutomateControlStatus {
         If ($GUIDsToLookupInControl.Count -gt 100) {$GUIDsToLookupInControl=$Null} #For larger groups, just retrieve all sessions.
 
         #Control Sessions
-        $ControlSessions = Get-ControlSessions -SessionID $GUIDsToLookupInControl
+        $ControlSessions=@{};
+        Get-ControlSessions -SessionID $GUIDsToLookupInControl | ForEach-Object {$ControlSessions.Add($_.SessionID, $($_|Select-Object -Property OnlineStatusControl,LastConnected))}
 
-        Foreach ($final in $ComputerArray) {
-            
-            $CAReturn = $final
+        Foreach ($Final in $ComputerArray) {
+            $CAReturn = $Final
             If (![string]::IsNullOrEmpty($Final.SessionID)) {
                 If ($ControlSessions.Containskey($Final.SessionID)) {
                     $Null = $CAReturn | Add-Member -MemberType NoteProperty -Name OnlineStatusControl -Value $($ControlSessions[$Final.SessionID].OnlineStatusControl) -Force -EA 0
