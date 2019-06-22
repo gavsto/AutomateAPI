@@ -47,11 +47,17 @@ function Connect-ControlAPI {
 #        [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
 #        [String]$TwoFactorToken,
 
-        [Parameter(ParameterSetName = 'refresh', Mandatory = $False)]
+        [Parameter(ParameterSetName = 'refresh', Mandatory = $True)]
         [Switch]$Refresh,
 
         [Parameter(ParameterSetName = 'verify', Mandatory = $True)]
         [Switch]$Verify,
+
+        [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
+        [Parameter(ParameterSetName = 'refresh', Mandatory = $False)]
+        [Parameter(ParameterSetName = 'apikey', Mandatory = $False)]
+        [Parameter(ParameterSetName = 'verify', Mandatory = $False)]
+        [Switch]$Quiet,
 
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
         [Parameter(ParameterSetName = 'apikey', Mandatory = $False)]
@@ -64,7 +70,7 @@ function Connect-ControlAPI {
 #        if ($TwoFactorToken -match '.+') {$Force=$True}
         $TwoFactorNeeded=$False
 
-        If (!$Verify) {
+        If (!$Quiet -and !$Verify) {
             While (!($Server -match '.+')) {
                 $Server = Read-Host -Prompt "Please enter your Control Server address, the full URL. IE https://control.rancorthebeast.com:8040" 
             }
