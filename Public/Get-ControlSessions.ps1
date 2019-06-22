@@ -46,8 +46,7 @@ function Get-ControlSessions {
         $SessionIDCollection = $SessionIDCollection | Select-Object -Unique
         $SplitGUIDsArray = @(Split-Every -list $SessionIDCollection -count 100)
         If (!$SplitGUIDsArray) {$SplitGUIDsArray=@('')}
-        $SCStatus=@{}
-        $Now = Get-Date
+        $Now = Get-Date 
         ForEach ($GUIDs in $SplitGUIDsArray) {
             If ('' -ne $GUIDS) {
                 Write-Verbose "Starting on a new array $($GUIDs)"
@@ -95,21 +94,23 @@ function Get-ControlSessions {
                     }
                 }
             }
-            Foreach ($sessid IN $($SCConnected.Keys)) {
-                $SessionResult = [pscustomobject]@{
-                    SessionID = $sessid
-                    OnlineStatusControl = $Null
-                    LastConnected = $Null
+            $SCStatus = $(
+                Foreach ($sessid IN $($SCConnected.Keys)) {
+                    $SessionResult = [pscustomobject]@{
+                        SessionID = $sessid
+                        OnlineStatusControl = $Null
+                        LastConnected = $Null
+                        }
+                    If ($SCConnected[$sessid] -eq $True) {
+                        $SessionResult.OnlineStatusControl = $True
+                        $SessionResult.LastConnected = $Now.ToUniversalTime()
+                    } Else {
+                        $SessionResult.OnlineStatusControl = $False
+                        $SessionResult.LastConnected = $SCConnected[$sessid]
                     }
-                If ($SCConnected[$sessid] -eq $True) {
-                    $SessionResult.OnlineStatusControl = $True
-                    $SessionResult.LastConnected = $Now
-                } Else {
-                    $SessionResult.OnlineStatusControl = $False
-                    $SessionResult.LastConnected = $SCConnected[$sessid]
+                    $SessionResult
                 }
-                $SCStatus.Add($sessid,$SessionResult)
-            }
+            )
         }
         Return $SCStatus
     }
