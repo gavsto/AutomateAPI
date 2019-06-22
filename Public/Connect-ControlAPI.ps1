@@ -12,6 +12,8 @@ function Connect-ControlAPI {
     Automate APIKey for Control Extension
     .PARAMETER Verify
     Attempt to verify Cached API key or Credentials. Invalid results will be removed.
+    .PARAMETER Force
+    Do not use Cached Credentials. Prompt for the username and password.
     .PARAMETER Quiet
     Will not output any standard logging messages
     .PARAMETER SkipCheck
@@ -31,7 +33,7 @@ function Connect-ControlAPI {
     #>
     [CmdletBinding(DefaultParameterSetName = 'refresh')]
     param (
-        [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
+        [Parameter(ParameterSetName = 'credential', Mandatory = $True)]
         [Parameter(ParameterSetName = 'verify', Mandatory = $False)]
         [System.Management.Automation.PSCredential]$Credential,
 
@@ -50,7 +52,7 @@ function Connect-ControlAPI {
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
         [Switch]$Force,
 
-        [Parameter(ParameterSetName = 'verify', Mandatory = $False)]
+        [Parameter(ParameterSetName = 'verify', Mandatory = $True)]
         [Switch]$Verify,
 
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
