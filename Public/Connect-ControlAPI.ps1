@@ -191,6 +191,8 @@ function Connect-ControlAPI {
             If (!$Quiet) {
                 If (!$SkipCheck) {
                     Write-Host -BackgroundColor Green -ForegroundColor Black "Successfully tested and connected to the Control API. Server version is $($AuthorizationResult)"
+                } Else {
+                    Write-Host -BackgroundColor Green -ForegroundColor Black "Successfully stored Control Server parameters"
                 }
             } Else {
                 Return $True
