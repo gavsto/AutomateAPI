@@ -22,7 +22,7 @@ function Invoke-ControlCommand {
     .OUTPUTS
         The output of the Command provided.
     .NOTES
-        Version:        2.1
+        Version:        2.2
         Author:         Chris Taylor
         Modified By:    Gavin Stone 
         Modified By:    Darren White
@@ -36,13 +36,19 @@ function Invoke-ControlCommand {
         Update Date:    2019-02-23
         Author:         Darren White
         Purpose/Change: Enable command batching against multiple sessions. Added OfflineAction parameter.
+        
+        Update Date:    2019-06-24
+        Author:         Darren White
+        Purpose/Change: Updates to process object returned by Get-ControlSessions
+        
     .EXAMPLE
-        Get-AutomateComputer -ComputerID 5 | Get-ControlSessions | Invoke-ControlCommand -Powershell -Command "Get-Service"
+        Get-AutomateComputer -ComputerID 5 | Get-AutomateControlInfo | Invoke-ControlCommand -Powershell -Command "Get-Service"
+            Will retrieve Computer Information from Automate, Get ControlSession data and merge with the input object, then call Get-Service on the computer.
     .EXAMPLE
         Invoke-ControlCommand -SessionID $SessionID -Command 'hostname'
             Will return the hostname of the machine.
     .EXAMPLE
-        Invoke-ControlCommand -SessionID $SessionID -User $User -Password $Password -TimeOut 120000 -Command 'iwr -UseBasicParsing "https://bit.ly/ltposh" | iex; Restart-LTService' -PowerShell
+        Invoke-ControlCommand -SessionID $SessionID -TimeOut 120000 -Command 'iwr -UseBasicParsing "https://bit.ly/ltposh" | iex; Restart-LTService' -PowerShell
             Will restart the Automate agent on the target machine.
     #>
     [CmdletBinding()]
@@ -90,7 +96,7 @@ function Invoke-ControlCommand {
     }
 
     Process {
-        If (!($Server -match 'https?://[a-z0-9][a-z0-9\.\-]*(:[1-9][0-9]*)?$')) {throw "Control Server address is in invalid format."; return}
+        If (!($Server -match 'https?://[a-z0-9][a-z0-9\.\-]*(:[1-9][0-9]*)?(\/[a-z0-9\.\-\/]*)?$')) {throw "Control Server address ($Server) is in invalid format."; return}
         If ($SessionID) {
             $SessionIDCollection += $SessionID
         }
@@ -98,21 +104,20 @@ function Invoke-ControlCommand {
 
     End {
         $SplitGUIDsArray = Split-Every -list $SessionIDCollection -count $BatchSize
-        ForEach ($GUIDs IN $SplitGUIDsArray) {
+        ForEach ($GUIDs in $SplitGUIDsArray) {
+            If (!$GUIDs) {Continue} #Skip if Null value
             $RemainingGUIDs = {$GUIDs}.Invoke()
-#            Write-Debug "Starting with $(foreach ($x in $RemainingGUIDs) {$x})"
             If ($OfflineAction -ne 'Wait') {
                 #Check Online Status. Weed out sessions that have never connected or are not valid.
-                $ControlSessions = Get-ControlSessions -SessionID $RemainingGUIDs | Select-Object -Unique
+                $ControlSessions=@{};
+                Get-ControlSessions -SessionID $RemainingGUIDs | ForEach-Object {$ControlSessions.Add($_.SessionID, $($_|Select-Object -Property OnlineStatusControl,LastConnected))}
                 If ($OfflineAction -eq 'Skip') {
-#                    write-debug "checking for skips"
                     ForEach ($GUID in $ControlSessions.Keys) {
-                        If (!($ControlSessions[$GUID] -eq $True)) {
+                        If (!($ControlSessions[$GUID].OnlineStatusControl -eq $True)) {
                             $ResultSet += [pscustomobject]@{
                                 'SessionID' = $GUID
                                 'Output'    = 'Skipped. Session was not connected.'
                             }
-#                            Write-Debug "Removing Session $($GUID)"
                             $Null = $RemainingGUIDs.Remove($GUID)
                         }
                     }
@@ -124,7 +129,6 @@ function Invoke-ControlCommand {
             }
             $xGUIDS=@(ForEach ($x in $RemainingGUIDs) {$x})
             $Body = ConvertTo-Json @($User, $xGUIDS, $SessionEventType, $FormattedCommand) -Compress
-#            Write-Verbose $Body
 
             $RESTRequest = @{
                 'URI'         = "$Server/App_Extensions/fc234f0e-2e8e-4a1f-b977-ba41b14031f7/ReplicaService.ashx/PageAddEventToSessions"
@@ -173,13 +177,11 @@ function Invoke-ControlCommand {
                     $RESTRequest.Add('Credential', $Script:ControlAPICredentials)
                 }
 
-#                Write-Verbose "$($Body|Out-String)"
                 Try {
                     $SessionEvents = Invoke-RestMethod @RESTRequest
                 } Catch {
                     Write-Error $($_.Exception.Message)
                 }
-#                Write-Verbose ($SessionEvents|Out-String)
 
                 $FNames = $SessionEvents.FieldNames
                 $Events = ($SessionEvents.Items | ForEach-Object {$x = $_; $SCEventRecord = [pscustomobject]@{}; for ($i = 0; $i -lt $FNames.Length; $i++) {$Null = $SCEventRecord | Add-Member -NotePropertyName $FNames[$i] -NotePropertyValue $x[$i]}; $SCEventRecord} | Sort-Object -Property Time,SessionID -Descending)
@@ -201,14 +203,13 @@ function Invoke-ControlCommand {
                 If ($OfflineAction -eq 'Queue') {
                     $WaitingForGUIDs=$(
                         ForEach ($GUID in $WaitingForGUIDs) {
-                            Write-Debug "Checking if GUID $GUID is online: $($ControlSessions[$GUID.ToString()])"
-                            If ($ControlSessions[$GUID.ToString()] -eq $True) {$GUID}
+                            Write-Debug "Checking if GUID $GUID is online: $($ControlSessions[$GUID.ToString()].OnlineStatusControl)"
+                            If ($ControlSessions[$GUID.ToString()].OnlineStatusControl -eq $True) {$GUID}
                         }
                     )
                 }
 
                 Write-Debug "$($WaitingForGUIDs.Count) sessions remaining after $($RequestTimer.Elapsed.TotalSeconds) seconds."
-#                Write-Verbose "$($WaitingForGUIDs|Out-String)"
                 If (!($WaitingForGUIDs.Count -gt 0)) {
                     $Looking = $False
                     If ($RemainingGUIDs) {
@@ -225,7 +226,7 @@ function Invoke-ControlCommand {
                 if ($Looking -and $(Get-Date) -gt $TimeOutDateTime.AddSeconds(1)) {
                     $Looking = $False
                     ForEach ($GUID in $RemainingGUIDs) {
-                        If ($OfflineAction -ne 'Wait' -and $ControlSessions[$GUID.ToString()] -eq $False) {
+                        If ($OfflineAction -ne 'Wait' -and $ControlSessions[$GUID.ToString()].OnlineStatusControl -eq $False) {
                             $ResultSet += [pscustomobject]@{
                                 'SessionID' = $GUID
                                 'Output'    = 'Command was queued for the session'

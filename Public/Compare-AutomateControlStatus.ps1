@@ -13,7 +13,7 @@ function Compare-AutomateControlStatus {
     .OUTPUTS
     An object containing Online status for Control and Automate
     .NOTES
-    Version:        1.3
+    Version:        1.4
     Author:         Gavin Stone
     Creation Date:  20/01/2019
     Purpose/Change: Initial script development
@@ -25,6 +25,11 @@ function Compare-AutomateControlStatus {
     Update Date:    2019-02-26
     Author:         Darren White
     Purpose/Change: Reuse incoming object to preserve properties passed on the pipeline.
+
+    Update Date:    2019-06-24
+    Author:         Darren White
+    Purpose/Change: Update to use objects returned by Get-ControlSessions
+
     .EXAMPLE
     Get-AutomateComputer -ComputerID 5 | Compare-AutomateControlStatus
     .EXAMPLE
