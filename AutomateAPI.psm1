@@ -9,7 +9,7 @@ $Private = @( Get-ChildItem -Recurse -Path "$PSScriptRoot\Private\" -filter *.ps
     }
 }
 
-$Script:LTPoShURI='http://bit.ly/LTPoSh'
+$Script:LTPoShURI='https://raw.githubusercontent.com/LabtechConsulting/LabTech-Powershell-Module/master/LabTech.psm1'
 
 #Ignore SSL errors
 Add-Type -Debug:$False @"
