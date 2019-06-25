@@ -3,6 +3,7 @@ Function Split-Every($list, $count=4) {
 
     $blocks = [Math]::Floor($list.Count / $count)
     $leftOver = $list.Count % $count
+    $start=0
     for($i=0; $i -lt $blocks; $i++) {
         $end = $count * ($i + 1) - 1
 
@@ -10,8 +11,8 @@ Function Split-Every($list, $count=4) {
         $start = $end + 1
     }    
     if($leftOver -gt 0) {
-        $aggregateList += @(,$list[$start..($end+$leftOver)])
+        $aggregateList += @(,$list[$start..($start+$leftOver-1)])
     }
-
-    $aggregateList    
+    If ($list.Count -le $count) {$aggregateList=@(,$aggregateList)}
+    $aggregateList
 }
