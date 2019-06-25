@@ -37,6 +37,10 @@ function Get-AutomateClient {
         Get-AutomateClient -Condition "(City != 'Baltimore')"
     #>
         param (
+            [Parameter(Mandatory = $false, Position = 0, ParameterSetName = "IndividualClient")]
+            [Alias('ID')]
+            [int32[]]$ClientId,
+
             [Parameter(Mandatory = $false, ParameterSetName = "AllResults")]
             [switch]$AllClients,
 
@@ -63,9 +67,6 @@ function Get-AutomateClient {
             [string]$ClientName,
 
             [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
-            [int]$ClientId,
-
-            [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
             [int]$LocationId,
 
             [Alias("Location")]
@@ -74,6 +75,11 @@ function Get-AutomateClient {
         )
 
         $ArrayOfConditions = @()
+
+        
+        if ($ClientID) {
+            Return Get-AutomateAPIGeneric -AllResults -Endpoint "clients" -IDs $(($ClientID) -join ",")
+        }
 
         if ($AllClients) {
             Return Get-AutomateAPIGeneric -AllResults -Endpoint "clients" -IncludeFields $IncludeFields -ExcludeFields $ExcludeFields -OrderBy $OrderBy
@@ -89,10 +95,6 @@ function Get-AutomateClient {
 
         if ($LocationName) {
             $ArrayOfConditions += "(Location.Name like '%$LocationName%')"
-        }
-
-        if ($ClientID) {
-            $ArrayOfConditions += "(Id = $ClientId)"
         }
 
         if ($LocationID) {
