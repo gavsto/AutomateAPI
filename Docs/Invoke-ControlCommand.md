@@ -13,8 +13,8 @@ Will issue a command against a given machine and return the results.
 ## SYNTAX
 
 ```
-Invoke-ControlCommand [[-Server] <String>] [[-Credentials] <PSCredential>] [-SessionID] <Guid[]>
- [[-Command] <String>] [[-TimeOut] <Int32>] [-PowerShell] [[-MaxLength] <Int32>] [<CommonParameters>]
+Invoke-ControlCommand [-SessionID] <Guid[]> [[-Command] <String>] [[-TimeOut] <Int32>] [[-MaxLength] <Int32>]
+ [-PowerShell] [[-OfflineAction] <Object>] [[-BatchSize] <Int32>] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -24,8 +24,10 @@ Will issue a command against a given machine and return the results.
 
 ### EXAMPLE 1
 ```
-Get-AutomateComputer -ComputerID 5 | Get-ControlSessions | Invoke-ControlCommand -Powershell -Command "Get-Service"
+Get-AutomateComputer -ComputerID 5 | Get-AutomateControlInfo | Invoke-ControlCommand -Powershell -Command "Get-Service"
 ```
+
+Will retrieve Computer Information from Automate, Get ControlSession data and merge with the input object, then call Get-Service on the computer.
 
 ### EXAMPLE 2
 ```
@@ -36,42 +38,12 @@ Will return the hostname of the machine.
 
 ### EXAMPLE 3
 ```
-Invoke-ControlCommand -SessionID $SessionID -User $User -Password $Password -TimeOut 120000 -Command 'iwr -UseBasicParsing "https://bit.ly/ltposh" | iex; Restart-LTService' -PowerShell
+Invoke-ControlCommand -SessionID $SessionID -TimeOut 120000 -Command 'iwr -UseBasicParsing "https://bit.ly/ltposh" | iex; Restart-LTService' -PowerShell
 ```
 
 Will restart the Automate agent on the target machine.
 
 ## PARAMETERS
-
-### -Server
-{{Fill Server Description}}
-
-```yaml
-Type: String
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: 1
-Default value: $Script:ControlServer
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -Credentials
-{{Fill Credentials Description}}
-
-```yaml
-Type: PSCredential
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: 2
-Default value: $Script:ControlAPICredentials
-Accept pipeline input: False
-Accept wildcard characters: False
-```
 
 ### -SessionID
 The GUID identifier for the machine you wish to connect to.
@@ -85,7 +57,7 @@ Parameter Sets: (All)
 Aliases:
 
 Required: True
-Position: 3
+Position: 1
 Default value: None
 Accept pipeline input: True (ByPropertyName, ByValue)
 Accept wildcard characters: False
@@ -100,7 +72,7 @@ Parameter Sets: (All)
 Aliases:
 
 Required: False
-Position: 4
+Position: 2
 Default value: None
 Accept pipeline input: False
 Accept wildcard characters: False
@@ -116,8 +88,24 @@ Parameter Sets: (All)
 Aliases:
 
 Required: False
-Position: 5
+Position: 3
 Default value: 10000
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -MaxLength
+The maximum number of bytes to return from the remote session.
+The default is 5000 bytes.
+
+```yaml
+Type: Int32
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: 4
+Default value: 5000
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -137,8 +125,23 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
-### -MaxLength
-{{Fill MaxLength Description}}
+### -OfflineAction
+{{Fill OfflineAction Description}}
+
+```yaml
+Type: Object
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: 5
+Default value: Wait
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -BatchSize
+Number of control sessions to invoke commands in parallel.
 
 ```yaml
 Type: Int32
@@ -147,7 +150,7 @@ Aliases:
 
 Required: False
 Position: 6
-Default value: 5000
+Default value: 20
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -162,7 +165,7 @@ For more information, see about_CommonParameters (http://go.microsoft.com/fwlink
 
 ### The output of the Command provided.
 ## NOTES
-Version:        2.0
+Version:        2.2
 Author:         Chris Taylor
 Modified By:    Gavin Stone 
 Modified By:    Darren White
@@ -174,5 +177,14 @@ Author:         Darren White
 Purpose/Change: Enable Pipeline support.
 Enable processing using Automate Control Extension.
 The cached APIKey will be used if present.
+
+Update Date:    2019-02-23
+Author:         Darren White
+Purpose/Change: Enable command batching against multiple sessions.
+Added OfflineAction parameter.
+
+Update Date:    2019-06-24
+Author:         Darren White
+Purpose/Change: Updates to process object returned by Get-ControlSessions
 
 ## RELATED LINKS
