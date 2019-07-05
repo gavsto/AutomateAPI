@@ -15,13 +15,14 @@ Internal function used to make generic API calls
 ### Page
 ```
 Get-AutomateAPIGeneric [-PageSize <Int32>] -Page <Int32> -Endpoint <String> [-OrderBy <String>]
- [-Condition <String>] [-IncludeFields <String>] [-ExcludeFields <String>] [-IDs <String>] [<CommonParameters>]
+ [-Condition <String>] [-IncludeFields <String>] [-ExcludeFields <String>] [-IDs <String>] [-Expand <String>]
+ [<CommonParameters>]
 ```
 
 ### AllResults
 ```
 Get-AutomateAPIGeneric [-AllResults] -Endpoint <String> [-OrderBy <String>] [-Condition <String>]
- [-IncludeFields <String>] [-ExcludeFields <String>] [-IDs <String>] [<CommonParameters>]
+ [-IncludeFields <String>] [-ExcludeFields <String>] [-IDs <String>] [-Expand <String>] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -168,6 +169,21 @@ Accept wildcard characters: False
 
 ### -IDs
 A comma delimited list of fields, when specified only these IDs will be returned
+
+```yaml
+Type: String
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Expand
+{{Fill Expand Description}}
 
 ```yaml
 Type: String

@@ -88,9 +88,21 @@ For more information, see about_CommonParameters (http://go.microsoft.com/fwlink
 
 ### An object containing Online status for Control and Automate
 ## NOTES
-Version:        1.1
+Version:        1.4
 Author:         Gavin Stone
 Creation Date:  20/01/2019
 Purpose/Change: Initial script development
+
+Update Date:    2019-02-23
+Author:         Darren White
+Purpose/Change: Added SessionID parameter to Get-ControlSessions call.
+
+Update Date:    2019-02-26
+Author:         Darren White
+Purpose/Change: Reuse incoming object to preserve properties passed on the pipeline.
+
+Update Date:    2019-06-24
+Author:         Darren White
+Purpose/Change: Update to use objects returned by Get-ControlSessions
 
 ## RELATED LINKS

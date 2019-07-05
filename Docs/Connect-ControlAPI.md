@@ -12,25 +12,19 @@ Adds credentials required to connect to the Control API
 
 ## SYNTAX
 
-### refresh (Default)
+### credential (Default)
 ```
-Connect-ControlAPI [-Server <String>] [-Quiet] [<CommonParameters>]
-```
-
-### verify
-```
-Connect-ControlAPI [-Credential <PSCredential>] [-Server <String>] [-Verify] [-Quiet] [<CommonParameters>]
-```
-
-### credential
-```
-Connect-ControlAPI [-Credential <PSCredential>] [-Server <String>] [-Force] [-SkipCheck] [-Quiet]
- [<CommonParameters>]
+Connect-ControlAPI [-Credential <PSCredential>] [-Server <String>] [-SkipCheck] [-Quiet] [<CommonParameters>]
 ```
 
 ### apikey
 ```
 Connect-ControlAPI [-Server <String>] [-APIKey <Object>] [-SkipCheck] [-Quiet] [<CommonParameters>]
+```
+
+### verify
+```
+Connect-ControlAPI [-Verify] [-Quiet] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -55,7 +49,7 @@ Takes a standard powershell credential object, this can be built with $Credentia
 
 ```yaml
 Type: PSCredential
-Parameter Sets: verify, credential
+Parameter Sets: credential
 Aliases:
 
 Required: False
@@ -71,7 +65,7 @@ Example 'https://control.rancorthebeast.com:8040'
 
 ```yaml
 Type: String
-Parameter Sets: (All)
+Parameter Sets: credential, apikey
 Aliases:
 
 Required: False
@@ -96,22 +90,6 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
-### -Force
-\[Parameter(ParameterSetName = 'credential', Mandatory = $False)\]
-\[String\]$TwoFactorToken,
-
-```yaml
-Type: SwitchParameter
-Parameter Sets: credential
-Aliases:
-
-Required: False
-Position: Named
-Default value: False
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
 ### -Verify
 Attempt to verify Cached API key or Credentials.
 Invalid results will be removed.
@@ -129,7 +107,7 @@ Accept wildcard characters: False
 ```
 
 ### -SkipCheck
-Used internally when quietly refreshing the Token
+Used to set Server URL and Credentials without testing.
 
 ```yaml
 Type: SwitchParameter
@@ -144,7 +122,8 @@ Accept wildcard characters: False
 ```
 
 ### -Quiet
-Will not output any standard logging messages
+Will not output any standard logging messages.
+Function will returns True or False.
 
 ```yaml
 Type: SwitchParameter
@@ -166,11 +145,24 @@ For more information, see about_CommonParameters (http://go.microsoft.com/fwlink
 
 ## OUTPUTS
 
-### Two script variables with server and credentials. Returns True or False
+### Sets script variables with Server URL and Credentials or ApiKey.
 ## NOTES
 Version:        1.0
 Author:         Gavin Stone
 Creation Date:  20/01/2019
 Purpose/Change: Initial script development
+
+Version:        1.1
+Author:         Gavin Stone
+Creation Date:  22/06/2019
+Purpose/Change: The previous function was far too complex.
+No-one could debug it and a lot of it was unnecessary.
+I have greatly simplified it.
+
+Version:        1.2
+Author:         Darren White
+Creation Date:  2019-06-24
+Purpose/Change: Added support for APIKey authentication.
+The new function was not complex enough.
 
 ## RELATED LINKS
