@@ -47,7 +47,7 @@ function Get-AutomateAPIGeneric {
         [Parameter(Mandatory = $true, ParameterSetName = "Page")]
         [ValidateRange(1,65535)]
         [int]
-        $Page,
+        $Page = 1,
 
         [Parameter(Mandatory = $false, ParameterSetName = "AllResults")]
         [switch]
@@ -91,10 +91,7 @@ function Get-AutomateAPIGeneric {
 
         #Put the page size in
         $Body.Add("pagesize", "$PageSize")
-
-        if ($page) {
-            
-        }
+        $Body.Add("page", "$Page")
 
         #Put the condition in
         if ($Condition) {
@@ -128,15 +125,15 @@ function Get-AutomateAPIGeneric {
     }
     
     process {
+        $ReturnedResults = @()
+        [System.Collections.ArrayList]$ReturnedResults
         if ($AllResults) {
-            $ReturnedResults = @()
-            [System.Collections.ArrayList]$ReturnedResults
             $i = 0
             DO {
                 [int]$i += 1
-                $URLNew = "$($url)?page=$($i)"
+                $Body.page=$i
                 try {
-                    $return = Invoke-RestMethod -Uri $URLNew -Headers $script:CWAToken -ContentType "application/json" -Body $Body
+                    $return = Invoke-RestMethod -Uri $URL -Headers $script:CWAToken -ContentType "application/json" -Body $Body
                 }
                 catch {
                     Write-Error "Failed to perform Invoke-RestMethod to Automate API with error $_.Exception.Message"
@@ -145,14 +142,9 @@ function Get-AutomateAPIGeneric {
                 $ReturnedResults += ($return)
             }
             WHILE ($return.count -gt 0)
-        }
-
-        if ($Page) {
-            $ReturnedResults = @()
-            [System.Collections.ArrayList]$ReturnedResults
-            $URLNew = "$($url)?page=$($Page)"
+        } Else {
             try {
-                $return = Invoke-RestMethod -Uri $URLNew -Headers $script:CWAToken -ContentType "application/json" -Body $Body
+                $return = Invoke-RestMethod -Uri $URL -Headers $script:CWAToken -ContentType "application/json" -Body $Body
             }
             catch {
                 Write-Error "Failed to perform Invoke-RestMethod to Automate API with error $_.Exception.Message"
@@ -160,7 +152,6 @@ function Get-AutomateAPIGeneric {
 
             $ReturnedResults += ($return)
         }
-
     }
     
     end {
