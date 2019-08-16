@@ -19,6 +19,10 @@ function Invoke-ControlCommand {
         The amount of time in milliseconds that a command can execute. The default is 10000 milliseconds.
     .PARAMETER BatchSize
         Number of control sessions to invoke commands in parallel.
+    .PARAMETER AsObjects
+        Receive the output from your script as native psobjects    
+    .PARAMETER ArgumentList
+        Object[] input parameters for your script (if your script has a param block)
     .OUTPUTS
         The output of the Command provided.
     .NOTES
@@ -62,7 +66,9 @@ function Invoke-ControlCommand {
         [ValidateSet('Wait', 'Queue', 'Skip')] 
         $OfflineAction = 'Wait',
         [ValidateRange(1, 100)]
-        [int]$BatchSize = 20
+        [int]$BatchSize = 20,
+        [switch]$AsObjects = $false,
+        [Object[]]$ArgumentList
     )
 
     Begin {
@@ -76,7 +82,51 @@ function Invoke-ControlCommand {
         }
         $FormattedCommand += "#timeout=$TimeOut"
         $FormattedCommand += "#maxlength=$MaxLength"
-        $FormattedCommand += $Command
+        if($AsObjects)
+        {
+            $EncodedScript = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($Command))
+        
+            $CompressionBlock = {
+                Function Compress
+                {
+                     param($bytearray)
+                    [System.IO.MemoryStream] $output = New-Object System.IO.MemoryStream
+                    $gzipStream = New-Object System.IO.Compression.GzipStream $output, ([IO.Compression.CompressionMode]::Compress)
+      	            $gzipStream.Write( $byteArray, 0, $byteArray.Length )
+                    $gzipStream.Close()
+                    $output.Close()
+                    $tmp = $output.ToArray()
+                    [System.Convert]::ToBase64String($tmp)
+                }
+            }
+            $XMLArgs = [xml]([System.Management.Automation.PSSerializer]::Serialize($ArgumentList))
+            $XMLArgs.PreserveWhitespace = $false
+            $ArgumentListSerialized = $Xmlargs.OuterXml
+        $WrappedScript = @"        
+`$ArgumentListSerialized = @"
+$ArgumentListSerialized
+`"@
+`$ArgumentList = [System.Management.Automation.PSSerializer]::DeserializeAsList(`$ArgumentListSerialized)
+`$ScriptBlock = [ScriptBlock]::Create([System.Text.Encoding]::ASCII.GetString([System.Convert]::FromBase64String("$EncodedScript")))
+try
+{
+    `$Output = `$ScriptBlock.Invoke(`$ArgumentList)
+}
+catch
+{
+    `$Output = `$_
+}
+[xml]`$SerializedOutput = [System.Management.Automation.PSSerializer]::Serialize(`$Output)
+`$SerializedOutput.PreserveWhiteSpace = `$false
+Compress ([System.Text.Encoding]::ASCII.GetBytes(`$SerializedOutput.OuterXml))
+"@
+            $FormattedCommand += $CompressionBlock.ToString() +"`r`n" + $WrappedScript
+        }
+        else
+        {
+            $FormattedCommand += $Command
+        }
+
         $FormattedCommand = $FormattedCommand | Out-String
         $SessionEventType = 44
 
@@ -190,6 +240,18 @@ function Invoke-ControlCommand {
                         $Output = $Event.Data
                         if (!$PowerShell) {
                             $Output = $Output -replace '^[\r\n]*',''
+                        }
+                        elseif($AsObjects)
+                        {
+                            $OutputByteArray = [System.Convert]::FromBase64String($Output)
+                            $inputStream = New-Object System.IO.MemoryStream( , $OutputByteArray )
+	                        $outputStream = New-Object System.IO.MemoryStream
+                            $gzipStream = New-Object System.IO.Compression.GzipStream $inputStream, ([IO.Compression.CompressionMode]::Decompress)
+	                        $gzipStream.CopyTo( $outputStream )
+                            $gzipStream.Close()
+		                    $inputStream.Close()
+                            $Output = [System.Management.Automation.PSSerializer]::Deserialize([System.Text.Encoding]::ASCII.GetString($outputStream.ToArray()));
+                            $outputStream.Close()
                         }
                         $ResultSet += [pscustomobject]@{
                             'SessionID' = $Event.SessionID
