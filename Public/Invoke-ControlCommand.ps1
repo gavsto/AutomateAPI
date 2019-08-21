@@ -23,6 +23,8 @@ function Invoke-ControlCommand {
         Receive the output from your script as native psobjects    
     .PARAMETER ArgumentList
         Object[] input parameters for your script (if your script has a param block)
+    .PARAMETER ResultAsMember
+        String containing the name of the member you would like to add to the input pipeline object that will hold the result of this command
     .OUTPUTS
         The output of the Command provided.
     .NOTES
@@ -44,6 +46,14 @@ function Invoke-ControlCommand {
         Update Date:    2019-06-24
         Author:         Darren White
         Purpose/Change: Updates to process object returned by Get-ControlSessions
+
+        Update Date:    2019-08-14
+        Author:         Darren Kattan
+        Purpose/Change: Added -AsObject and -ArgumentList parameters for object passing
+
+        Update Date:    2019-08-20
+        Author:         Darren Kattan
+        Purpose/Change: Added ability to retain Computer object passed in from pipeline and append result of script to a named member of the computer object
         
     .EXAMPLE
         Get-AutomateComputer -ComputerID 5 | Get-AutomateControlInfo | Invoke-ControlCommand -Powershell -Command "Get-Service"
@@ -54,10 +64,17 @@ function Invoke-ControlCommand {
     .EXAMPLE
         Invoke-ControlCommand -SessionID $SessionID -TimeOut 120000 -Command 'iwr -UseBasicParsing "https://bit.ly/ltposh" | iex; Restart-LTService' -PowerShell
             Will restart the Automate agent on the target machine.
+    .EXAMPLE
+        $Results = Get-AutomateComputer -ClientName "Contoso" | Get-AutomateControlInfo | Invoke-ControlCommand -IncludeComputerProperties -ResultPropertyName "OfficePlatform" -PowerShell -Command { Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Office\ClickToRun\Configuration" -Name Platform }
+        $Results | select ComputerName, OfficePlatform
+    .EXAMPLE
+        $Results = Get-AutomateComputer -ClientName "Contoso" | Get-AutomateControlInfo | Invoke-ControlCommand -AsObjects -IncludeComputerProperties -ResultPropertyName "OfficeRegInfo" -PowerShell -Command { Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Office\ClickToRun\Configuration" }
+        $Results | ?{$_.OfficeRegInfo.Platform -eq "x86" -and $_.OfficeRegInfo.UpdateEnabled -notlike "true"} | select ComputerName
+
     #>
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [Parameter(ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True, ParameterSetName='SessionID')]
         [guid[]]$SessionID,
         [string]$Command,
         [int]$TimeOut = 10000,
@@ -68,7 +85,11 @@ function Invoke-ControlCommand {
         [ValidateRange(1, 100)]
         [int]$BatchSize = 20,
         [switch]$AsObjects = $false,
-        [Object[]]$ArgumentList
+        [Object[]]$ArgumentList,
+        [Parameter(ValueFromPipeLine=$true, ParameterSetName='Computer')]
+        $Computer,        
+        [string]$ResultPropertyName = 'Output',
+        [switch]$IncludeComputerProperties
     )
 
     Begin {
@@ -141,18 +162,28 @@ Compress ([System.Text.Encoding]::ASCII.GetBytes(`$SerializedOutput.OuterXml))
         }
 
         $SessionIDCollection = @()
+        $ComputerCollection = @()
         $ResultSet = @()
 
     }
 
     Process {
         If (!($Server -match 'https?://[a-z0-9][a-z0-9\.\-]*(:[1-9][0-9]*)?(\/[a-z0-9\.\-\/]*)?$')) {throw "Control Server address ($Server) is in an invalid format. Use Connect-ControlAPI to assign the server URL."; return}
+        
         If ($SessionID) {
             $SessionIDCollection += $SessionID
         }
+        If($Computer) {
+            $ComputerCollection += $Computer
+        }
+
     }
 
     End {
+        if($PSCmdlet.ParameterSetName -eq 'Computer')
+        {
+            $SessionIDCollection = $ComputerCollection.SessionID
+        }
         $SplitGUIDsArray = Split-Every -list $SessionIDCollection -count $BatchSize
         ForEach ($GUIDs in $SplitGUIDsArray) {
             If (!$GUIDs) {Continue} #Skip if Null value
@@ -164,10 +195,22 @@ Compress ([System.Text.Encoding]::ASCII.GetBytes(`$SerializedOutput.OuterXml))
                 If ($OfflineAction -eq 'Skip') {
                     ForEach ($GUID in $ControlSessions.Keys) {
                         If (!($ControlSessions[$GUID].OnlineStatusControl -eq $True)) {
-                            $ResultSet += [pscustomobject]@{
-                                'SessionID' = $GUID
-                                'Output'    = 'Skipped. Session was not connected.'
+                            $FriendlyResult = 'Skipped. Session was not connected.'
+                            if($IncludeComputerProperties)
+                            {
+                                $Computer = $ComputerCollection | ?{$_.SessionID -eq $GUID} | select -First 1
+                                $Computer | Add-Member -NotePropertyName $ResultPropertyName -NotePropertyValue $FriendlyResult
+                                $ReturnObject = $Computer
                             }
+                            else
+                            {
+                                $ReturnObject = [pscustomobject]@{
+                                    'SessionID' = $GUID                                
+                                    "$ResultPropertyName" = $FriendlyResult
+                                    'IsSuccess' = $false
+                                }
+                            }
+                            $ResultSet += $ReturnObject
                             $Null = $RemainingGUIDs.Remove($GUID)
                         }
                     }
@@ -237,7 +280,8 @@ Compress ([System.Text.Encoding]::ASCII.GetBytes(`$SerializedOutput.OuterXml))
                 $Events = ($SessionEvents.Items | ForEach-Object {$x = $_; $SCEventRecord = [pscustomobject]@{}; for ($i = 0; $i -lt $FNames.Length; $i++) {$Null = $SCEventRecord | Add-Member -NotePropertyName $FNames[$i] -NotePropertyValue $x[$i]}; $SCEventRecord} | Sort-Object -Property Time,SessionID -Descending)
                 foreach ($Event in $Events) {
                     if ($Event.Time -ge $EventDate.ToUniversalTime() -and $RemainingGUIDs.Contains($Event.SessionID)) {
-                        $Output = $Event.Data
+                        $GUID = $Event.SessionID
+                        $Output = $Event.Data.Trim()
                         if (!$PowerShell) {
                             $Output = $Output -replace '^[\r\n]*',''
                         }
@@ -253,10 +297,22 @@ Compress ([System.Text.Encoding]::ASCII.GetBytes(`$SerializedOutput.OuterXml))
                             $Output = [System.Management.Automation.PSSerializer]::Deserialize([System.Text.Encoding]::ASCII.GetString($outputStream.ToArray()));
                             $outputStream.Close()
                         }
-                        $ResultSet += [pscustomobject]@{
-                            'SessionID' = $Event.SessionID
-                            'Output'    = $Output
+                        if($IncludeComputerProperties)
+                        {
+                            $Computer = $ComputerCollection | ?{$_.SessionID -eq $GUID} | select -First 1
+                            $Computer | Add-Member -NotePropertyName $ResultPropertyName -NotePropertyValue $Output
+                            $ReturnObject = $Computer
                         }
+                        else
+                        {
+                            $ReturnObject = [pscustomobject]@{
+                                'SessionID' = $GUID
+                                "$ResultPropertyName" = $Output
+                                'IsSuccess' = $True
+                            }
+                        }
+
+                        $ResultSet += $ReturnObject
                         $Null = $RemainingGUIDs.Remove($Event.SessionID)
                     }
                 }
@@ -276,10 +332,22 @@ Compress ([System.Text.Encoding]::ASCII.GetBytes(`$SerializedOutput.OuterXml))
                     $Looking = $False
                     If ($RemainingGUIDs) {
                         ForEach ($GUID in $RemainingGUIDs) {
-                            $ResultSet += [pscustomobject]@{
-                            'SessionID' = $GUID
-                            'Output'    = 'Command was queued for the session.'
+                            $FriendlyResult = 'Command was queued for the session.'
+                            if($IncludeComputerProperties)
+                            {
+                                $Computer = $ComputerCollection | ?{$_.SessionID -eq $GUID} | select -First 1
+                                $Computer | Add-Member -NotePropertyName $ResultPropertyName -NotePropertyValue $FriendlyResult
+                                $ReturnObject = $Computer
                             }
+                            else
+                            {
+                                $ReturnObject = [pscustomobject]@{
+                                'SessionID' = $GUID
+                                "$ResultPropertyName" = $FriendlyResult
+                                'IsSuccess' = $false
+                                }
+                            }
+                            $ResultSet += $ReturnObject
                         }
                         return $Output -Join ""
                     }
@@ -289,22 +357,32 @@ Compress ([System.Text.Encoding]::ASCII.GetBytes(`$SerializedOutput.OuterXml))
                     $Looking = $False
                     ForEach ($GUID in $RemainingGUIDs) {
                         If ($OfflineAction -ne 'Wait' -and $ControlSessions[$GUID.ToString()].OnlineStatusControl -eq $False) {
-                            $ResultSet += [pscustomobject]@{
+                            $FriendlyResult = 'Command was queued for the session'
+                        } 
+                        Else {
+                            $FriendlyResult = 'Command timed out when sent to Agent'
+                        }
+                        if($IncludeComputerProperties)
+                        {
+                            $Computer = $ComputerCollection | ?{$_.SessionID -eq $GUID} | select -First 1
+                            $Computer | Add-Member -NotePropertyName $ResultPropertyName -NotePropertyValue $FriendlyResult
+                            $ReturnObject = $Computer
+                        }
+                        else
+                        {
+                            $ReturnObject = [pscustomobject]@{
                                 'SessionID' = $GUID
-                                'Output'    = 'Command was queued for the session'
-                            }
-                        } Else {
-                            $ResultSet += [pscustomobject]@{
-                                'SessionID' = $GUID
-                                'Output'    = 'Command timed out when sent to Agent'
+                                "$ResultPropertyName" = $FriendlyResult
+                                'IsSuccess' = $false
                             }
                         }
+                        $ResultSet += $ReturnObject
                     }
                 }
             }
         }
         If ($ResultSet.Count -eq 1) {
-            Return $ResultSet | Select-Object -ExpandProperty Output -ErrorAction 0
+            Return $ResultSet | Select-Object -ExpandProperty "$ResultPropertyName" -ErrorAction 0
         } Else {
             Return $ResultSet
         }
