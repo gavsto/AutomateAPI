@@ -65,10 +65,10 @@ function Invoke-ControlCommand {
         Invoke-ControlCommand -SessionID $SessionID -TimeOut 120000 -Command 'iwr -UseBasicParsing "https://bit.ly/ltposh" | iex; Restart-LTService' -PowerShell
             Will restart the Automate agent on the target machine.
     .EXAMPLE
-        $Results = Get-AutomateComputer -ClientName "Contoso" | Get-AutomateControlInfo | Invoke-ControlCommand -IncludeComputerProperties -ResultPropertyName "OfficePlatform" -PowerShell -Command { Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Office\ClickToRun\Configuration" -Name Platform }
+        $Results = Get-AutomateComputer -ClientName "Contoso" | Get-AutomateControlInfo | Invoke-ControlCommand -IncludeComputerName -ResultPropertyName "OfficePlatform" -PowerShell -Command { Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Office\ClickToRun\Configuration" -Name Platform }
         $Results | select ComputerName, OfficePlatform
     .EXAMPLE
-        $Results = Get-AutomateComputer -ClientName "Contoso" | Get-AutomateControlInfo | Invoke-ControlCommand -AsObjects -IncludeComputerProperties -ResultPropertyName "OfficeRegInfo" -PowerShell -Command { Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Office\ClickToRun\Configuration" }
+        $Results = Get-AutomateComputer -ClientName "Contoso" | Get-AutomateControlInfo | Invoke-ControlCommand -AsObjects -IncludeComputerName -ResultPropertyName "OfficeRegInfo" -PowerShell -Command { Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Office\ClickToRun\Configuration" }
         $Results | ?{$_.OfficeRegInfo.Platform -eq "x86" -and $_.OfficeRegInfo.UpdateEnabled -notlike "true"} | select ComputerName
 
     #>
@@ -89,7 +89,7 @@ function Invoke-ControlCommand {
         [Parameter(ValueFromPipeLine=$true, ParameterSetName='Computer')]
         $Computer,        
         [string]$ResultPropertyName = 'Output',
-        [switch]$IncludeComputerProperties
+        [switch]$IncludeComputerName
     )
 
     Begin {
@@ -110,7 +110,7 @@ function Invoke-ControlCommand {
             $CompressionBlock = {
                 Function Compress
                 {
-                     param($bytearray)
+                    param($bytearray)
                     [System.IO.MemoryStream] $output = New-Object System.IO.MemoryStream
                     $gzipStream = New-Object System.IO.Compression.GzipStream $output, ([IO.Compression.CompressionMode]::Compress)
       	            $gzipStream.Write( $byteArray, 0, $byteArray.Length )
@@ -120,28 +120,73 @@ function Invoke-ControlCommand {
                     [System.Convert]::ToBase64String($tmp)
                 }
             }
-            $XMLArgs = [xml]([System.Management.Automation.PSSerializer]::Serialize($ArgumentList))
-            $XMLArgs.PreserveWhitespace = $false
-            $ArgumentListSerialized = $Xmlargs.OuterXml
-        $WrappedScript = @"        
-`$ArgumentListSerialized = @"
-$ArgumentListSerialized
-`"@
-`$ArgumentList = [System.Management.Automation.PSSerializer]::DeserializeAsList(`$ArgumentListSerialized)
+            if($ArgumentList){
+                $XMLArgs = [xml]([System.Management.Automation.PSSerializer]::Serialize($ArgumentList))
+                $XMLArgs.PreserveWhitespace = $false                
+                $EncodedArguments = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($Xmlargs.OuterXml))
+                $FormattedCommand += @"
+`$ArgumentList = [System.Management.Automation.PSSerializer]::DeserializeAsList([System.Text.Encoding]::ASCII.GetString([System.Convert]::FromBase64String("$EncodedArguments")))
+"@
+            }
+        
+        $FormattedCommand += $CompressionBlock.ToString().Replace("`t","") + "`r`n"        
+        $FormattedCommand += @"            
 `$ScriptBlock = [ScriptBlock]::Create([System.Text.Encoding]::ASCII.GetString([System.Convert]::FromBase64String("$EncodedScript")))
+"@
+ $FormattedCommand += @'
 try
 {
-    `$Output = `$ScriptBlock.Invoke(`$ArgumentList)
+    $PSInstance = [System.Management.Automation.PowerShell]::Create()
+    $OutputCollector = New-Object 'System.Management.Automation.PSDataCollection[psobject]'
+    $PSOutputArray = new-object psobject -property @{"OutputObjects"=@();"ConsoleString"="";AllObjects=@()}  
+    $NewDataHandler = {
+        try {
+            $data = $sender.ReadAll() | ?{ $null -ne $_ }
+            $event.MessageData.AllObjects += $data
+            $event.MessageData.OutputObjects += $data | ?{ $_.GetType().Name -notin @("InformationRecord","ErrorRecord","VerboseRecord","DebugRecord","WarningRecord")}            
+            $event.MessageData.ConsoleString += $data | Out-String
+        }
+        catch{
+            $_
+        }
+    }
+    
+    $null = $PSInstance.AddScript($ScriptBlock)
+    Register-ObjectEvent -InputObject $OutputCollector -EventName DataAdded -MessageData $PSOutputArray -Action $NewDataHandler | Out-Null
+    Register-ObjectEvent -InputObject $PSInstance.Streams.Error -EventName DataAdded -MessageData $PSOutputArray -Action $NewDataHandler | Out-Null
+    Register-ObjectEvent -InputObject $PSInstance.Streams.Information -EventName DataAdded -MessageData $PSOutputArray -Action $NewDataHandler | Out-Null
+    Register-ObjectEvent -InputObject $PSInstance.Streams.Debug -EventName DataAdded -MessageData $PSOutputArray -Action $NewDataHandler | Out-Null
+    Register-ObjectEvent -InputObject $PSInstance.Streams.Warning -EventName DataAdded -MessageData $PSOutputArray -Action $NewDataHandler | Out-Null
+    Register-ObjectEvent -InputObject $PSInstance.Streams.Verbose -EventName DataAdded -MessageData $PSOutputArray -Action $NewDataHandler | Out-Null
+    $InputCollector = New-Object 'System.Management.Automation.PSDataCollection[psobject]'
+    foreach($Argument in $ArgumentList)
+    {
+        $InputCollector.Add($Argument)
+    }
+    $Output = $PSInstance.BeginInvoke($InputCollector, $OutputCollector)
+    while($PSInstance.InvocationStateInfo.State -ne "Completed")
+    {
+        sleep -s 1
+    }    
 }
 catch
 {
-    `$Output = `$_
+    $PSOutputArray += $_
 }
-[xml]`$SerializedOutput = [System.Management.Automation.PSSerializer]::Serialize(`$Output)
-`$SerializedOutput.PreserveWhiteSpace = `$false
-Compress ([System.Text.Encoding]::ASCII.GetBytes(`$SerializedOutput.OuterXml))
-"@
-            $FormattedCommand += $CompressionBlock.ToString() +"`r`n" + $WrappedScript
+finally
+{
+    $PSInstance.EndInvoke($Output);    
+    Get-EventSubscriber | Unregister-Event
+    $PSInstance.Dispose()
+}
+# $Output
+[xml]$SerializedOutput = [System.Management.Automation.PSSerializer]::Serialize($PSOutputArray)
+$SerializedOutput.PreserveWhiteSpace = $false
+$UncompressedBinary = [System.Text.Encoding]::ASCII.GetBytes($SerializedOutput.OuterXml)
+$CompressedOutput = Compress $UncompressedBinary
+$CompressedOutput
+'@
+            
         }
         else
         {
@@ -196,7 +241,7 @@ Compress ([System.Text.Encoding]::ASCII.GetBytes(`$SerializedOutput.OuterXml))
                     ForEach ($GUID in $ControlSessions.Keys) {
                         If (!($ControlSessions[$GUID].OnlineStatusControl -eq $True)) {
                             $FriendlyResult = 'Skipped. Session was not connected.'
-                            if($IncludeComputerProperties)
+                            if($IncludeComputerName)
                             {
                                 $Computer = $ComputerCollection | ?{$_.SessionID -eq $GUID} | select -First 1
                                 $Computer | Add-Member -NotePropertyName $ResultPropertyName -NotePropertyValue $FriendlyResult
@@ -297,20 +342,18 @@ Compress ([System.Text.Encoding]::ASCII.GetBytes(`$SerializedOutput.OuterXml))
                             $Output = [System.Management.Automation.PSSerializer]::Deserialize([System.Text.Encoding]::ASCII.GetString($outputStream.ToArray()));
                             $outputStream.Close()
                         }
-                        if($IncludeComputerProperties)
+                        
+                        $ReturnObject = [pscustomobject]@{
+                            'SessionID' = $GUID
+                            "$ResultPropertyName" = $Output
+                            'IsSuccess' = $True
+                        }
+                        if($IncludeComputerName)
                         {
                             $Computer = $ComputerCollection | ?{$_.SessionID -eq $GUID} | select -First 1
-                            $Computer | Add-Member -NotePropertyName $ResultPropertyName -NotePropertyValue $Output
-                            $ReturnObject = $Computer
+                            $ReturnObject | Add-Member -NotePropertyName Computer -NotePropertyValue $Computer.ComputerName                            
                         }
-                        else
-                        {
-                            $ReturnObject = [pscustomobject]@{
-                                'SessionID' = $GUID
-                                "$ResultPropertyName" = $Output
-                                'IsSuccess' = $True
-                            }
-                        }
+                        
 
                         $ResultSet += $ReturnObject
                         $Null = $RemainingGUIDs.Remove($Event.SessionID)
@@ -333,19 +376,15 @@ Compress ([System.Text.Encoding]::ASCII.GetBytes(`$SerializedOutput.OuterXml))
                     If ($RemainingGUIDs) {
                         ForEach ($GUID in $RemainingGUIDs) {
                             $FriendlyResult = 'Command was queued for the session.'
-                            if($IncludeComputerProperties)
+                            $ReturnObject = [pscustomobject]@{
+                            'SessionID' = $GUID
+                            "$ResultPropertyName" = $FriendlyResult
+                            'IsSuccess' = $false
+                            }
+                            if($IncludeComputerName)
                             {
                                 $Computer = $ComputerCollection | ?{$_.SessionID -eq $GUID} | select -First 1
-                                $Computer | Add-Member -NotePropertyName $ResultPropertyName -NotePropertyValue $FriendlyResult
-                                $ReturnObject = $Computer
-                            }
-                            else
-                            {
-                                $ReturnObject = [pscustomobject]@{
-                                'SessionID' = $GUID
-                                "$ResultPropertyName" = $FriendlyResult
-                                'IsSuccess' = $false
-                                }
+                                $ReturnObject | Add-Member -NotePropertyName Computer -NotePropertyValue $Computer.ComputerName                            
                             }
                             $ResultSet += $ReturnObject
                         }
@@ -362,19 +401,16 @@ Compress ([System.Text.Encoding]::ASCII.GetBytes(`$SerializedOutput.OuterXml))
                         Else {
                             $FriendlyResult = 'Command timed out when sent to Agent'
                         }
-                        if($IncludeComputerProperties)
+                        
+                        $ReturnObject = [pscustomobject]@{
+                            'SessionID' = $GUID
+                            "$ResultPropertyName" = $FriendlyResult
+                            'IsSuccess' = $false
+                        }
+                        if($IncludeComputerName)
                         {
                             $Computer = $ComputerCollection | ?{$_.SessionID -eq $GUID} | select -First 1
-                            $Computer | Add-Member -NotePropertyName $ResultPropertyName -NotePropertyValue $FriendlyResult
-                            $ReturnObject = $Computer
-                        }
-                        else
-                        {
-                            $ReturnObject = [pscustomobject]@{
-                                'SessionID' = $GUID
-                                "$ResultPropertyName" = $FriendlyResult
-                                'IsSuccess' = $false
-                            }
+                            $ReturnObject | Add-Member -NotePropertyName Computer -NotePropertyValue $Computer.ComputerName                            
                         }
                         $ResultSet += $ReturnObject
                     }
