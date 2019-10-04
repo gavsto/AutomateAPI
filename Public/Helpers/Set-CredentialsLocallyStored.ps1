@@ -93,7 +93,7 @@ function Set-CredentialsLocallyStored {
 
     If ($Control) {
         If (!$Save) {
-            Connect-ControlAPI -Server '' -Force
+            Connect-ControlAPI -Server ''
         }
 
         $StoreVariables = @(
