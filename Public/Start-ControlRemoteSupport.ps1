@@ -28,7 +28,7 @@ function Start-ControlRemoteSupport {
     .EXAMPLE
         Get-AutomateComputer -ComputerID 5 | Start-ControlRemoteSupport
     #>
-    [CmdletBinding(DefaultParameterSetName = 'ID')]
+    [CmdletBinding(DefaultParameterSetName = 'Name')]
     param
     (
         [Parameter(ParameterSetName = 'Name', Mandatory = $true, Position = 0, ValueFromPipeline = $true, ValueFromPipelineByPropertyName=$False)]
@@ -64,7 +64,8 @@ function Start-ControlRemoteSupport {
         }
 
         ForEach ($Computer in $ComputerObjects) {
-            Start-Process "$((Get-AutomateComputer -ComputerID $Computer.ID | Get-AutomateControlInfo).LaunchURL)"
+            $ControlInfo = Get-AutomateControlInfo -ComputerID $Computer.ID
+            $ControlInfo.LaunchSession()
         } #End ForEach
     } #End Process
 
