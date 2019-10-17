@@ -64,8 +64,10 @@ function Start-ControlRemoteSupport {
         }
 
         ForEach ($Computer in $ComputerObjects) {
-            $ControlInfo = Get-AutomateControlInfo -ComputerID $Computer.ID
-            $ControlInfo.LaunchSession()
+            try {
+                $(Get-AutomateControlInfo $Computer.ID).LaunchSession()
+            }
+            catch {}
         } #End ForEach
     } #End Process
 
