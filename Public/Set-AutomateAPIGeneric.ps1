@@ -96,45 +96,43 @@ function Set-AutomateAPIGeneric {
         $BodyString = ($Body | ConvertTo-Json -Compress)
 
         #Build the Query Up
-        $QueryString = ""
+        Add-Type -AssemblyName System.Web
+        $Query = [System.Web.HttpUtility]::ParseQueryString([String]::Empty)
 
         #Put the page size in
-        $QueryString += "&pagesize=$PageSize"
-
-        if ($page) {
-            
-        }
+        $Query['pagesize'] = $PageSize
 
         #Put the condition in
         if ($Condition) {
-            $QueryString += "&condition=$condition"
+            $Query['condition'] = $condition
         }
 
         #Put the orderby in
         if ($OrderBy) {
-            $QueryString += "&orderby=$orderby"
+            $Query['orderby'] = $orderby
         }
 
         #Include only these fields
         if ($IncludeFields) {
-            $QueryString += "&includefields=$IncludeFields"
+            $Query['includefields'] = $IncludeFields
         }
 
         #Exclude only these fields
         if ($ExcludeFields) {
-            $QueryString += "&excludefields=$ExcludeFields"
+            $Query['excludefields'] = $ExcludeFields
         }
 
         #Include only these IDs
         if ($IDs) {
-            $QueryString += "&ids=$IDs"
+            $Query['ids'] = $IDs
         }
 
         #Expands in the returned object
         if ($Expand) {
-          $QueryString += "&expand=$Expand"
+          $Query['expand'] = $Expand
         }
         
+        $QueryString = $Query.ToString()
     }
     
     process {
@@ -146,7 +144,7 @@ function Set-AutomateAPIGeneric {
                 [int]$i += 1
                 $URLNew = "$($url)?page=$($i)&$QueryString"
                 try {
-                    $return = Invoke-RestMethod -Uri $URLNew -Headers $script:CWAToken -ContentType "application/json" -Body $BodyString
+                    $return = Invoke-RestMethod -Method Post -Uri $URLNew -Headers $script:CWAToken -ContentType "application/json" -Body $BodyString
                 }
                 catch {
                     Write-Error "Failed to perform Invoke-RestMethod to Automate API with error $_.Exception.Message"
@@ -160,7 +158,7 @@ function Set-AutomateAPIGeneric {
         if ($Page) {
             $ReturnedResults = @()
             [System.Collections.ArrayList]$ReturnedResults
-            $URLNew = "$($url)?page=$($Page)"
+            $URLNew = "$($url)?page=$($Page)&$QueryString"
             try {
                 $return = Invoke-RestMethod -Method Post -Uri $URLNew -Headers $script:CWAToken -ContentType "application/json" -Body $BodyString
             }
