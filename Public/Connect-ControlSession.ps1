@@ -1,4 +1,4 @@
-function Start-ControlRemoteSupport {
+function Connect-ControlSession {
     <#
     .SYNOPSIS
         Will open a ConnectWise Control Remote Support session against a given machine.
@@ -10,7 +10,7 @@ function Start-ControlRemoteSupport {
     .PARAMETER ComputerID
         The Automate ComputerID to connect to
     .PARAMETER ID
-        Taken from the Pipeline, IE Get-AutomateComputer -ComputerID 5 | Start-ControlRemoteSupport
+        Taken from the Pipeline, IE Get-AutomateComputer -ComputerID 5 | Connect-ControlSession
     .PARAMETER ComputerObjects
         Used for Pipeline input from Get-AutomateComputer
     .OUTPUTS
@@ -22,11 +22,11 @@ function Start-ControlRemoteSupport {
         Purpose/Change: Initial script development
 
     .EXAMPLE
-        Start-ControlRemoteSupport -ComputerName TestComputer
+        Connect-ControlSession -ComputerName TestComputer
     .EXAMPLE
-        Start-ControlRemoteSupport -ComputerId 123
+        Connect-ControlSession -ComputerId 123
     .EXAMPLE
-        Get-AutomateComputer -ComputerID 5 | Start-ControlRemoteSupport
+        Get-AutomateComputer -ComputerID 5 | Connect-ControlSession
     #>
     [CmdletBinding(DefaultParameterSetName = 'Name')]
     param
@@ -71,4 +71,4 @@ function Start-ControlRemoteSupport {
         } #End ForEach
     } #End Process
 
-} #End Start-ControlRemoteSupport
+} #End Connect-ControlSession
