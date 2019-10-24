@@ -1,3 +1,55 @@
+<#
+	.SYNOPSIS
+		Fetches credentials stored by the Set-CredentialsLocallStored function.
+	
+	.DESCRIPTION
+		Defaults to "$($env:USERPROFILE)\AutomateAPI\" to fetch credentials
+	
+	.PARAMETER Automate
+		When specified, fetches credentials from disk and loads them into the variables necessary for Automate related cmdlets to function
+	
+	.PARAMETER Control
+		When specified, fetches credentials from disk and loads them into the variables necessary for Control related cmdlets to function
+	
+	.PARAMETER All
+		When specified, fetches credentials from disk and loads them into the variables necessary for Automate and Control related cmdlets to function
+	
+	.PARAMETER CredentialPath
+		Overrides default credential file path
+	
+	.PARAMETER CredentialDirectory
+		Overrides default credential folder path
+	
+	.EXAMPLE
+		Import-Module AutomateAPI
+		if(!$Connected)
+		{
+		    try
+		    {
+		        Get-CredentialsLocallyStored -All
+		        $Connected = $true   
+		    }
+		    catch
+		    {
+		        try
+		        {
+		            Set-CredentialsLocallyStored -All
+		            $Connected = $true
+		        }
+		        catch
+		        {
+
+		        }
+		    }   
+		}
+
+		Get-AutomateComputer -ComputerID 171 | Get-AutomateControlInfo | Invoke-ControlCommand -Command { "Hello World" } -PowerShell
+	
+	.NOTES
+		Does not return a credential object!
+		You do not need to run Connect-AutomateAPI or Connect-ControlAPI, this method calls those methods to validate the credentials
+		To prevent reconnection each time, you will want to store the connection state yourself as shown in the above example
+#>
 function Get-CredentialsLocallyStored {
     [CmdletBinding()]
     param (
