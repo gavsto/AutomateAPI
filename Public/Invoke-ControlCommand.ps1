@@ -103,7 +103,7 @@ function Invoke-ControlCommand {
         $FormattedCommand += "#timeout=$TimeOut"
         $FormattedCommand += "#maxlength=$MaxLength"
         if ($AsObjects) {
-            $FormattedCommand += New-PowerShellScriptThatReturnsPSObjects -ArgumentList $ArgumentList            
+            $FormattedCommand += New-PowerShellScriptThatReturnsPSObjects -Command $Command -ArgumentList $ArgumentList
         }
         else {
             $FormattedCommand += $Command

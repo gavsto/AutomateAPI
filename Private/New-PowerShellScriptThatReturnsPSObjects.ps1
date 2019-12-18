@@ -1,7 +1,9 @@
 ﻿Function New-PowerShellScriptThatReturnsSerializedPSObjects
 {
-    param(    
-    $ArgumentList
+    param(
+        [Parameter(Mandatory)]    
+        $Command,
+        $ArgumentList
     )
     $EncodedScript = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($Command))
         
@@ -17,20 +19,24 @@
             [System.Convert]::ToBase64String($tmp)
         }
     }
+    $WrappedScript = ""
+
     if ($ArgumentList) {
         $XMLArgs = [xml]([System.Management.Automation.PSSerializer]::Serialize($ArgumentList))
         $XMLArgs.PreserveWhitespace = $false                
         $EncodedArguments = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($Xmlargs.OuterXml))
-        $FormattedCommand += @"
+        # This might be useful to reference one day
+        # https://github.com/PowerShell/PowerShell/blob/master/src/System.Management.Automation/engine/remoting/common/WireDataFormat/EncodeAndDecode.cs
+        $WrappedScript += @"
 `$ArgumentList = [System.Management.Automation.PSSerializer]::DeserializeAsList([System.Text.Encoding]::ASCII.GetString([System.Convert]::FromBase64String("$EncodedArguments")))
 "@
             }
         
-            $FormattedCommand += $CompressionBlock.ToString().Replace("`t", "") + "`r`n"        
-            $FormattedCommand += @"            
+            $WrappedScript += $CompressionBlock.ToString().Replace("`t", "") + "`r`n"        
+            $WrappedScript += @"            
 `$ScriptBlock = [ScriptBlock]::Create([System.Text.Encoding]::ASCII.GetString([System.Convert]::FromBase64String("$EncodedScript")))
 "@
-            $FormattedCommand += @'
+            $WrappedScript += @'
 try
 {
     $PSInstance = [System.Management.Automation.PowerShell]::Create()
@@ -83,6 +89,7 @@ $UncompressedBinary = [System.Text.Encoding]::ASCII.GetBytes($SerializedOutput.O
 $CompressedOutput = Compress $UncompressedBinary
 $CompressedOutput
 '@
+    return $WrappedScript
 }
 
 Function Decompress-SerializedPSObjects
