@@ -5,7 +5,11 @@ function Set-CredentialsLocallyStored {
 
 .DESCRIPTION
    This function takes a Powershell script and sets credentials on the local disk encrypted with the local system
-
+.PARAMETER Save
+   Saves the credentials that are currently in use
+   When not present, the user will be required to provide credentials interactively
+.PARAMETER All
+   Will save both Automate and Control credentials
 .EXAMPLE
    Set-CredentialsLocallyStored -Automate
 
@@ -33,7 +37,8 @@ function Set-CredentialsLocallyStored {
         [Parameter(ParameterSetName = 'Automate')]
         [Parameter(ParameterSetName = 'Control')]
         [Parameter(ParameterSetName = 'All')]
-        [switch]$Save,
+        [alias("Save")]
+        [switch]$SaveCurrent,
 
         [Parameter(ParameterSetName = 'Automate')]
         [Parameter(ParameterSetName = 'Control')]
@@ -51,7 +56,9 @@ function Set-CredentialsLocallyStored {
     }
 
     If ($Automate) {
-        If (!$Save) {
+        If (!$SaveCurrent) {
+            # The Connect-AutomateAPI Cmdlet will interrogate the user for when give passed the following parameters
+            # The variables are stored in script scope variables
             Connect-AutomateAPI -Server '' -Force
         }
 
@@ -92,8 +99,10 @@ function Set-CredentialsLocallyStored {
     }
 
     If ($Control) {
-        If (!$Save) {
-            Connect-ControlAPI -Server '' -Force
+        If (!$SaveCurrent) {
+            # This forces the Connect-ControlAPI function to interrogate the user for credentials
+            # The variables are stored in script scope variables
+            Connect-ControlAPI -Server '' 
         }
 
         $StoreVariables = @(
@@ -104,7 +113,7 @@ function Set-CredentialsLocallyStored {
 
         $StoreBlock = [pscustomobject]@{}
         $CredentialPath = "$($CredentialDirectory)\Control - Credentials.txt"
-
+        # Here we read the variables that were stored by the Connect-ControlAPI method and ultimately store them
         Foreach ($SaveVar in $StoreVariables) {
             If (!(Get-Variable @SaveVar -ErrorAction 0)) {Continue}
             If ($SaveVar.Name -match 'Credential') {
