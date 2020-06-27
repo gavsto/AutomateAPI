@@ -167,8 +167,12 @@ function Invoke-ControlCommand {
                 $ControlSessions = @{ };
                 Get-ControlSessions -SessionID $RemainingGUIDs | ForEach-Object { $ControlSessions.Add($_.SessionID, $($_ | Select-Object -Property OnlineStatusControl, LastConnected)) }
                 If ($OfflineAction -eq 'Skip') {
-                    $ResultSet += $ControlSessions.Keys | Where-Object { !($ControlSessions[$_].OnlineStatusControl -eq $True) } | ForEach-Object {
-                        New-ReturnObject -InputObject $InputObjects[$_] -Result 'Skipped. Session was not connected.' -PropertyName $ResultPropertyName -IsSuccess $false
+                    ForEach ($GUID in {$GUIDs}.Invoke()) {
+                        $GUID=$GUID.ToString()
+                        If (!($ControlSessions[$GUID].OnlineStatusControl -eq $True)) {
+                            $ResultSet += New-ReturnObject -InputObject $InputObjects[$GUID] -Result 'Skipped. Session was not connected.' -PropertyName $ResultPropertyName -IsSuccess $false
+                            $Null = $RemainingGUIDs.Remove($GUID)
+                        }
                     }
                 }
             }
