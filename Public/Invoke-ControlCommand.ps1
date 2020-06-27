@@ -51,13 +51,21 @@ function Invoke-ControlCommand {
         Invoke-ControlCommand -SessionID $SessionID -TimeOut 120000 -Command 'iwr -UseBasicParsing "https://bit.ly/ltposh" | iex; Restart-LTService' -PowerShell
             Will restart the Automate agent on the target machine.
     #>
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'ExecuteCommand')]
     param (
         [Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
         [guid[]]$SessionID,
+        [Parameter(ParameterSetName = 'ExecuteCommand', Mandatory = $True)]
         [string]$Command,
+        [Parameter(ParameterSetName = 'CommandID', Mandatory = $True)]
+        [int]$CommandID,
+        [Parameter(ParameterSetName = 'CommandID')]
+        $CommandBody='',
+        [Parameter(ParameterSetName = 'ExecuteCommand')]
         [int]$TimeOut = 10000,
+        [Parameter(ParameterSetName = 'ExecuteCommand')]
         [int]$MaxLength = 5000,
+        [Parameter(ParameterSetName = 'ExecuteCommand')]
         [switch]$PowerShell,
         [ValidateSet('Wait', 'Queue', 'Skip')] 
         $OfflineAction = 'Wait',
@@ -69,16 +77,20 @@ function Invoke-ControlCommand {
 
         $Server = $Script:ControlServer -replace '/$', ''
 
-        # Format command
-        $FormattedCommand = @()
-        if ($Powershell) {
-            $FormattedCommand += '#!ps'
+        If ($PSCmdlet.ParameterSetName -eq 'CommandID') {
+            $SessionEventType = $CommandID
+        } Else {
+            # Format command
+            $FormattedCommand = @()
+            if ($Powershell) {
+                $FormattedCommand += '#!ps'
+            }
+            $FormattedCommand += "#timeout=$TimeOut"
+            $FormattedCommand += "#maxlength=$MaxLength"
+            $FormattedCommand += $Command
+            $CommandBody = $FormattedCommand | Out-String
+            $SessionEventType = 44
         }
-        $FormattedCommand += "#timeout=$TimeOut"
-        $FormattedCommand += "#maxlength=$MaxLength"
-        $FormattedCommand += $Command
-        $FormattedCommand = $FormattedCommand | Out-String
-        $SessionEventType = 44
 
         If ($Script:ControlAPIKey) {
             $User = 'AutomateAPI'
@@ -128,13 +140,14 @@ function Invoke-ControlCommand {
                 Continue; #Nothing to process
             }
             $xGUIDS=@(ForEach ($x in $RemainingGUIDs) {$x})
-            $Body = ConvertTo-Json @($User, $xGUIDS, $SessionEventType, $FormattedCommand) -Compress
+            $Body = ConvertTo-Json @($User, $xGUIDS, $SessionEventType, $CommandBody) -Compress
 
             $RESTRequest = @{
                 'URI'         = "$Server/App_Extensions/fc234f0e-2e8e-4a1f-b977-ba41b14031f7/ReplicaService.ashx/PageAddEventToSessions"
                 'Method'      = 'POST'
                 'ContentType' = 'application/json'
                 'Body'        = $Body
+                'UseBasicParsing' = $Null
             }
             If ($Script:ControlAPIKey) {
                 $RESTRequest.Add('Headers', @{'CWAIKToken' = (Get-CWAIKToken)})
@@ -149,15 +162,23 @@ function Invoke-ControlCommand {
                 Write-Error "$(($_.ErrorDetails | ConvertFrom-Json).message)"
                 return
             }
-            $RequestTimer = [diagnostics.stopwatch]::StartNew()
 
-            $EventDate = Get-Date $($Results.Headers.Date)
-            $EventDateFormatted = (Get-Date $EventDate.ToUniversalTime() -UFormat "%Y-%m-%d %T")
+            If ($PSCmdlet.ParameterSetName -eq 'ExecuteCommand') {
+                $Looking = $True
 
-            $Looking = $True
-            $TimeOutDateTime = (Get-Date).AddMilliseconds($TimeOut)
+                $RequestTimer = [diagnostics.stopwatch]::StartNew()
 
-            while ($Looking) {
+                $EventDate = Get-Date $($Results.Headers.Date)
+                $EventDateFormatted = (Get-Date $EventDate.ToUniversalTime() -UFormat "%Y-%m-%d %T")
+
+                $TimeOutDateTime = (Get-Date).AddMilliseconds($TimeOut)
+            } Else {
+                $Looking = $False
+                $WaitingForGUIDs = $Null
+            }
+
+            while ($Looking -and $(Get-Date) -lt $TimeOutDateTime.AddSeconds(1)) {
+
                 Start-Sleep -Seconds $(Get-SleepDelay -Seconds $([int]($RequestTimer.Elapsed.TotalSeconds)) -TotalSeconds $([int]($TimeOut / 1000)))
 
                 #Build GUID Conditional
@@ -169,6 +190,7 @@ function Invoke-ControlCommand {
                     'Method'      = 'POST'
                     'ContentType' = 'application/json'
                     'Body'        = $Body
+                    'UseBasicParsing' = $Null
                 }
 
                 If ($Script:ControlAPIKey) {
@@ -212,30 +234,20 @@ function Invoke-ControlCommand {
                 Write-Debug "$($WaitingForGUIDs.Count) sessions remaining after $($RequestTimer.Elapsed.TotalSeconds) seconds."
                 If (!($WaitingForGUIDs.Count -gt 0)) {
                     $Looking = $False
-                    If ($RemainingGUIDs) {
-                        ForEach ($GUID in $RemainingGUIDs) {
-                            $ResultSet += [pscustomobject]@{
+                }
+            }
+ 
+            If ($RemainingGUIDs) {
+                ForEach ($GUID in $RemainingGUIDs) {
+                    If ($WaitingForGUIDs -contains $GUID) {
+                        $ResultSet += [pscustomobject]@{
+                            'SessionID' = $GUID
+                            'Output'    = 'Command timed out when sent to Agent'
+                        }  
+                    } Else {
+                        $ResultSet += [pscustomobject]@{
                             'SessionID' = $GUID
                             'Output'    = 'Command was queued for the session.'
-                            }
-                        }
-                        return $Output -Join ""
-                    }
-                }
-
-                if ($Looking -and $(Get-Date) -gt $TimeOutDateTime.AddSeconds(1)) {
-                    $Looking = $False
-                    ForEach ($GUID in $RemainingGUIDs) {
-                        If ($OfflineAction -ne 'Wait' -and $ControlSessions[$GUID.ToString()].OnlineStatusControl -eq $False) {
-                            $ResultSet += [pscustomobject]@{
-                                'SessionID' = $GUID
-                                'Output'    = 'Command was queued for the session'
-                            }
-                        } Else {
-                            $ResultSet += [pscustomobject]@{
-                                'SessionID' = $GUID
-                                'Output'    = 'Command timed out when sent to Agent'
-                            }
                         }
                     }
                 }
