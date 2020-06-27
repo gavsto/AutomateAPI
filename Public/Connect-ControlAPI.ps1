@@ -90,6 +90,16 @@ function Connect-ControlAPI {
             If ($SkipCheck) {
                 # Skip check is used in the parallel jobs so that when Connect-ControlAPI is called in a parallel job it doesn't test the credential each time
                 Return # Bypass "Processing", execution resumes in the End {} Block.
+            } Else {
+                # Watch for time offset problems
+                Try {
+                    $SvrCheck = Invoke-WebRequest $Server -Method Head -UseBasicParsing
+                    $SvrOffset=New-TimeSpan -Start $(Get-Date ($SvrCheck.Headers.Date))
+                    Write-Debug "Server Time $($SvrCheck.Headers.Date) is $([Math]::Truncate($SvrOffset.TotalSeconds)) seconds offset from local clock"
+                    If ([Math]::ABS($SvrOffset.TotalMinutes) -gt 30) {
+                        Write-Warning "Server time offset is greater than 30 minutes. Authentication failures may occur."
+                    }
+                } Catch {}
             }
 
             # Clear the ControlAPIKey variable
