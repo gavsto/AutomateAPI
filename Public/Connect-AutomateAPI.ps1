@@ -72,9 +72,6 @@ Connect-AutomateAPI -Quiet
     )
 
     Begin {
-        # Check for locally stored credentials
-#        [string]$CredentialDirectory = "$($env:USERPROFILE)\AutomateAPI\"
-#        $LocalCredentialsExist = Test-Path "$($CredentialDirectory)Automate - Credentials.txt"
         If ($TwoFactorToken -match '.+') {$Force=$True}
         $TwoFactorNeeded=$False
 
@@ -93,7 +90,7 @@ Connect-AutomateAPI -Quiet
             $Script:CWAServer = ("https://" + $Server)
             If ($Credential) {
                 Write-Debug "Setting Credentials to $($Credential.UserName)"
-                $Script:CWAToken = $AutomateToken
+                $Script:CWACredentials = $Credential
             }
             If ($AuthorizationToken) {
                 #Build the token
@@ -105,21 +102,15 @@ Connect-AutomateAPI -Quiet
             Return
         }
         If (!$AuthorizationToken -and $PSCmdlet.ParameterSetName -eq 'verify') {
-            Throw "Attempt to verify token failed. No token was provided or was cached."
+            If (!$Quiet) { Throw "Attempt to verify token failed. No token was provided or was cached." }
             Return
         }
         Do {
             $AutomateAPIURI = ('https://' + $Server + '/cwa/api/v1')
             $testCredentials=$Credential
             If (!$Quiet) {
-                If($Credential)
-                {
-                    $testCredentials=$Credential
-                }
                 If (!$Credential -and ($Force -or !$AuthorizationToken)) {
-                    If (!$Force -and $Script:CWACredentials) {
-                        $testCredentials = $Script:CWACredentials
-                    } Else {
+                    If ($Force -or !$Script:CWACredentials) {
                         $Username = Read-Host -Prompt "Please enter your Automate Username"
                         $Password = Read-Host -Prompt "Please enter your Automate Password" -AsSecureString
                         $Credential = New-Object System.Management.Automation.PSCredential ($Username, $Password)
@@ -131,6 +122,9 @@ Connect-AutomateAPI -Quiet
                 }
             }
 
+            If (!$testCredentials -and $Script:CWACredentials -and $Force -ne $True -and $PSCmdlet.ParameterSetName -ne 'verify') {
+                $testCredentials = $Script:CWACredentials
+            }
             If ($testCredentials) {
                 #Build the headers for the Authentication
                 $PostBody = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
@@ -182,10 +176,10 @@ Connect-AutomateAPI -Quiet
             }
             
             $AuthorizationToken=$AutomateAPITokenResult.Accesstoken
-            If ($PSCmdlet.ParameterSetName -eq 'verify' -and !$AuthorizationToken -and $AutomateAPITokenResult) {
+            $TwoFactorNeeded=$AutomateAPITokenResult.IsTwoFactorRequired
+            If ($PSCmdlet.ParameterSetName -eq 'verify' -and !$AuthorizationToken -and $AutomateAPITokenResult -and $TwoFactorNeeded -ne $True) {
                 $AuthorizationToken = $Script:CWAToken.Authorization -replace 'Bearer ',''
             }
-            $TwoFactorNeeded=$AutomateAPITokenResult.IsTwoFactorRequired
         } Until ($Quiet -or ![string]::IsNullOrEmpty($AuthorizationToken) -or 
                 ($TwoFactorNeeded -ne $True -and $Credential) -or 
                 ($TwoFactorNeeded -eq $True -and $TwoFactorToken -ne '')
@@ -201,10 +195,10 @@ Connect-AutomateAPI -Quiet
             }
         } ElseIf ([string]::IsNullOrEmpty($AuthorizationToken)) {
             Remove-Variable CWAToken -Scope Script -ErrorAction 0
-            Throw "Unable to get Access Token. Either the credentials you entered are incorrect or you did not pass a valid two factor token" 
             If ($Quiet) {
                 Return $False
             } Else {
+                Throw "Unable to get Access Token. Either the credentials you entered are incorrect or you did not pass a valid two factor token" 
                 Return
             }
         } Else {
