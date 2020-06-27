@@ -74,7 +74,7 @@ function Invoke-ControlCommand {
     #>
     [CmdletBinding(DefaultParameterSetName = 'ExecuteCommand')]
     param (
-        [Parameter(ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True, ParameterSetName = 'SessionID')]
+        [Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
         [guid[]]$SessionID,
         [Parameter(ParameterSetName = 'ExecuteCommand', Mandatory = $True)]
         [string]$Command,
@@ -281,27 +281,19 @@ function Invoke-ControlCommand {
                 Write-Debug "$($WaitingForGUIDs.Count) sessions remaining after $($RequestTimer.Elapsed.TotalSeconds) seconds."
                 If (!($WaitingForGUIDs.Count -gt 0)) {
                     $Looking = $False
-                    If ($RemainingGUIDs) {
-                        ForEach ($GUID in $RemainingGUIDs) {
-                            $ResultSet += New-ReturnObject -InputObject $InputObjects[$GUID] -Result 'Command was queued for the session.' -PropertyName $ResultPropertyName -IsSuccess $false
-                        }
-                        return $Output -Join ""
-                    }
                 }
+            }
 
-                if ($Looking -and $(Get-Date) -gt $TimeOutDateTime.AddSeconds(1)) {
-                    $Looking = $False
-                    ForEach ($GUID in $RemainingGUIDs) {
-                        If ($OfflineAction -ne 'Wait' -and $ControlSessions[$GUID.ToString()].OnlineStatusControl -eq $False) {
-                            $FriendlyResult = 'Command was queued for the session'
-                        } 
-                        Else {
-                            $FriendlyResult = 'Command timed out when sent to Agent'
-                        }
-
-                        $ResultSet += New-ReturnObject -InputObject $InputObjects[$GUID] -Result $FriendlyResult -PropertyName $ResultPropertyName -IsSuccess $false
-
+            If ($RemainingGUIDs) {
+                ForEach ($GUID in $RemainingGUIDs) {
+                    If ($WaitingForGUIDs -contains $GUID) {
+                        $FriendlyResult = 'Command timed out when sent to Agent'
+                    } Else {
+                        $FriendlyResult = 'Command was queued for the session'
                     }
+
+                    $ResultSet += New-ReturnObject -InputObject $InputObjects[$GUID] -Result $FriendlyResult -PropertyName $ResultPropertyName -IsSuccess $false
+
                 }
             }
         }
