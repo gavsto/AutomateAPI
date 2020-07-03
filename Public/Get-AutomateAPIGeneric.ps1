@@ -53,6 +53,10 @@ function Get-AutomateAPIGeneric {
         [switch]
         $AllResults,
 
+        [Parameter(Mandatory = $false)]
+        [switch]
+        $GenerateInstallerToken,
+
         [Parameter(Mandatory = $true)]
         [string]
         $Endpoint,
@@ -92,10 +96,6 @@ function Get-AutomateAPIGeneric {
         #Put the page size in
         $Body.Add("pagesize", "$PageSize")
 
-        if ($page) {
-            
-        }
-
         #Put the condition in
         if ($Condition) {
             $Body.Add("condition", "$condition")
@@ -124,6 +124,12 @@ function Get-AutomateAPIGeneric {
         #Expands in the returned object
         if ($Expand) {
           $Body.Add("expand", "$Expand")
+        }
+
+        if ($GenerateInstallerToken) {
+          $Body.Add("LocationId", "1")
+          $Body.Add("InstallerType", "1")
+          $Body = $Body | ConvertTo-JSON
         }
     }
     
@@ -160,6 +166,20 @@ function Get-AutomateAPIGeneric {
 
             $ReturnedResults += ($return)
         }
+
+        if ($GenerateInstallerToken) {
+          $ReturnedResults = @()
+          [System.Collections.ArrayList]$ReturnedResults
+          $URLNew = "$($url)"
+          try {
+              $return = Invoke-RestMethod -Uri $URLNew -Headers $script:CWAToken -ContentType "application/json" -Body $Body -Method 'Post'
+          }
+          catch {
+              Write-Error "Failed to perform Invoke-RestMethod to Automate API with error $_.Exception.Message"
+          }
+
+          $ReturnedResults += ($return)
+      }
 
     }
     
