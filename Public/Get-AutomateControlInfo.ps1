@@ -29,10 +29,10 @@ Get-AutomateControlInfo -ComputerId 123
     param
     (
         [Parameter(ParameterSetName = 'ID', Mandatory = $true, Position = 0, ValueFromPipeline = $true, ValueFromPipelineByPropertyName=$False)]
-        [int16[]]$ComputerID,
+        [int32[]]$ComputerID,
 
         [Parameter(ParameterSetName = 'pipeline', ValueFromPipelineByPropertyName=$true, Mandatory = $True)]
-        [int16[]]$ID,
+        [int32[]]$ID,
 
         [Parameter(ParameterSetName = 'pipeline', ValueFromPipeline = $true, Mandatory = $True)]
         $ComputerObjects
