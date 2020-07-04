@@ -24,6 +24,10 @@ function Get-ControlSessions {
     Author:         Darren White
     Purpose/Change: Modified output to be collection of objects instead of a hastable.
 
+    Update Date:    2020-07-04
+    Author:         Darren White
+    Purpose/Change: LastConnected type will be DateTime. An output will be returned for all inputs as individual objects.
+
 .EXAMPLE
    Get-ControlSesssions
 .INPUTS
@@ -37,28 +41,29 @@ function Get-ControlSessions {
         [guid[]]$SessionID
     )
     
-    begin {
-        $SessionIDCollection=@()
+    Begin {
+        $InputSessionIDCollection=@()
         $SCConnected = @{};
     }
     
-    process {
+    Process {
         # Gather Sessions from the pipeline for Bulk Processing.
         If ($SessionID) {
-            $SessionIDCollection+=$SessionID
+            Foreach ($Session IN $SessionID) {
+                $InputSessionIDCollection+=$Session.ToString()
+            }
         }
     }
     
-    end {
+    End {
         # Ensure the session list does not contain duplicate values.
-        $SessionIDCollection = @($SessionIDCollection | Select-Object -Unique)
+        $SessionIDCollection = @($InputSessionIDCollection | Select-Object -Unique)
         #Split the list into groups of no more than 100 items
         $SplitGUIDsArray = Split-Every -list $SessionIDCollection -count 100
         If (!$SplitGUIDsArray) {Write-Debug "Resetting to include all GUIDs"; $SplitGUIDsArray=@('')}
         $Now = Get-Date 
         ForEach ($GUIDs in $SplitGUIDsArray) {
             If ('' -ne $GUIDs) {
-                Write-Verbose "Starting on a new array $($GUIDs)"
                 $GuidCondition=$(ForEach ($GUID in $GUIDs) {"sessionid='$GUID'"}) -join ' OR '
                 If ($GuidCondition) {$GuidCondition="($GuidCondition) AND"}
             }
@@ -76,11 +81,9 @@ function Get-ControlSessions {
                 $RESTRequest.Add('Credential',${Script:ControlAPICredentials})
             }
             
-            Write-Debug "Submitting Request to $($RESTRequest.URI)`nHeaders:`n$(ConvertTo-JSON $($RESTRequest.Headers) -Depth 5 -Compress)`nBody:`n$($RESTRequest.Body|Out-String)"
             $AllData=$Null
             Try {
                 $SCData = Invoke-RestMethod @RESTRequest
-                Write-Debug "Request Result: $($SCData | select-object -property * | convertto-json -Depth 10 -Compress)"
                 If ($SCData.FieldNames -contains 'SessionID' -and $SCData.FieldNames -contains 'EventType' -and $SCData.FieldNames -contains 'LastTime') {
                     $AllData = $($SCData.Items.GetEnumerator() | select-object @{Name='SessionID'; Expression={$_[0]}},@{Name='Event'; Expression={$_[1]}},@{Name='Date'; Expression={$_[2]}} | sort-Object SessionID,Event -Descending)
                 } Else {
@@ -108,31 +111,25 @@ function Get-ControlSessions {
         }
         #Build final output objects with session information gathered into $SCConnected hashtable
 
-        # Combine requested sessions with returned sessions
-        $SessionIDCollection += $SCConnected.Keys
-        #Ensure the session list does not contain duplicate values.
-        $SessionIDCollection = @($SessionIDCollection | Select-Object -Unique)
+        # If no sessions were requested, just send returned sessions.
+        If (!($InputSessionIDCollection)) {$InputSessionIDCollection = $SCConnected.Keys}
 
-        $SCStatus = $(
-            Foreach ($sessid IN $SessionIDCollection) {
-                $sessid=$sessid.ToString()
-                write-debug "assigning status for $sessid"
-                $SessionResult = [pscustomobject]@{
-                    SessionID = $sessid
-                    OnlineStatusControl = $Null
-                    LastConnected = $Null
-                    }
-                If ($SCConnected[$sessid] -eq $True) {
-                    $SessionResult.OnlineStatusControl = $True
-                    $SessionResult.LastConnected = $Now.ToUniversalTime()
-                } Else {
-                    $SessionResult.OnlineStatusControl = $False
-                    $SessionResult.LastConnected = $SCConnected[$sessid]
+        Foreach ($sessid IN $InputSessionIDCollection) {
+            $sessid=$sessid.ToString()
+            $SessionResult = [pscustomobject]@{
+                SessionID = $sessid
+                OnlineStatusControl = $Null
+                LastConnected = $Null
                 }
-                $SessionResult
+            If ($SCConnected[$sessid] -eq $True) {
+                $SessionResult.OnlineStatusControl = $True
+                $SessionResult.LastConnected = $Now.ToUniversalTime()
+            } Else {
+                $SessionResult.OnlineStatusControl = $False
+                $SessionResult.LastConnected = Get-Date($SCConnected[$sessid])
             }
-        )
-        Return $SCStatus
+            $SessionResult
+        }
     }
 }
 
