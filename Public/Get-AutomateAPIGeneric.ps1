@@ -11,7 +11,7 @@ function Get-AutomateAPIGeneric {
       .PARAMETER AllResults
         Will bring back all results for a particular query with no concern for result set size
       .PARAMETER Endpoint
-        The individial URI to post to for results, IE computers?
+        The individial URI to post to for results, IE computers
       .PARAMETER OrderBy
         Order by - Used to sort the results by a field. Can be sorted in ascending or descending order.
         Example - fieldname asc
@@ -32,10 +32,14 @@ function Get-AutomateAPIGeneric {
       .NOTES
         Version:        1.0
         Author:         Gavin Stone
-        Creation Date:  20/01/2019
+        Creation Date:  2019-01-20
         Purpose/Change: Initial script development
+
+        Update Date:    2020-07-03
+        Purpose/Change: Update to use Invoke-AutomateAPIMaster
+
       .EXAMPLE
-        Get-AutomateAPIGeneric -Page 1 -Condition "RemoteAgentLastContact <= 2019-12-18T00:50:19.575Z" -Endpoint "computers?"
+        Get-AutomateAPIGeneric -Page 1 -Condition "RemoteAgentLastContact <= 2019-12-18T00:50:19.575Z" -Endpoint "computers"
     #>
     [CmdletBinding()]
     param (
@@ -44,7 +48,7 @@ function Get-AutomateAPIGeneric {
         [int]
         $PageSize = 1000,
 
-        [Parameter(Mandatory = $true, ParameterSetName = "Page")]
+        [Parameter(Mandatory = $false, ParameterSetName = "Page")]
         [ValidateRange(1,65535)]
         [int]
         $Page = 1,
@@ -52,10 +56,6 @@ function Get-AutomateAPIGeneric {
         [Parameter(Mandatory = $false, ParameterSetName = "AllResults")]
         [switch]
         $AllResults,
-
-        [Parameter(Mandatory = $false)]
-        [switch]
-        $GenerateInstallerToken,
 
         [Parameter(Mandatory = $true)]
         [string]
@@ -88,13 +88,14 @@ function Get-AutomateAPIGeneric {
     
     begin {
         #Build the URL to hit
-        $url = ($Script:CWAServer + '/cwa/api/v1/' + $EndPoint)
+        $URI = ($Script:CWAServer + '/cwa/api/v1/' + $EndPoint)
 
         #Build the Body Up
         $Body = @{}
 
         #Put the page size in
-        $Body.Add("pagesize", "$PageSize")
+        $Body.Add("pagesize", $PageSize)
+        $Body.Add("page", $Page)
 
         #Put the condition in
         if ($Condition) {
@@ -126,59 +127,37 @@ function Get-AutomateAPIGeneric {
           $Body.Add("expand", "$Expand")
         }
 
-        if ($GenerateInstallerToken) {
-          $Body.Add("LocationId", "1")
-          $Body.Add("InstallerType", "1")
-          $Body = $Body | ConvertTo-JSON
-        }
+        $ReturnedResults = @()
+        [System.Collections.ArrayList]$ReturnedResults
     }
     
     process {
-        $ReturnedResults = @()
-        [System.Collections.ArrayList]$ReturnedResults
-        if ($AllResults) {
-            $i = 0
-            DO {
-                [int]$i += 1
-                $Body.page=$i
-                try {
-                    $return = Invoke-RestMethod -Uri $URL -Headers $script:CWAToken -ContentType "application/json" -Body $Body
-                }
-                catch {
-                    Write-Error "Failed to perform Invoke-RestMethod to Automate API with error $_.Exception.Message"
-                }
-
-                $ReturnedResults += ($return)
-            }
-            WHILE ($return.count -gt 0)
-        } Else {
-            try {
-                $return = Invoke-RestMethod -Uri $URL -Headers $script:CWAToken -ContentType "application/json" -Body $Body
-            }
-            catch {
-                Write-Error "Failed to perform Invoke-RestMethod to Automate API with error $_.Exception.Message"
-            }
-
-            $ReturnedResults += ($return)
+        $Arguments = @{
+            'URI'=$URI
+            'ContentType'="application/json"
+            'Body'=$Body
         }
+        If ($AllResults) {$Arguments.Body.page=1}
+        Do {
+            Try {
+                Write-Debug "Calling Invoke-AutomateAPIMaster with Arguments ($Arguments|ConvertTo-JSON -Depth 100 -Compress)"
+                $Result = Invoke-AutomateAPIMaster -Arguments $Arguments
+                If ($Result.content){
+                    $Result = $Result.content | ConvertFrom-Json
+                }
+                $ReturnedResults += ($Result)
+            }
+            Catch {
+                Write-Error "Failed to perform Invoke-AutomateAPIMaster"
+                $Result=$Null
+            }
 
-        if ($GenerateInstallerToken) {
-          $ReturnedResults = @()
-          [System.Collections.ArrayList]$ReturnedResults
-          $URLNew = "$($url)"
-          try {
-              $return = Invoke-RestMethod -Uri $URLNew -Headers $script:CWAToken -ContentType "application/json" -Body $Body -Method 'Post'
-          }
-          catch {
-              Write-Error "Failed to perform Invoke-RestMethod to Automate API with error $_.Exception.Message"
-          }
-
-          $ReturnedResults += ($return)
-      }
-
+            $Arguments.Body.page+=1
+        }
+        While ($Result.Count -gt 0 -and $AllResults)
     }
     
-    end {
+    End {
         return $ReturnedResults
     }
 }
