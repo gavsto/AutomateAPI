@@ -63,7 +63,7 @@ Get-AutomateControlInfo -ComputerId 123
 
         ForEach ($Computer in $ComputerObjects) {
             If ($PSCmdlet.ParameterSetName -eq 'pipeline') {
-                $Null = $Computer | Add-Member -NotePropertyName 'SessionID' -NotePropertyValue 'Not Found'
+                $Null = $Computer | Add-Member -NotePropertyName 'SessionID' -NotePropertyValue 'Not Found' -Force
             }
             $url = ($Script:CWAServer + "/cwa/api/v1/extensionactions/control/$($Computer.ID)")
             Try {
@@ -71,21 +71,21 @@ Get-AutomateControlInfo -ComputerId 123
 
                 $ResultMatch=$Result|select-string -Pattern '^(https?://[^?]*)\??(.*)' -AllMatches
                 If ($ResultMatch.Matches) {
-                    $Null = $Computer | Add-Member -NotePropertyName LaunchURL -NotePropertyValue $($ResultMatch.Matches.Groups[0].Value)
-                    $Null = $Computer | Add-Member -MemberType ScriptMethod -Name 'LaunchSession' -Value {Start-Process "$($this.LaunchURL)"}
+                    $Null = $Computer | Add-Member -NotePropertyName LaunchURL -NotePropertyValue $($ResultMatch.Matches.Groups[0].Value) -Force
+                    $Null = $Computer | Add-Member -MemberType ScriptMethod -Name 'LaunchSession' -Value {Start-Process "$($this.LaunchURL)"} -Force
                     ForEach ($NameValue in $($ResultMatch.Matches.Groups[2].Value -split '&')) {
                         $xName = $NameValue -replace '=.*$',''
                         $xValue = $NameValue -replace '^[^=]*=?',''
                         If ($Computer | Get-Member -Name $xName) {
                             $Computer.$xName=$xValue
                         } Else {
-                            $Null = $Computer | Add-Member -NotePropertyName $xName -NotePropertyValue $xValue
+                            $Null = $Computer | Add-Member -NotePropertyName $xName -NotePropertyValue $xValue -Force
                         } #End If
                     } #End ForEach
                 } #End If
             } Catch {}
-            $Null = $Computer | Add-Member -MemberType AliasProperty -Name ControlGUID -Value SessionID
-            $Null = $Computer | Add-Member -MemberType AliasProperty -Name ComputerID -Value ID
+            $Null = $Computer | Add-Member -MemberType AliasProperty -Name ControlGUID -Value SessionID -Force
+            $Null = $Computer | Add-Member -MemberType AliasProperty -Name ComputerID -Value ID -Force
             $Computer
         } #End ForEach
     } #End Process

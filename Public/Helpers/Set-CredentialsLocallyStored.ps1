@@ -99,10 +99,8 @@ function Set-CredentialsLocallyStored {
     }
 
     If ($Control) {
-        If (!$SaveCurrent) {
-            # This forces the Connect-ControlAPI function to interrogate the user for credentials
-            # The variables are stored in script scope variables
-            Connect-ControlAPI -Server '' 
+        If (!$Save) {
+            Connect-ControlAPI -Server ''
         }
 
         $StoreVariables = @(

@@ -91,7 +91,7 @@ function Get-ControlSessions {
                 Write-Debug "Request FAILED! Request Result: $($SCData | select-object -property * | convertto-json -Depth 10)"
             }
 
-            $AllData | ForEach-Object {
+            $AllData | Where-Object {$_} | ForEach-Object {
                 # Build $SCConnected hashtable with information from report request in $AllData
                 If ($_.Event -like 'Disconnected') {
                     $SCConnected.Add($_.SessionID,$_.Date)
@@ -107,8 +107,15 @@ function Get-ControlSessions {
             }
         }
         #Build final output objects with session information gathered into $SCConnected hashtable
+
+        # Combine requested sessions with returned sessions
+        $SessionIDCollection += $SCConnected.Keys
+        #Ensure the session list does not contain duplicate values.
+        $SessionIDCollection = @($SessionIDCollection | Select-Object -Unique)
+
         $SCStatus = $(
-            Foreach ($sessid IN $($SCConnected.Keys)) {
+            Foreach ($sessid IN $SessionIDCollection) {
+                $sessid=$sessid.ToString()
                 write-debug "assigning status for $sessid"
                 $SessionResult = [pscustomobject]@{
                     SessionID = $sessid
