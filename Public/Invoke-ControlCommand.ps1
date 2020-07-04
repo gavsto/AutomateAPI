@@ -19,11 +19,7 @@ function Invoke-ControlCommand {
         The amount of time in milliseconds that a command can execute. The default is 10000 milliseconds.
     .PARAMETER BatchSize
         Number of control sessions to invoke commands in parallel.
-    .PARAMETER AsObjects
-        Receive the output from your script as native psobjects    
-    .PARAMETER ArgumentList
-        Object[] input parameters for your script (if your script has a param block)
-    .PARAMETER ResultAsMember
+    .PARAMETER ResultPropertyName
         String containing the name of the member you would like to add to the input pipeline object that will hold the result of this command
     .OUTPUTS
         The output of the Command provided.
@@ -47,13 +43,13 @@ function Invoke-ControlCommand {
         Author:         Darren White
         Purpose/Change: Updates to process object returned by Get-ControlSessions
 
-        Update Date:    2019-08-14
-        Author:         Darren Kattan
-        Purpose/Change: Added -AsObject and -ArgumentList parameters for object passing
-
         Update Date:    2019-08-20
         Author:         Darren Kattan
         Purpose/Change: Added ability to retain Computer object passed in from pipeline and append result of script to a named member of the computer object
+
+        Update Date:    2020-07-04
+        Author:         Darren White
+        Purpose/Change: Removed object processing on the remote host. Added -CommandID support
         
     .EXAMPLE
         Get-AutomateComputer -ComputerID 5 | Get-AutomateControlInfo | Invoke-ControlCommand -Powershell -Command "Get-Service"
@@ -88,12 +84,11 @@ function Invoke-ControlCommand {
         [int]$MaxLength = 5000,
         [Parameter(ParameterSetName = 'ExecuteCommand')]
         [switch]$PowerShell,
+        [Parameter(ParameterSetName = 'ExecuteCommand')]
         [ValidateSet('Wait', 'Queue', 'Skip')] 
         $OfflineAction = 'Wait',
         [ValidateRange(1, 100)]
         [int]$BatchSize = 20,
-        [switch]$AsObjects = $false,
-        [Object[]]$ArgumentList,
         [Parameter(ValueFromPipeLine = $true, ParameterSetName = 'Computer')]
         [object[]]$Computer,        
         [string]$ResultPropertyName = 'Output'        
@@ -114,12 +109,6 @@ function Invoke-ControlCommand {
             $FormattedCommand += "#timeout=$TimeOut"
             $FormattedCommand += "#maxlength=$MaxLength"
             $FormattedCommand += $Command
-            if ($AsObjects) {
-                $FormattedCommand += New-PowerShellScriptThatReturnsPSObjects -Command $Command -ArgumentList $ArgumentList
-            }
-            else {
-                $FormattedCommand += $Command
-            }
             $CommandBody = $FormattedCommand | Out-String
             $SessionEventType = 44
         }
@@ -135,18 +124,25 @@ function Invoke-ControlCommand {
         }
 
         $InputObjects = @{ }
+        $SessionIDCollection = @()
         $ResultSet = @()
 
     }
 
     Process {
         If (!($Server -match 'https?://[a-z0-9][a-z0-9\.\-]*(:[1-9][0-9]*)?(\/[a-z0-9\.\-\/]*)?$')) { throw "Control Server address ($Server) is in an invalid format. Use Connect-ControlAPI to assign the server URL."; return }
-        
-        If ($Computer) {
-            $InputObjects.Add($Computer.SessionID, $Computer)
-        }
-        else {
-            $InputObjects.Add($SessionID.SessionID, [pscustomobject]@{SessionID = $SessionID })
+        If ($SessionID) {
+            foreach ($Session in $SessionID) {
+                If ($Session.SessionID) {$Session=$Session.SessionID}
+                $Session=$Session.ToString()
+                $InputObjects.Add("$($Session)", [pscustomobject]@{SessionID = $Session })
+                $SessionIDCollection += $Session
+            }
+        } ElseIf ($Computer) {
+            Foreach ($xComputer in $Computer) {
+                $InputObjects.Add($xComputer.SessionID, $xComputer)
+                $SessionIDCollection += $xComputer.SessionID.ToString()
+            }
         }
     }
 
@@ -170,7 +166,7 @@ function Invoke-ControlCommand {
                     ForEach ($GUID in {$GUIDs}.Invoke()) {
                         $GUID=$GUID.ToString()
                         If (!($ControlSessions[$GUID].OnlineStatusControl -eq $True)) {
-                            $ResultSet += New-ReturnObject -InputObject $InputObjects[$GUID] -Result 'Skipped. Session was not connected.' -PropertyName $ResultPropertyName -IsSuccess $false
+                            $InputObjects[$GUID] = New-ReturnObject -InputObject $InputObjects[$GUID] -Result 'Skipped. Session was not connected.' -PropertyName $ResultPropertyName -IsSuccess $false
                             $Null = $RemainingGUIDs.Remove($GUID)
                         }
                     }
@@ -206,7 +202,7 @@ function Invoke-ControlCommand {
                 return
             }
 
-            If ($PSCmdlet.ParameterSetName -eq 'ExecuteCommand') {
+            If ($PSCmdlet.ParameterSetName -ne 'CommandID') {
                 $Looking = $True
 
                 $RequestTimer = [diagnostics.stopwatch]::StartNew()
@@ -214,13 +210,13 @@ function Invoke-ControlCommand {
                 $EventDate = Get-Date $($Results.Headers.Date)
                 $EventDateFormatted = (Get-Date $EventDate.ToUniversalTime() -UFormat "%Y-%m-%d %T")
 
-                $TimeOutDateTime = (Get-Date).AddMilliseconds($TimeOut)
+                $TimeOutDateTime = $EventDate.AddMilliseconds($TimeOut+1000)
             } Else {
                 $Looking = $False
                 $WaitingForGUIDs = $Null
             }
 
-            while ($Looking -and $(Get-Date) -lt $TimeOutDateTime.AddSeconds(1)) {
+            while ($Looking) {
 
                 Start-Sleep -Seconds $(Get-SleepDelay -Seconds $([int]($RequestTimer.Elapsed.TotalSeconds)) -TotalSeconds $([int]($TimeOut / 1000)))
 
@@ -244,26 +240,28 @@ function Invoke-ControlCommand {
                 }
 
                 Try {
-                    $SessionEvents = Invoke-RestMethod @RESTRequest
+                    $Results = Invoke-WebRequest @RESTRequest
                 }
                 Catch {
-                    Write-Error $($_.Exception.Message)
+                    Write-Error "$(($_.ErrorDetails | ConvertFrom-Json).message)"
+                    return
+                }
+                $EventDate = Get-Date $($Results.Headers.Date)
+                If ($EventDate -ge $TimeOutDateTime) {
+                    $Looking = $false
                 }
 
+                $SessionEvents = $Results.Content | ConvertFrom-JSON
                 $FNames = $SessionEvents.FieldNames
                 $Events = ($SessionEvents.Items | ForEach-Object { $x = $_; $SCEventRecord = [pscustomobject]@{ }; for ($i = 0; $i -lt $FNames.Length; $i++) { $Null = $SCEventRecord | Add-Member -NotePropertyName $FNames[$i] -NotePropertyValue $x[$i] }; $SCEventRecord } | Sort-Object -Property Time, SessionID -Descending)
                 foreach ($Event in $Events) {
-                    if ($Event.Time -ge $EventDate.ToUniversalTime() -and $RemainingGUIDs.Contains($Event.SessionID)) {
+                    if ($RemainingGUIDs.Contains($Event.SessionID)) {
                         $GUID = $Event.SessionID
                         $Output = $Event.Data.Trim()
                         if (!$PowerShell) {
                             $Output = $Output -replace '^[\r\n]*', ''
                         }
-                        elseif ($AsObjects) {
-                            Decompress-SerializedPSObjects -Input $Output
-                        }
-                        
-                        $ResultSet += New-ReturnObject -InputObject $InputObjects[$GUID] -Result $Output -PropertyName $ResultPropertyName -IsSuccess $true
+                        $InputObjects[$GUID] = New-ReturnObject -InputObject $InputObjects[$GUID] -Result $Output -PropertyName $ResultPropertyName -IsSuccess $true
                         $Null = $RemainingGUIDs.Remove($Event.SessionID)
                     }
                 }
@@ -272,13 +270,12 @@ function Invoke-ControlCommand {
                 If ($OfflineAction -eq 'Queue') {
                     $WaitingForGUIDs = $(
                         ForEach ($GUID in $WaitingForGUIDs) {
-                            Write-Debug "Checking if GUID $GUID is online: $($ControlSessions[$GUID.ToString()].OnlineStatusControl)"
                             If ($ControlSessions[$GUID.ToString()].OnlineStatusControl -eq $True) { $GUID }
                         }
                     )
                 }
 
-                Write-Debug "$($WaitingForGUIDs.Count) sessions remaining after $($RequestTimer.Elapsed.TotalSeconds) seconds."
+                Write-Debug "Waiting for $($WaitingForGUIDs.Count) remaining sessions after $($RequestTimer.Elapsed.TotalSeconds) seconds."
                 If (!($WaitingForGUIDs.Count -gt 0)) {
                     $Looking = $False
                 }
@@ -292,16 +289,18 @@ function Invoke-ControlCommand {
                         $FriendlyResult = 'Command was queued for the session'
                     }
 
-                    $ResultSet += New-ReturnObject -InputObject $InputObjects[$GUID] -Result $FriendlyResult -PropertyName $ResultPropertyName -IsSuccess $false
+                    $InputObjects[$GUID] = New-ReturnObject -InputObject $InputObjects[$GUID] -Result $FriendlyResult -PropertyName $ResultPropertyName -IsSuccess $false
 
                 }
             }
         }
-        If (!$AsObjects -and $ResultSet.Count -eq 1) {
-            Return $ResultSet | Select-Object -ExpandProperty "$ResultPropertyName" -ErrorAction SilentlyContinue
-        }
-        Else {
-            Return $ResultSet
+        Foreach ($Session in $SessionIDCollection) {
+            If ($SessionIDCollection.Count -eq 1 -and $PSCmdlet.ParameterSetName -ne 'Computer') {
+                $InputObjects[$Session] | Select-Object -ExpandProperty "$ResultPropertyName" -ErrorAction SilentlyContinue
+            }
+            Else {
+                $InputObjects[$Session]
+            }
         }
     }
 }
