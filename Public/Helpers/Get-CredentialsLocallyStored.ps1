@@ -113,7 +113,7 @@ function Get-CredentialsLocallyStored {
             $Script:CWAToken = $AutomateToken
         }
         If (!(Connect-AutomateAPI -Verify -Quiet -ErrorAction 0)) {
-            Write-Error "Automate Credentials failed to successfully validate. Call Connect-AutomateAPI to establish a valid session." -ErrorAction 'Continue'
+            Write-Warning "Automate Credentials failed to successfully validate. Call Connect-AutomateAPI to establish a valid session."
         }
     }
 
@@ -148,7 +148,7 @@ function Get-CredentialsLocallyStored {
             }
         }
         If (!(Connect-ControlAPI -Verify -Quiet -ErrorAction 0)) {
-            Write-Error "Control Credentials failed to successfully validate. Call Connect-ControlAPI to establish a valid session." -ErrorAction 'Continue'
+            Write-Warning "Control Credentials failed to successfully validate. Call Connect-ControlAPI to establish a valid session."
         }
     }
 
