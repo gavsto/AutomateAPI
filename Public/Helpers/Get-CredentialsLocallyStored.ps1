@@ -81,29 +81,23 @@ function Get-CredentialsLocallyStored {
         If (-not (Test-Path $CredentialPath -EA 0)) {
             Throw [System.IO.FileNotFoundException] "Automate Credentials not found at $($CredentialPath)"
         }
-        $StoreVariables = @(
-            @{'Name' = 'CWAServer'; 'Scope' = 'Script'},
-            @{'Name' = 'CWACredentials'; 'Scope' = 'Script'},
-            @{'Name' = 'CWATokenKey'; 'Scope' = 'Script'},
-            @{'Name' = 'CWATokenInfo'; 'Scope' = 'Script'}
-        )
         $StoreBlock = Get-Content $CredentialPath | ConvertFrom-Json
-        Foreach ($SaveVar in $StoreVariables) {
-            If (!($StoreBlock.$($SaveVar.Name))) {Continue}
+        Foreach ($SaveVar in $StoreBlock.psobject.Properties) {
+            Write-Debug "Restoring $($SaveVar.Name)"
             If ($SaveVar.Name -match 'Credential') {
                 Try {
-                    $Null = Set-Variable @SaveVar -Value $(New-Object System.Management.Automation.PSCredential -ArgumentList $($StoreBlock.$($SaveVar.Name).Username), $(ConvertTo-SecureString $($StoreBlock.$($SaveVar.Name).Password)))
+                    $Null = Set-Variable -Name $SaveVar.Name -Scope Script -Value $(New-Object System.Management.Automation.PSCredential -ArgumentList $($StoreBlock.$($SaveVar.Name).Username), $(ConvertTo-SecureString $($StoreBlock.$($SaveVar.Name).Password)))
                 } Catch {
                     Write-Warning "Failed to restore $($SaveVar.Name). The stored password is invalid."
                 }
             } ElseIf ($SaveVar.Name -match 'Key') {
                 Try {
-                    $Null = Set-Variable @SaveVar -Value $(ConvertTo-SecureString $($StoreBlock.$($SaveVar.Name)))
+                    $Null = Set-Variable -Name $SaveVar.Name -Scope Script -Value $(ConvertTo-SecureString $($StoreBlock.$($SaveVar.Name)))
                 } Catch {
                     Write-Warning "Failed to restore $($SaveVar.Name). The stored secure value is invalid."
                 }
             } Else {
-                $Null = Set-Variable @SaveVar -Value $($StoreBlock.$($SaveVar.Name))
+                $Null = Set-Variable -Name $SaveVar.Name -Scope Script -Value $($StoreBlock.$($SaveVar.Name))
             }
         }
         If ($Script:CWATokenKey -and $Script:CWATokenKey.GetType() -match 'SecureString') {
