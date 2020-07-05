@@ -83,7 +83,7 @@ function Get-ControlSessions {
             
             $AllData=$Null
             Try {
-                $SCData = Invoke-RestMethod @RESTRequest
+                $SCData = Invoke-RestMethod @RESTRequest -InformationAction 'SilentlyContinue'
                 If ($SCData.FieldNames -contains 'SessionID' -and $SCData.FieldNames -contains 'EventType' -and $SCData.FieldNames -contains 'LastTime') {
                     $AllData = $($SCData.Items.GetEnumerator() | select-object @{Name='SessionID'; Expression={$_[0]}},@{Name='Event'; Expression={$_[1]}},@{Name='Date'; Expression={$_[2]}} | sort-Object SessionID,Event -Descending)
                 } Else {

@@ -198,6 +198,7 @@ function Invoke-ControlCommand {
 
                 # Issue command
                 Try {
+                    $Results = Invoke-WebRequest @RESTRequest -InformationAction 'SilentlyContinue'
                 }
                 Catch {
                     Write-Error "$(($_.ErrorDetails | ConvertFrom-Json).message)"
@@ -244,7 +245,7 @@ function Invoke-ControlCommand {
                 }
 
                 Try {
-                    $Results = Invoke-WebRequest @RESTRequest
+                    $Results = Invoke-WebRequest @RESTRequest -InformationAction 'SilentlyContinue'
                 }
                 Catch {
                     Write-Error "$(($_.ErrorDetails | ConvertFrom-Json).message)"
@@ -280,16 +281,7 @@ function Invoke-ControlCommand {
                     }
                 }
 
-            If ($RemainingGUIDs) {
-                ForEach ($GUID in $RemainingGUIDs) {
-                    If ($WaitingForGUIDs -contains $GUID) {
-                        $FriendlyResult = 'Command timed out when sent to Agent'
-                    } Else {
-                        $FriendlyResult = 'Command was queued for the session'
-                    }
             }
-
-                    $InputObjects[$GUID] = New-ReturnObject -InputObject $InputObjects[$GUID] -Result $FriendlyResult -PropertyName $ResultPropertyName -IsSuccess $false
         } Until ($SessionIndex -eq $ProcessSessions.Count -and $RemainingSessions.Count -eq 0)
 
         Foreach ($Session in $SessionIDCollection) {
