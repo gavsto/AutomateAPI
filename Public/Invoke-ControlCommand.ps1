@@ -289,7 +289,7 @@ function Invoke-ControlCommand {
                 $InputObjects[$Session] | Select-Object -ExpandProperty "$ResultPropertyName" -ErrorAction SilentlyContinue
             }
             Else {
-                $InputObjects[$Session] | Select-Object -ExcludeProperty CommandTimeout 
+                $InputObjects[$Session] | Select-Object -Property * -ExcludeProperty CommandTimeout 
             }
         }
     }
