@@ -43,14 +43,17 @@ function Repair-AutomateAgent {
    Begin {
       $ResultArray = @()
       $ObjectCapture = @()
+<#
       $null = Get-RSJob | Remove-RSJob | Out-Null
       $ControlServer = $Script:ControlServer
       $ControlAPIKey = $Script:ControlAPIKey
       $ControlAPICredentials = $Script:ControlAPICredentials
       $ConnectOptions=$Null
+#>
    }
 
    Process {
+<#
       If ($ControlServer -and $ControlAPIKey) {
          $ConnectOptions = @{
             'Server' = $ControlServer
@@ -64,6 +67,7 @@ function Repair-AutomateAgent {
       } Else {
          Return
       }
+#>
       Foreach ($igu in $AutomateControlStatusObject) {
          If ($igu.ComputerID -and $igu.SessionID) {
             If ($PSCmdlet.ShouldProcess("Automate Services on $($igu.ComputerID) - $($igu.ComputerName)",$Action)) {
@@ -81,12 +85,30 @@ function Repair-AutomateAgent {
    }
 
    End {
+<#
       If (!$ConnectOptions) {
          Throw "Control Server information must be assigned with Connect-ControlAPI function first."
          Return
       }
+#>
       if ($ObjectCapture) {
          Write-Host -ForegroundColor Green "Starting fixes"
+
+         If ($Action -eq 'Check') {
+            $ServiceResult = $ObjectCapture | Invoke-ControlCommand -Powershell -Command "(new-object Net.WebClient).DownloadString('$($LTPoShURI)') | iex; Get-LTServiceInfo" -TimeOut 60000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip
+         } ElseIf ($Action -eq 'Update') {
+            $ServiceResult = $ObjectCapture | Invoke-ControlCommand -Powershell -Command "(new-object Net.WebClient).DownloadString('$($LTPoShURI)') | iex; Update-LTService" -TimeOut 120000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip
+         } ElseIf ($Action -eq 'Restart') {
+            $ServiceResult = $ObjectCapture | Invoke-ControlCommand -Powershell -Command "(new-object Net.WebClient).DownloadString('$($LTPoShURI)') | iex; Restart-LTService" -TimeOut 120000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip
+         } ElseIf ($Action -eq 'Reinstall') {
+            $InstallerToken = Get-AutomateInstallerToken
+            $ServiceResult = $ObjectCapture | Invoke-ControlCommand -Powershell -Command "(new-object Net.WebClient).DownloadString('$($LTPoShURI)') | iex; Install-LTService -Server '$($Script:CWAServer)' -LocationID $($_.Location.Id) -InstallerToken '$($InstallerToken)' -Force -SkipDotNet" -TimeOut 300000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip
+         } Else {
+            Write-Host -BackgroundColor Yellow -ForegroundColor Red "Action $Action is not currently supported."
+         }
+            
+            
+<#
          If ($Action -eq 'Check') {
             $ObjectCapture | Start-RSJob -Throttle $BatchSize -Name {"$($_.ComputerName) - $($_.ComputerID) - Check Service"} -ScriptBlock {
             Import-Module AutomateAPI -Force
@@ -151,12 +173,21 @@ function Repair-AutomateAgent {
             } Else {
                $AutofixSuccess = $true
             }
+#>
+         foreach ($Job in $ServiceResult) {
+            If ($Action -eq 'Check') {
+               If ($Job.Output -like '*LastSuccessStatus*') {$AutofixSuccess = $true} else {$AutofixSuccess = $false}
+            } ElseIf ($Action -eq 'Update') {
+               If ($Job.Output -like '*successfully*') {$AutofixSuccess = $true}else{$AutofixSuccess = $false}
+            } ElseIf ($Action -eq 'Restart') {
+               If ($Job.Output -like '*Restarted successfully*') {$AutofixSuccess = $true}else{$AutofixSuccess = $false}
+            } ElseIf ($Action -eq 'ReInstall') {
+               If ($Job.Output -like '*successfully*') {$AutofixSuccess = $true}else{$AutofixSuccess = $false}
+            } Else {
+               $AutofixSuccess = $true
+            }
             $ResultArray += [pscustomobject] @{
-            JobName = $Job.Name
-            JobType = "$($Action) Automate Services"
-            JobState = $Job.State
-            JobHasErrors = $Job.HasErrors
-            JobResultStream = "$RecJob"
+            JobResultStream = $Job
             AutofixSuccess = $AutofixSuccess
             } 
          }
