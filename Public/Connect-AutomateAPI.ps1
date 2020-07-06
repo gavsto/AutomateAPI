@@ -122,7 +122,7 @@ Connect-AutomateAPI -Quiet
                 }
             }
 
-            If (!$testCredentials -and $Script:CWACredentials -and $Force -ne $True -and $PSCmdlet.ParameterSetName -ne 'verify') {
+            If (!$AuthorizationToken -and !$testCredentials -and $Script:CWACredentials -and $Force -ne $True -and $PSCmdlet.ParameterSetName -ne 'verify') {
                 $testCredentials = $Script:CWACredentials
             }
             If ($testCredentials) {
