@@ -15,7 +15,7 @@ function Compare-AutomateControlStatus {
     .NOTES
     Version:        1.4
     Author:         Gavin Stone
-    Creation Date:  20/01/2019
+    Creation Date:  2019-01-20
     Purpose/Change: Initial script development
 
     Update Date:    2019-02-23

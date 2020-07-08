@@ -21,12 +21,12 @@ function Connect-ControlAPI {
     .NOTES
     Version:        1.0
     Author:         Gavin Stone
-    Creation Date:  20/01/2019
+    Creation Date:  2019-01-20
     Purpose/Change: Initial script development
 
     Version:        1.1
     Author:         Gavin Stone
-    Creation Date:  22/06/2019
+    Creation Date:  2019-06-22
     Purpose/Change: The previous function was far too complex. No-one could debug it and a lot of it was unnecessary. I have greatly simplified it.
 
     Version:        1.2
