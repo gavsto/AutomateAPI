@@ -72,29 +72,29 @@ function Invoke-ControlCommand {
     param (
         [Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
         [guid[]]$SessionID,
-        [Parameter(ParameterSetName = 'ExecuteCommand', Mandatory = $True)]
+        [Parameter(ParameterSetName = ('ExecuteCommand','PassthroughObjects'), Mandatory = $True)]
         [string]$Command,
         [Parameter(ParameterSetName = 'CommandID', Mandatory = $True)]
         [int]$CommandID,
         [Parameter(ParameterSetName = 'CommandID')]
         $CommandBody='',
-        [Parameter(ParameterSetName = 'ExecuteCommand')]
+        [Parameter(ParameterSetName = ('ExecuteCommand','PassthroughObjects'))]
         [int]$TimeOut = 10000,
-        [Parameter(ParameterSetName = 'ExecuteCommand')]
+        [Parameter(ParameterSetName = ('ExecuteCommand','PassthroughObjects'))]
         [int]$MaxLength = 5000,
-        [Parameter(ParameterSetName = 'ExecuteCommand')]
+        [Parameter(ParameterSetName = ('ExecuteCommand','PassthroughObjects'))]
         [switch]$PowerShell,
-        [Parameter(ParameterSetName = 'ExecuteCommand')]
+        [Parameter(ParameterSetName = ('ExecuteCommand','PassthroughObjects'))]
         [ValidateSet('Wait', 'Queue', 'Skip')] 
         $OfflineAction = 'Wait',
         [ValidateRange(1, 100)]
         [int]$BatchSize = 20,
-        [Parameter(ValueFromPipeLine = $true, ParameterSetName = 'Computer')]
-        [object[]]$Computer,        
+        [switch]$PassthroughObjects,
         [string]$ResultPropertyName = 'Output'        
     )
 
     Begin {
+        $ProgressPreference='SilentlyContinue'
 
         $Server = $Script:ControlServer -replace '/$', ''
 
@@ -129,18 +129,21 @@ function Invoke-ControlCommand {
     }
 
     Process {
+        $ObjectsIn=$_
         If (!($Server -match 'https?://[a-z0-9][a-z0-9\.\-]*(:[1-9][0-9]*)?(\/[a-z0-9\.\-\/]*)?$')) { throw "Control Server address ($Server) is in an invalid format. Use Connect-ControlAPI to assign the server URL."; return }
-        If ($SessionID) {
+        If ($PassthroughObjects) {
+            Foreach ($xObject in $ObjectsIn) {
+                If ($xObject -and $xObject.SessionID) {
+                    $InputObjects.Add($xObject.SessionID, $xObject)
+                    $SessionIDCollection += $xObject.SessionID.ToString()
+                } Else {Write-Warning "Input Object is missing SesssionID property"}
+            }
+        } Else {
             foreach ($Session in $SessionID) {
                 If ($Session.SessionID) {$Session=$Session.SessionID}
                 $Session=$Session.ToString()
                 $InputObjects.Add("$($Session)", [pscustomobject]@{SessionID = $Session })
                 $SessionIDCollection += $Session
-            }
-        } ElseIf ($Computer) {
-            Foreach ($xComputer in $Computer) {
-                $InputObjects.Add($xComputer.SessionID, $xComputer)
-                $SessionIDCollection += $xComputer.SessionID.ToString()
             }
         }
     }
