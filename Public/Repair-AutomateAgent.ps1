@@ -36,44 +36,22 @@ function Repair-AutomateAgent {
    [Parameter(Mandatory = $False)]
    [String]$LTPoShURI = $Script:LTPoShURI,
 
-   [Parameter(ValueFromPipeline = $true)]
+   [Parameter(Mandatory = $True, ValueFromPipeline = $True)]
    $AutomateControlStatusObject
    )
 
    Begin {
-      $ResultArray = @()
-      $ObjectCapture = @()
-<#
-      $null = Get-RSJob | Remove-RSJob | Out-Null
-      $ControlServer = $Script:ControlServer
-      $ControlAPIKey = $Script:ControlAPIKey
-      $ControlAPICredentials = $Script:ControlAPICredentials
-      $ConnectOptions=$Null
-#>
+      $RepairProperty='RepairResult'
+      $ObjectCapture = {}.Invoke()
    }
 
    Process {
-<#
-      If ($ControlServer -and $ControlAPIKey) {
-         $ConnectOptions = @{
-            'Server' = $ControlServer
-            'APIKey' = $ControlAPIKey
-         }
-      } ElseIf ($ControlServer -and $ControlAPICredentials) {
-         $ConnectOptions = @{
-            'Server' = $ControlServer
-            'Credential' = $ControlAPICredentials
-         }
-      } Else {
-         Return
-      }
-#>
       Foreach ($igu in $AutomateControlStatusObject) {
-         If ($igu.ComputerID -and $igu.SessionID) {
+         If ($igu.ComputerID -and $igu.SessionID -and !($Action -eq 'Reinstall' -and !($igu.Location.ID -gt 0))) {
             If ($PSCmdlet.ShouldProcess("Automate Services on $($igu.ComputerID) - $($igu.ComputerName)",$Action)) {
                if ($igu.OperatingSystemName -like '*windows*') {
-                  Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($igu.ComputerID) - $($igu.ComputerName) -  Attempting to $Action Automate Services - job will be queued"
-                  $ObjectCapture += $AutomateControlStatusObject
+                  Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($igu.ComputerID) - $($igu.ComputerName) -  Attempting to $Action Automate Services - job will be submitted to online systems"
+                  $Null = $ObjectCapture.Add($AutomateControlStatusObject)
                } Else {
                   Write-Host -BackgroundColor Yellow -ForegroundColor Red "This is not a windows machine - there is no Mac/Linux support at present in this module"
                }
@@ -85,117 +63,52 @@ function Repair-AutomateAgent {
    }
 
    End {
-<#
-      If (!$ConnectOptions) {
-         Throw "Control Server information must be assigned with Connect-ControlAPI function first."
-         Return
-      }
-#>
       if ($ObjectCapture) {
          Write-Host -ForegroundColor Green "Starting fixes"
 
          If ($Action -eq 'Check') {
-            $ServiceResult = $ObjectCapture | Invoke-ControlCommand -Powershell -Command "(new-object Net.WebClient).DownloadString('$($LTPoShURI)') | iex; Get-LTServiceInfo" -TimeOut 60000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip
+            $ServiceResults = $ObjectCapture | Invoke-ControlCommand -Powershell -Command "(new-object Net.WebClient).DownloadString('$($LTPoShURI)') | iex; Get-LTServiceInfo" -TimeOut 60000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty
          } ElseIf ($Action -eq 'Update') {
-            $ServiceResult = $ObjectCapture | Invoke-ControlCommand -Powershell -Command "(new-object Net.WebClient).DownloadString('$($LTPoShURI)') | iex; Update-LTService" -TimeOut 120000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip
+            $ServiceResults = $ObjectCapture | Invoke-ControlCommand -Powershell -Command "(new-object Net.WebClient).DownloadString('$($LTPoShURI)') | iex; Update-LTService" -TimeOut 120000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty
          } ElseIf ($Action -eq 'Restart') {
-            $ServiceResult = $ObjectCapture | Invoke-ControlCommand -Powershell -Command "(new-object Net.WebClient).DownloadString('$($LTPoShURI)') | iex; Restart-LTService" -TimeOut 120000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip
+            $ServiceResults = $ObjectCapture | Invoke-ControlCommand -Powershell -Command "(new-object Net.WebClient).DownloadString('$($LTPoShURI)') | iex; Restart-LTService" -TimeOut 120000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty
          } ElseIf ($Action -eq 'Reinstall') {
             $InstallerToken = Get-AutomateInstallerToken
-            $ServiceResult = $ObjectCapture | Invoke-ControlCommand -Powershell -Command "(new-object Net.WebClient).DownloadString('$($LTPoShURI)') | iex; Install-LTService -Server '$($Script:CWAServer)' -LocationID $($_.Location.Id) -InstallerToken '$($InstallerToken)' -Force -SkipDotNet" -TimeOut 300000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip
-         } Else {
-            Write-Host -BackgroundColor Yellow -ForegroundColor Red "Action $Action is not currently supported."
-         }
-            
-            
-<#
-         If ($Action -eq 'Check') {
-            $ObjectCapture | Start-RSJob -Throttle $BatchSize -Name {"$($_.ComputerName) - $($_.ComputerID) - Check Service"} -ScriptBlock {
-            Import-Module AutomateAPI -Force
-            $ConnectOptions=$Using:ConnectOptions
-            If (Connect-ControlAPI @ConnectOptions -SkipCheck -Quiet) {
-               $ServiceResult = Invoke-ControlCommand -SessionID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString('$($Using:LTPoShURI)') | iex; Get-LTServiceInfo" -TimeOut 60000 -MaxLength 10240
-               return $ServiceResult
-            }
-            } | out-null
-         } ElseIf ($Action -eq 'Update') {
-            $ObjectCapture | Start-RSJob -Throttle $BatchSize -Name {"$($_.ComputerName) - $($_.ComputerID) - Update Service"} -ScriptBlock {
-            Import-Module AutomateAPI -Force
-            $ConnectOptions=$Using:ConnectOptions
-            If (Connect-ControlAPI @ConnectOptions -SkipCheck -Quiet) {
-               $ServiceResult = Invoke-ControlCommand -SessionID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString('$($Using:LTPoShURI)') | iex; Update-LTService" -TimeOut 300000 -MaxLength 10240
-               return $ServiceResult
-            }
-            } | out-null
-         } ElseIf ($Action -eq 'Restart') {
-            $ObjectCapture | Start-RSJob -Throttle $BatchSize -Name {"$($_.ComputerName) - $($_.ComputerID) - Restart Service"} -ScriptBlock {
-            Import-Module AutomateAPI -Force
-            $ConnectOptions=$Using:ConnectOptions
-            If (Connect-ControlAPI @ConnectOptions -SkipCheck -Quiet) {
-               $ServiceResult = Invoke-ControlCommand -SessionID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString('$($Using:LTPoShURI)') | iex; Restart-LTService" -TimeOut 120000 -MaxLength 10240
-               return $ServiceResult
-            }
-            } | out-null
-         } ElseIf ($Action -eq 'Reinstall') {
-            $ObjectCapture | Add-Member -NotePropertyName InstallerToken -NotePropertyValue $(Get-AutomateInstallerToken)
-            $ObjectCapture | Add-Member -NotePropertyName AutomateServerAddress -NotePropertyValue $Script:CWAServer
-            $ObjectCapture | Start-RSJob -Throttle $BatchSize -Name {"$($_.ComputerName) - $($_.ComputerID) - ReInstall Service"} -ScriptBlock {
-            Import-Module AutomateAPI -Force
-            $ConnectOptions=$Using:ConnectOptions
-            If (Connect-ControlAPI @ConnectOptions -SkipCheck -Quiet) {
-               $ServiceResult = Invoke-ControlCommand -SessionID $($_.SessionID) -Powershell -Command "(new-object Net.WebClient).DownloadString('$($Using:LTPoShURI)') | iex; Install-LTService -Server '$($_.AutomateServerAddress)' -LocationID $($_.Location.Id) -InstallerToken '$($_.InstallerToken)' -Force -SkipDotNet" -TimeOut 300000 -MaxLength 10240
-               return $ServiceResult
-            }
-            } | out-null
+            $ServiceResults = $ObjectCapture | Invoke-ControlCommand -Powershell -Command "(new-object Net.WebClient).DownloadString('$($LTPoShURI)') | iex; Install-LTService -Server '$($Script:CWAServer)' -LocationID $($_.Location.Id) -InstallerToken '$($InstallerToken)' -Force -SkipDotNet" -TimeOut 300000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty
          } Else {
             Write-Host -BackgroundColor Yellow -ForegroundColor Red "Action $Action is not currently supported."
          }
 
-         Write-Host -ForegroundColor Green "All jobs are queued. Waiting for them to complete. Reinstall jobs can take up to 10 minutes"
-         while ($(Get-RSJob | Where-Object {$_.State -ne 'Completed'} | Measure-Object | Select-Object -ExpandProperty Count) -gt 0) {
-            Start-Sleep -Milliseconds 10000
-            Write-Host -ForegroundColor Yellow "$(Get-Date) - There are currently $(Get-RSJob | Where-Object{$_.State -ne 'Completed'} | Measure-Object | Select-Object -ExpandProperty Count) jobs left to complete"
-         }
-
-         $AllServiceJobs = Get-RSJob | Where-Object {$_.Name -like "*$($Action) Service*"}
-
-         foreach ($Job in $AllServiceJobs) {
-            $RecJob = ""
-            $RecJob = Receive-RSJob -Name $Job.Name
-            If ($Action -eq 'Check') {
-               If ($RecJob -like '*LastSuccessStatus*') {$AutofixSuccess = $true}else{$AutofixSuccess = $false}
-            } ElseIf ($Action -eq 'Update') {
-               If ($RecJob -like '*successfully*') {$AutofixSuccess = $true}else{$AutofixSuccess = $false}
-            } ElseIf ($Action -eq 'Restart') {
-               If ($RecJob -like '*Restarted successfully*') {$AutofixSuccess = $true}else{$AutofixSuccess = $false}
-            } ElseIf ($Action -eq 'ReInstall') {
-               If ($RecJob -like '*successfully*') {$AutofixSuccess = $true}else{$AutofixSuccess = $false}
+         #Prepare a lookup for results
+         $SResultLookup=@{}
+         $ServiceResults | ForEach-Object {If (!($SResultLookup.ContainsKey("$($_.SessionID)"))) {$SResultLookup.Add("$($_.SessionID)",$_)}}
+         Foreach ($singleObject in $ObjectCapture) {
+            If ($SResultLookup.ContainsKey($singleObject.SessionID)) {
+               $singleResult=$SResultLookup["$($singleObject.SessionID)"]
+               If ($Action -eq 'Check') {
+                  If ($singleResult.$RepairProperty -like '*LastSuccessStatus*') {$AutofixSuccess = $true} else {$AutofixSuccess = $false}
+               } ElseIf ($Action -eq 'Update') {
+                  If ($singleResult.$RepairProperty -like '*successfully*') {$AutofixSuccess = $true}else{$AutofixSuccess = $false}
+               } ElseIf ($Action -eq 'Restart') {
+                  If ($singleResult.$RepairProperty -like '*Restarted successfully*') {$AutofixSuccess = $true}else{$AutofixSuccess = $false}
+               } ElseIf ($Action -eq 'ReInstall') {
+                  If ($singleResult.$RepairProperty -like '*successfully*') {$AutofixSuccess = $true}else{$AutofixSuccess = $false}
+               } Else {
+                  $AutofixSuccess = $true
+               }   
             } Else {
-               $AutofixSuccess = $true
+               $singleResult=[pscustomobject]@{
+                  $RepairProperty = "No result was returned for sessionID $($singleObject.SessionID)"
+                  $AutofixSuccess = $False
+               }
             }
-#>
-         foreach ($Job in $ServiceResult) {
-            If ($Action -eq 'Check') {
-               If ($Job.Output -like '*LastSuccessStatus*') {$AutofixSuccess = $true} else {$AutofixSuccess = $false}
-            } ElseIf ($Action -eq 'Update') {
-               If ($Job.Output -like '*successfully*') {$AutofixSuccess = $true}else{$AutofixSuccess = $false}
-            } ElseIf ($Action -eq 'Restart') {
-               If ($Job.Output -like '*Restarted successfully*') {$AutofixSuccess = $true}else{$AutofixSuccess = $false}
-            } ElseIf ($Action -eq 'ReInstall') {
-               If ($Job.Output -like '*successfully*') {$AutofixSuccess = $true}else{$AutofixSuccess = $false}
-            } Else {
-               $AutofixSuccess = $true
-            }
-            $ResultArray += [pscustomobject] @{
-            JobResultStream = $Job
-            AutofixSuccess = $AutofixSuccess
-            } 
+            #Output the final object
+            $singleObject | Select-Object -ExcludeProperty $RepairProperty -Property *,@{n=$RepairProperty;e={[pscustomobject]@{'AutofixResult'=$singleResult.$RepairProperty; 'AutofixSuccess'=$AutofixSuccess}}}
          }
 
          Write-Host -ForegroundColor Green "All jobs completed"
-         return $ResultArray
       } Else {
-         'No Queued Jobs'
+         'No Input Objects could be processed'
       }
    }
 }
