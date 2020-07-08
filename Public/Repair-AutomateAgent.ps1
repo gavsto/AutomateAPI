@@ -22,7 +22,7 @@ function Repair-AutomateAgent {
    Object containing result of job(s)
 #>
    [CmdletBinding(
-   SupportsShouldProcess = $true,
+   SupportsShouldProcess = $True,
    ConfirmImpact = 'High')]
    param (
    [ValidateSet('Update','Restart','ReInstall','Check')]

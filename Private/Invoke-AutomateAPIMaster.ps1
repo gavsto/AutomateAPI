@@ -95,7 +95,7 @@ function Invoke-AutomateAPIMaster {
                     $ErrorMessage += "--> $($ErrBody.code)"
                     if($errBody.code -eq 'Unauthorized'){
                         $ErrorMessage += "-----> $($ErrBody.message)"
-                        $ErrorMessage += "-----> Use 'Disconnect-CWM' or 'Connect-CWM -Force' to set new authentication."
+                        $ErrorMessage += "-----> Use 'Connect-AutomateAPI' to set new authentication."
                     } 
                     else {
                         $ErrorMessage += "-----> $($ErrBody.message)"

@@ -118,14 +118,13 @@ function Get-ControlSessions {
             $sessid=$sessid.ToString()
             $SessionResult = [pscustomobject]@{
                 SessionID = $sessid
-                OnlineStatusControl = $Null
+                OnlineStatusControl = $False
                 LastConnected = $Null
                 }
             If ($SCConnected[$sessid] -eq $True) {
                 $SessionResult.OnlineStatusControl = $True
                 $SessionResult.LastConnected = $Now.ToUniversalTime()
-            } Else {
-                $SessionResult.OnlineStatusControl = $False
+            } ElseIf ($Null -ne $SCConnected[$sessid]) {
                 $SessionResult.LastConnected = Get-Date($SCConnected[$sessid])
             }
             $SessionResult
