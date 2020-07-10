@@ -26,7 +26,7 @@ function Get-AutomateAPIGeneric {
       .PARAMETER ExcludeFields
         A comma delimited list of fields, when specified these fields will be excluded from the final result set
       .PARAMETER IDs
-        A comma delimited list of fields, when specified only these IDs will be returned
+        A comma delimited list of IDs, when specified only these IDs will be returned
       .OUTPUTS
         The returned results from the API call
       .NOTES
@@ -56,6 +56,8 @@ function Get-AutomateAPIGeneric {
         [Parameter(Mandatory = $false, ParameterSetName = "AllResults")]
         [switch]
         $AllResults,
+        [Parameter(Mandatory = $false, ParameterSetName = "AllResults")]
+        $ResultSetSize,
 
         [Parameter(Mandatory = $true)]
         [string]
@@ -154,7 +156,10 @@ function Get-AutomateAPIGeneric {
 
             $Arguments.Body.page+=1
         }
-        While ($Result.Count -gt 0 -and $AllResults)
+        While ($Result.Count -gt 0 -and $AllResults -and !($ResultSetSize -gt 0 -and $ReturnedResults.Count -ge $ResultSetSize))
+        If ($ResultSetSize -and $ResultSetSize -gt 0) {
+          $ReturnedResults = $ReturnedResults | Select-Object -First $ResultSetSize
+        }
     }
     
     End {
