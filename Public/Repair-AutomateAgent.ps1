@@ -47,7 +47,7 @@ function Repair-AutomateAgent {
 
    Process {
       Foreach ($igu in $AutomateControlStatusObject) {
-         If ($igu.ComputerID -and $igu.SessionID -and !($Action -eq 'Reinstall' -and !($igu.Location.ID -gt 0))) {
+         If ($igu.ComputerID -and $igu.SessionID -and $igu.SessionID -match '^[a-z0-9]{8}(?:-[a-z0-9]{4}){3}-[a-z0-9]{12}' -and !($Action -eq 'Reinstall' -and !($igu.Location.ID -gt 0))) {
             If ($PSCmdlet.ShouldProcess("Automate Services on $($igu.ComputerID) - $($igu.ComputerName)",$Action)) {
                if ($igu.OperatingSystemName -like '*windows*') {
                   Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($igu.ComputerID) - $($igu.ComputerName) -  Attempting to $Action Automate Services - job will be submitted to online systems"
