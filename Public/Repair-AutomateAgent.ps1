@@ -85,22 +85,23 @@ function Repair-AutomateAgent {
          Foreach ($singleObject in $ObjectCapture) {
             If ($SResultLookup.ContainsKey($singleObject.SessionID)) {
                $singleResult=$SResultLookup["$($singleObject.SessionID)"]
+               $AutofixSuccess = $false
                If ($Action -eq 'Check') {
-                  If ($singleResult.$RepairProperty -like '*LastSuccessStatus*') {$AutofixSuccess = $true} else {$AutofixSuccess = $false}
+                  If ($singleResult.$RepairProperty -like '*LastSuccessStatus*') {$AutofixSuccess = $true}
                } ElseIf ($Action -eq 'Update') {
-                  If ($singleResult.$RepairProperty -like '*successfully*') {$AutofixSuccess = $true}else{$AutofixSuccess = $false}
+                  If ($singleResult.$RepairProperty -like '*successfully*') {$AutofixSuccess = $true}
                } ElseIf ($Action -eq 'Restart') {
-                  If ($singleResult.$RepairProperty -like '*Restarted successfully*') {$AutofixSuccess = $true}else{$AutofixSuccess = $false}
+                  If ($singleResult.$RepairProperty -like '*Restarted successfully*') {$AutofixSuccess = $true}
                } ElseIf ($Action -eq 'ReInstall') {
-                  If ($singleResult.$RepairProperty -like '*successfully*') {$AutofixSuccess = $true}else{$AutofixSuccess = $false}
+                  If ($singleResult.$RepairProperty -like '*successfully*') {$AutofixSuccess = $true}
                } Else {
                   $AutofixSuccess = $true
                }   
             } Else {
                $singleResult=[pscustomobject]@{
                   $RepairProperty = "No result was returned for sessionID $($singleObject.SessionID)"
-                  $AutofixSuccess = $False
                }
+               $AutofixSuccess = $False
             }
             #Output the final object
             $singleObject | Select-Object -ExcludeProperty $RepairProperty -Property *,@{n=$RepairProperty;e={[pscustomobject]@{'AutofixResult'=$singleResult.$RepairProperty; 'AutofixSuccess'=$AutofixSuccess}}}
