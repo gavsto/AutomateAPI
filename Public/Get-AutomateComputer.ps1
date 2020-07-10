@@ -84,6 +84,10 @@ function Get-AutomateComputer {
     Return computers with a specific BIOS Version. This is a string search and a wildcard.
 .PARAMETER LocalUserAccounts
     Return computers where certain local user accounts are present
+.PARAMETER RemoteAgentVersionMin
+    Return computers where the RemoteAgentVersion >= the specified value.
+.PARAMETER RemoteAgentVersionMax
+    Return computers where the RemoteAgentVersion <= the specified value.
 .OUTPUTS
     Computer Objects
 .NOTES
@@ -194,6 +198,8 @@ function Get-AutomateComputer {
         [string]$BiosManufacturer,
         [string]$BiosVersion,
         [string]$LocalUserAccounts,
+        $RemoteAgentVersionMin,
+        $RemoteAgentVersionMax,
 
         [string]$Condition,
         [Parameter(Mandatory = $false, ParameterSetName = 'IncludeFields')]
@@ -367,6 +373,14 @@ function Get-AutomateComputer {
 
     if ($LocalUserAccounts) {
         $ArrayOfConditions += "(UserAccounts Contains '$LocalUserAccounts')"
+    }
+
+    if ($RemoteAgentVersionMin) {
+        $ArrayOfConditions += "(RemoteAgentVersion >= '$RemoteAgentVersionMin')"
+    }
+
+    if ($RemoteAgentVersionMax) {
+        $ArrayOfConditions += "(RemoteAgentVersion <= '$RemoteAgentVersionMax')"
     }
 
     If ($ArrayOfConditions) {
