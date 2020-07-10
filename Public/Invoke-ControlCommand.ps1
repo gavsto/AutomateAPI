@@ -28,7 +28,7 @@ function Invoke-ControlCommand {
         Author:         Chris Taylor
         Modified By:    Gavin Stone 
         Modified By:    Darren White
-        Creation Date:  1/20/2016
+        Creation Date:  2016-01-20
         Purpose/Change: Initial script development
 
         Update Date:    2019-02-19
@@ -66,6 +66,9 @@ function Invoke-ControlCommand {
     .EXAMPLE
         $Results = Get-AutomateComputer -ClientName "Contoso" | Get-AutomateControlInfo | Invoke-ControlCommand -AsObjects -IncludeComputerName -ResultPropertyName "OfficeRegInfo" -PowerShell -Command { Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Office\ClickToRun\Configuration" }
         $Results | ?{$_.OfficeRegInfo.Platform -eq "x86" -and $_.OfficeRegInfo.UpdateEnabled -notlike "true"} | select ComputerName
+    .EXAMPLE
+        Invoke-ControlCommand -SessionID $SessionID -CommandID 40
+            Will tell the control service to Reinstall (update)
 
     #>
     [CmdletBinding(DefaultParameterSetName = 'ExecuteCommand')]
@@ -101,13 +104,16 @@ function Invoke-ControlCommand {
         If ($PSCmdlet.ParameterSetName -eq 'CommandID') {
             $SessionEventType = $CommandID
         } Else {
+            $cmdMarker="AUTOMATEAPICOMMAND:"+[GUID]::NewGuid().ToString().ToUpper().Replace('-','')
             # Format command
             $FormattedCommand = @()
-            if ($Powershell) {
-                $FormattedCommand += '#!ps'
-            }
             $FormattedCommand += "#timeout=$TimeOut"
             $FormattedCommand += "#maxlength=$MaxLength"
+            if ($Powershell) {
+                $FormattedCommand = @('#!ps',$($FormattedCommand),"`$ProgressPreference='SilentlyContinue'; ECHO $cmdMarker")
+            } Else {
+                $FormattedCommand += "@ECHO OFF&ECHO $cmdMarker"
+            }
             $FormattedCommand += $Command
             $CommandBody = $FormattedCommand | Out-String
             $SessionEventType = 44
@@ -260,14 +266,14 @@ function Invoke-ControlCommand {
                 $FNames = $SessionEvents.FieldNames
                 $Events = ($SessionEvents.Items | ForEach-Object { $x = $_; $SCEventRecord = [pscustomobject]@{ }; for ($i = 0; $i -lt $FNames.Length; $i++) { $Null = $SCEventRecord | Add-Member -NotePropertyName $FNames[$i] -NotePropertyValue $x[$i] }; $SCEventRecord } | Sort-Object -Property Time, SessionID -Descending)
                 Foreach ($Event in $Events) {
-                    if ($RemainingSessions.Contains($Event.SessionID)) {
+                    If ($RemainingSessions.Contains($Event.SessionID)) {
                         $SessionsGUID = $Event.SessionID
                         $Output = $Event.Data.Trim()
-                        if (!$PowerShell) {
-                            $Output = $Output -replace '^[\r\n]*', ''
+                        If ($Output -match "$cmdMarker") {
+                            $Output = $Output -replace "^.*?$cmdMarker\s+(?<=[\n])", ''
+                            $InputObjects[$SessionsGUID] = New-ReturnObject -InputObject $InputObjects[$SessionsGUID] -Result $Output -PropertyName $ResultPropertyName -IsSuccess $true
+                            $Null = $RemainingSessions.Remove($Event.SessionID)
                         }
-                        $InputObjects[$SessionsGUID] = New-ReturnObject -InputObject $InputObjects[$SessionsGUID] -Result $Output -PropertyName $ResultPropertyName -IsSuccess $true
-                        $Null = $RemainingSessions.Remove($Event.SessionID)
                     }
                 }
 
@@ -288,7 +294,7 @@ function Invoke-ControlCommand {
         } Until ($SessionIndex -eq $ProcessSessions.Count -and $RemainingSessions.Count -eq 0)
 
         Foreach ($Session in $SessionIDCollection) {
-            If ($SessionIDCollection.Count -eq 1 -and $PSCmdlet.ParameterSetName -ne 'Computer') {
+            If ($SessionIDCollection.Count -eq 1 -and !$PassthroughObjects) {
                 $InputObjects[$Session] | Select-Object -ExpandProperty "$ResultPropertyName" -ErrorAction SilentlyContinue
             }
             Else {
