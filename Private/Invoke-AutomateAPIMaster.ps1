@@ -76,6 +76,7 @@ function Invoke-AutomateAPIMaster {
         # Issue request
         try {
             Write-Debug "Calling $($Arguments|Out-String)"
+            $ProgressPreference = 'SilentlyContinue'
             $Result = Invoke-WebRequest @Arguments -UseBasicParsing
         } 
         catch {
@@ -131,6 +132,7 @@ function Invoke-AutomateAPIMaster {
             Write-Warning "Issue with request, status: $($Result.StatusCode) $($Result.StatusDescription)"
             Write-Warning "$($Retry)/$($MaxRetry) retries, waiting $($Wait)ms."
             Start-Sleep -Milliseconds $Wait
+            $ProgressPreference = 'SilentlyContinue'
             $Result = Invoke-WebRequest @Arguments -UseBasicParsing
         }
         if ($Retry -ge $MaxRetry) {

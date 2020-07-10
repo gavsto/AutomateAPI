@@ -213,7 +213,7 @@ function Get-AutomateComputer {
     )
 
     $RequestParameters = @{
-        'AllResults'=$Null
+        'AllResults'=$True
         'Endpoint'="computers"
     }
 
