@@ -193,7 +193,7 @@ function Get-AutomateComputer {
         [string]$SerialNumber,
         [string]$BiosManufacturer,
         [string]$BiosVersion,
-        [string]$LocalUserAccountsm
+        [string]$LocalUserAccounts,
 
         [string]$Condition,
         [Parameter(Mandatory = $false, ParameterSetName = 'IncludeFields')]
