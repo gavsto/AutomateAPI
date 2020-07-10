@@ -67,22 +67,22 @@ function Compare-AutomateControlStatus {
         $Null=Get-AutomateAPIGeneric -Endpoint "InternalMonitorResults" -allresults -condition "(Name like '%GetControlSessionIDs%')" -EA 0 | Where-Object {($_.computerid -and $_.computerid -gt 0 -and $_.IdentityField -and $_.IdentityField -match '.+')} | ForEach-Object {$AutoControlSessions.Add($_.computerid,$_.IdentityField)};
 
         # Check to see if any Computers were specified in the incoming object
-        If (!$ObjectRebuild.Count -gt 0){$FullLookupMethod = $true}
+        If (!($ObjectRebuild.Count -gt 0)) {$FullLookupMethod = $true}
 
         If ($FullLookupMethod) {
-            $ObjectRebuild = Get-AutomateComputer -AllComputers | Select-Object Id, ComputerName, @{Name = 'ClientName'; Expression = {$_.Client.Name}}, OperatingSystemName, Status 
+            $ObjectRebuild = Get-AutomateComputer | Select-Object ComputerId, ComputerName, @{Name = 'ClientName'; Expression = {$_.Client.Name}}, OperatingSystemName, Status 
         }
 
         Foreach ($computer in $ObjectRebuild) {
-            If (!$AutoControlSessions[[int]$Computer.ID])
+            If (!$AutoControlSessions[[int]$Computer.ComputerID])
             {
-                $AutomateControlGUID = Get-AutomateControlInfo -ComputerID $($computer | Select-Object -ExpandProperty id) | Select-Object -ExpandProperty SessionID
+                $AutomateControlGUID = Get-AutomateControlInfo -ComputerID $($computer | Select-Object -ExpandProperty Computerid) | Select-Object -ExpandProperty SessionID
             } Else {
-                $AutomateControlGUID = $AutoControlSessions[[int]$Computer.ID]
+                $AutomateControlGUID = $AutoControlSessions[[int]$Computer.ComputerID]
             }
 
             $FinalComputerObject = $computer
-            $Null = $FinalComputerObject | Add-Member -MemberType NoteProperty -Name ComputerID -Value $Computer.ID -Force -EA 0
+            $Null = $FinalComputerObject | Add-Member -MemberType NoteProperty -Name ComputerID -Value $Computer.ComputerID -Force -EA 0
             $Null = $FinalComputerObject | Add-Member -MemberType NoteProperty -Name OnlineStatusAutomate -Value $Computer.Status -Force -EA 0
             $Null = $FinalComputerObject | Add-Member -MemberType NoteProperty -Name SessionID -Value $AutomateControlGUID -Force -EA 0
             If([string]::IsNullOrEmpty($Computer.ClientName)) {
