@@ -3,11 +3,9 @@ function Get-AutomateComputer {
 .SYNOPSIS
     Get Computer information out of the Automate API
 .DESCRIPTION
-    Connects to the Automate API and returns one or more full computer objects
+    Connects to the Automate API and returns one or more full computer objects. With no parameters, all computers will be returned.
 .PARAMETER ComputerID
-    Can take either single ComputerID integer, IE 1, or an array of ComputerID integers, IE 1,5,9
-.PARAMETER AllComputers
-    Returns all computers in Automate, regardless of amount
+    Can take either single ComputerID integer, IE 1, or an array of ComputerID integers, IE 1,5,9. Limits results to include only specified IDs.
 .PARAMETER Condition
     A custom condition to build searches that can be used to search for specific things. Supported operators are '=', 'eq', '>', '>=', '<', '<=', 'and', 'or', '()', 'like', 'contains', 'in', 'not'.
     The 'not' operator is only used with 'in', 'like', or 'contains'. The '=' and 'eq' operator are the same. String values can be surrounded with either single or double quotes. IE (RemoteAgentLastContact <= 2019-12-18T00:50:19.575Z)
@@ -93,6 +91,11 @@ function Get-AutomateComputer {
     Author:         Gavin Stone
     Creation Date:  2019-01-20
     Purpose/Change: Initial script development
+
+    Update Date:    2020-07-03
+    Author:         Darren White
+    Purpose/Change: Updates to support custom conditions plus parameter conditions, ID will be returned in ComputerIO property
+
 .EXAMPLE
     Get-AutomateComputer -AllComputers
 .EXAMPLE
@@ -102,171 +105,113 @@ function Get-AutomateComputer {
 .EXAMPLE
     Get-AutomateComputer -Condition "(Type != 'Workstation')"
 #>
+    [CmdletBinding(DefaultParameterSetName = 'IncludeFields')]
     param (
-        [Parameter(Mandatory = $false, Position = 0, ParameterSetName = "IndividualPC")]
+        [Parameter(Mandatory = $false, Position = 0)]
         [Alias('ID')]
         [int32[]]$ComputerID,
 
-        [Parameter(Mandatory = $false, ParameterSetName = "AllResults")]
-        [switch]$AllComputers,
-        
-        [Parameter(Mandatory = $false, ParameterSetName = "ByCondition")]
-        [string]$Condition,
-
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
-        [Parameter(Mandatory = $false, ParameterSetName = "AllResults")]
-        [Parameter(Mandatory = $false, ParameterSetName = "ByCondition")]
-        [string]$IncludeFields,
-
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
-        [Parameter(Mandatory = $false, ParameterSetName = "AllResults")]
-        [Parameter(Mandatory = $false, ParameterSetName = "ByCondition")]
-        [string]$ExcludeFields,
-
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
-        [Parameter(Mandatory = $false, ParameterSetName = "AllResults")]
-        [Parameter(Mandatory = $false, ParameterSetName = "ByCondition")]
-        [string]$OrderBy,
-
         [Alias("Client")]
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [string]$ClientName,
 
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [int]$ClientId,
-
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [int]$LocationId,
 
         [Alias("Location")]
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [string]$LocationName,
 
         [Alias("Computer","Name","Netbios")]
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [string]$ComputerName,
 
         [Alias("Port")]
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [string]$OpenPort,
 
         [Alias("OS","OSName")]
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [string]$OperatingSystem,
 
         [Alias("Domain")]
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [string]$DomainName,
 
         [Alias("OfflineSince","OfflineInDays")]
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [int]$NotSeenInDays,
 
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [string]$Comment,
 
         [Alias("WindowsUpdateInDays")]
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [int]$LastWindowsUpdateInDays,
 
         [Alias("AVDefinitionInDays")]
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [string]$AntiVirusDefinitionInDays,
 
         [Alias("IPAddress","IP")]
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [string]$LocalIPAddress,
 
         [Alias("ExternalIPAddress","ExternalIP","IPAddressExternal","IPExternal")]
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [string]$GatewayIPAddress,
 
         [Alias("Mac")]
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [string]$MacAddress,
 
         [Alias("User","Username")]
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [string]$LoggedInUser,
 
         [Alias("IsMaster")]
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [bool]$Master,
 
         [Alias("IsNetworkProbe")]
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [bool]$NetworkProbe,
 
         [Alias("InMaintenanceMode")]
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [bool]$MaintenanceMode,
 
         [Alias("IsVirtualMachine")]
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [bool]$VirtualMachine,
 
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
-        [switch]$DDay,
+#        [switch]$DDay,
 
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [bool]$Online,
 
         [Alias("Idle")]
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [int]$UserIdleLongerThanMinutes,
 
         [Alias("Uptime")]
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [int]$UptimeLongerThanMinutes,
 
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [string]$AssetTag,
-
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [bool]$Server,
-
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [bool]$Workstation,
 
         [Alias("AV","VirusScanner","Antivirus")]
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [string]$AntivirusScanner,
 
         [Alias("PendingReboot","RebootRequired")]
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [bool]$RebootNeeded,
 
         [Alias("IsVirtualHost")]
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [bool]$VirtualHost,
 
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [string]$SerialNumber,
-
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [string]$BiosManufacturer,
-
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
         [string]$BiosVersion,
+        [string]$LocalUserAccountsm
 
-        [Parameter(Mandatory = $false, ParameterSetName = "CustomBuiltCondition")]
-        [string]$LocalUserAccounts
+        [string]$Condition,
+        [Parameter(Mandatory = $false, ParameterSetName = 'IncludeFields')]
+        [string]$IncludeFields,
+        [Parameter(Mandatory = $false, ParameterSetName = 'ExcludeFields')]
+        [string]$ExcludeFields,
+        $ResultSetSize,
+#        $ResultSetSize = 100,  #Thinking about supporting this to put a default cap back in place.
+        [string]$OrderBy
 
     )
 
+    $RequestParameters = @{
+        'AllResults'=$Null
+        'Endpoint'="computers"
+    }
+
     $ArrayOfConditions = @()
-
-    if ($ComputerID) {
-        Return Get-AutomateAPIGeneric -AllResults -Endpoint "computers" -IDs $(($ComputerID) -join ",")
-    }
-
-    if ($AllComputers) {
-        Return Get-AutomateAPIGeneric -AllResults -Endpoint "computers" -IncludeFields $IncludeFields -ExcludeFields $ExcludeFields -OrderBy $OrderBy
-    }
-
-    if ($Condition) {
-        Return Get-AutomateAPIGeneric -AllResults -Endpoint "computers" -Condition $Condition -IncludeFields $IncludeFields -ExcludeFields $ExcludeFields -OrderBy $OrderBy
-    }
 
     if ($ClientName) {
         $ArrayOfConditions += "(Client.Name like '%$ClientName%')"
@@ -424,10 +369,35 @@ function Get-AutomateComputer {
         $ArrayOfConditions += "(UserAccounts Contains '$LocalUserAccounts')"
     }
 
-    
-    $FinalCondition = Get-ConditionsStacked -ArrayOfConditions $ArrayOfConditions
+    If ($ArrayOfConditions) {
+        $FinalCondition = Get-ConditionsStacked -ArrayOfConditions $ArrayOfConditions
+        If ($Condition) {
+            $Condition="($Condition) and ($FinalCondition)"
+        } Else {
+            $Condition=$FinalCondition
+        }
+    }
 
-    $FinalResult = Get-AutomateAPIGeneric -AllResults -Endpoint "computers" -Condition $FinalCondition -IncludeFields $IncludeFields -ExcludeFields $ExcludeFields -OrderBy $OrderBy
+    If ($Condition) {
+        $RequestParameters.Add('condition',$Condition)
+    }
 
-    return $FinalResult
+    If ($ComputerID) {
+        $RequestParameters.Add('ids',$(($ComputerID) -join ","))
+    }
+
+    If ($IncludeFields) {
+        $RequestParameters.Add('IncludeFields',$IncludeFields)
+    } ElseIf ($ExcludeFields) {
+        $RequestParameters.Add('ExcludeFields',$ExcludeFields)
+    }
+
+    If ($OrderBy) {
+        $RequestParameters.Add('OrderBy',$OrderBy)
+    }
+
+    Get-AutomateAPIGeneric @RequestParameters | Select-Object -ExcludeProperty ID -Property @{n='ComputerID';e={$_.ID}},*
+
+#    $FinalResult = Get-AutomateAPIGeneric -AllResults -Endpoint "computers" -Condition $FinalCondition -IncludeFields $IncludeFields -ExcludeFields $ExcludeFields -OrderBy $OrderBy
+#    return $FinalResult
 }
