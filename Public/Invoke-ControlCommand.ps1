@@ -143,7 +143,7 @@ function Invoke-ControlCommand {
                     $Session=$xObject.SessionID.ToString()
                     If (!($InputObjects.ContainsKey($Session))) {
                         $InputObjects.Add($Session, $xObject)
-                    }
+                    } Else {Write-Warning "SesssionID $Session has already been added. Skipping"}
                     $SessionIDCollection += $Session
                 } Else {Write-Warning "Input Object is missing SesssionID property"}
             }
@@ -153,7 +153,7 @@ function Invoke-ControlCommand {
                 $Session=$Session.ToString()
                 If (!($InputObjects.ContainsKey($Session))) {
                     $InputObjects.Add($Session, [pscustomobject]@{SessionID = $Session })
-                }
+                } Else {Write-Warning "SesssionID $Session has already been added. Skipping"}
                 $SessionIDCollection += $Session
             }
         }
