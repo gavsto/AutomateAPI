@@ -52,7 +52,6 @@ function Repair-AutomateAgent {
                if ($igu.OperatingSystemName -like '*windows*') {
                   Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($igu.ComputerID) - $($igu.ComputerName) -  Attempting to $Action Automate Services - job will be submitted to online systems"
                   $Null = $ObjectCapture.Add($igu)
-                  Write-Debug "Added Object to Repair group: $(ConvertTo-JSON -InputObject $igu -Depth 2 -Compress)"
                } Else {
                   Write-Host -BackgroundColor Yellow -ForegroundColor Red "This is not a windows machine - there is no Mac/Linux support at present in this module"
                }
