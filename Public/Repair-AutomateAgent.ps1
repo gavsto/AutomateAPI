@@ -51,7 +51,8 @@ function Repair-AutomateAgent {
             If ($PSCmdlet.ShouldProcess("Automate Services on $($igu.ComputerID) - $($igu.ComputerName)",$Action)) {
                if ($igu.OperatingSystemName -like '*windows*') {
                   Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($igu.ComputerID) - $($igu.ComputerName) -  Attempting to $Action Automate Services - job will be submitted to online systems"
-                  $Null = $ObjectCapture.Add($AutomateControlStatusObject)
+                  $Null = $ObjectCapture.Add($igu)
+                  Write-Debug "Added Object to Repair group: $(ConvertTo-JSON -InputObject $igu -Depth 2 -Compress)"
                } Else {
                   Write-Host -BackgroundColor Yellow -ForegroundColor Red "This is not a windows machine - there is no Mac/Linux support at present in this module"
                }
@@ -67,14 +68,14 @@ function Repair-AutomateAgent {
          Write-Host -ForegroundColor Green "Starting fixes"
 
          If ($Action -eq 'Check') {
-            $ServiceResults = $ObjectCapture | Invoke-ControlCommand -Powershell -Command "(new-object Net.WebClient).DownloadString('$($LTPoShURI)') | iex; Get-LTServiceInfo" -TimeOut 60000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty
+            $ServiceResults = $ObjectCapture | Invoke-ControlCommand -Powershell -Command "(new-object Net.WebClient).DownloadString('$($LTPoShURI)') | iex; Get-LTServiceInfo" -TimeOut 60000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
          } ElseIf ($Action -eq 'Update') {
-            $ServiceResults = $ObjectCapture | Invoke-ControlCommand -Powershell -Command "(new-object Net.WebClient).DownloadString('$($LTPoShURI)') | iex; Update-LTService" -TimeOut 120000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty
+            $ServiceResults = $ObjectCapture | Invoke-ControlCommand -Powershell -Command "(new-object Net.WebClient).DownloadString('$($LTPoShURI)') | iex; Update-LTService" -TimeOut 120000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
          } ElseIf ($Action -eq 'Restart') {
-            $ServiceResults = $ObjectCapture | Invoke-ControlCommand -Powershell -Command "(new-object Net.WebClient).DownloadString('$($LTPoShURI)') | iex; Restart-LTService" -TimeOut 120000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty
+            $ServiceResults = $ObjectCapture | Invoke-ControlCommand -Powershell -Command "(new-object Net.WebClient).DownloadString('$($LTPoShURI)') | iex; Restart-LTService" -TimeOut 120000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
          } ElseIf ($Action -eq 'Reinstall') {
             $InstallerToken = Get-AutomateInstallerToken
-            $ServiceResults = $ObjectCapture | Invoke-ControlCommand -Powershell -Command "(new-object Net.WebClient).DownloadString('$($LTPoShURI)') | iex; Install-LTService -Server '$($Script:CWAServer)' -LocationID $($_.Location.Id) -InstallerToken '$($InstallerToken)' -Force -SkipDotNet" -TimeOut 300000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty
+            $ServiceResults = $ObjectCapture | Invoke-ControlCommand -Powershell -Command "(new-object Net.WebClient).DownloadString('$($LTPoShURI)') | iex; Install-LTService -Server '$($Script:CWAServer)' -LocationID $($_.Location.Id) -InstallerToken '$($InstallerToken)' -Force -SkipDotNet" -TimeOut 300000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
          } Else {
             Write-Host -BackgroundColor Yellow -ForegroundColor Red "Action $Action is not currently supported."
          }
@@ -83,8 +84,9 @@ function Repair-AutomateAgent {
          $SResultLookup=@{}
          $ServiceResults | ForEach-Object {If (!($SResultLookup.ContainsKey("$($_.SessionID)"))) {$SResultLookup.Add("$($_.SessionID)",$_)}}
          Foreach ($singleObject in $ObjectCapture) {
-            If ($SResultLookup.ContainsKey($singleObject.SessionID)) {
-               $singleResult=$SResultLookup["$($singleObject.SessionID)"]
+            [string]$SessionID=$singleObject.SessionID
+            If ($SResultLookup.ContainsKey($SessionID)) {
+               $singleResult=$SResultLookup[$SessionID] | Select-Object -Expand $RepairProperty
                $AutofixSuccess = $false
                If ($Action -eq 'Check') {
                   If ($singleResult.$RepairProperty -like '*LastSuccessStatus*') {$AutofixSuccess = $true}
@@ -96,10 +98,10 @@ function Repair-AutomateAgent {
                   If ($singleResult.$RepairProperty -like '*successfully*') {$AutofixSuccess = $true}
                } Else {
                   $AutofixSuccess = $true
-               }   
+               }
             } Else {
                $singleResult=[pscustomobject]@{
-                  $RepairProperty = "No result was returned for sessionID $($singleObject.SessionID)"
+                  $RepairProperty = "No result was returned for sessionID $($SessionID)"
                }
                $AutofixSuccess = $False
             }
