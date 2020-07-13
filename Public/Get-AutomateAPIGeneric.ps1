@@ -142,7 +142,7 @@ function Get-AutomateAPIGeneric {
         If ($AllResults) {$Arguments.Body.page=1}
         Do {
             Try {
-                Write-Debug "Calling Invoke-AutomateAPIMaster with Arguments ($Arguments|ConvertTo-JSON -Depth 100 -Compress)"
+                Write-Debug "Calling Invoke-AutomateAPIMaster with Arguments $(ConvertTo-JSON -InputObject $Arguments -Depth 100 -Compress)"
                 $Result = Invoke-AutomateAPIMaster -Arguments $Arguments
                 If ($Result.content){
                     $Result = $Result.content | ConvertFrom-Json
