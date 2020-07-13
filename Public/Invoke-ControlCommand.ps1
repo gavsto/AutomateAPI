@@ -100,7 +100,7 @@ function Invoke-ControlCommand {
         $ProgressPreference='SilentlyContinue'
 
         $Server = $Script:ControlServer -replace '/$', ''
-        If (('SessionID','IsSuccess') -contains $ResultPropertyName) {throw "ResultPropertyName value $($ResultPropertyName) is reserved."} 
+        If (('SessionID','IsSuccess','__CommandTimeout') -contains $ResultPropertyName) {throw "ResultPropertyName value $($ResultPropertyName) is reserved."} 
 
         If ($PSCmdlet.ParameterSetName -eq 'CommandID') {
             $SessionEventType = $CommandID
