@@ -140,15 +140,20 @@ function Invoke-ControlCommand {
         If ($PassthroughObjects) {
             Foreach ($xObject in $ObjectsIn) {
                 If ($xObject -and $xObject.SessionID) {
-                    $InputObjects.Add($xObject.SessionID, $xObject)
-                    $SessionIDCollection += $xObject.SessionID.ToString()
+                    $Session=$xObject.SessionID.ToString()
+                    If (!($InputObjects.ContainsKey($Session))) {
+                        $InputObjects.Add($Session, $xObject)
+                    }
+                    $SessionIDCollection += $Session
                 } Else {Write-Warning "Input Object is missing SesssionID property"}
             }
         } Else {
             foreach ($Session in $SessionID) {
                 If ($Session.SessionID) {$Session=$Session.SessionID}
                 $Session=$Session.ToString()
-                $InputObjects.Add("$($Session)", [pscustomobject]@{SessionID = $Session })
+                If (!($InputObjects.ContainsKey($Session))) {
+                    $InputObjects.Add($Session, [pscustomobject]@{SessionID = $Session })
+                }
                 $SessionIDCollection += $Session
             }
         }
