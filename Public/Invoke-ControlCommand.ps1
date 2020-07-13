@@ -100,6 +100,7 @@ function Invoke-ControlCommand {
         $ProgressPreference='SilentlyContinue'
 
         $Server = $Script:ControlServer -replace '/$', ''
+        If (('SessionID','IsSuccess') -contains $ResultPropertyName) {throw "ResultPropertyName value $($ResultPropertyName) is reserved."} 
 
         If ($PSCmdlet.ParameterSetName -eq 'CommandID') {
             $SessionEventType = $CommandID
@@ -129,8 +130,8 @@ function Invoke-ControlCommand {
             $User = ''
         }
 
-        $InputObjects = @{ }
-        $SessionIDCollection = @()
+        $ResultObjects = @{ }
+        $SessionCollection = {}.Invoke()
 
     }
 
@@ -140,21 +141,23 @@ function Invoke-ControlCommand {
         If ($PassthroughObjects) {
             Foreach ($xObject in $ObjectsIn) {
                 If ($xObject -and $xObject.SessionID) {
-                    $Session=$xObject.SessionID.ToString()
-                    If (!($InputObjects.ContainsKey($Session))) {
-                        $InputObjects.Add($Session, $xObject)
+                    [string]$Session=$xObject.SessionID
+                    If (!($ResultObjects.ContainsKey($Session))) {
+                        $ResultObjects.Add($Session, [pscustomobject]@{SessionID = $Session })
                     } Else {Write-Warning "SesssionID $Session has already been added. Skipping"}
-                    $SessionIDCollection += $Session
+                    $Null = $SessionCollection.Add($xObject)
                 } Else {Write-Warning "Input Object is missing SesssionID property"}
             }
         } Else {
-            foreach ($Session in $SessionID) {
+            Foreach ($Session in $SessionID) {
                 If ($Session.SessionID) {$Session=$Session.SessionID}
-                $Session=$Session.ToString()
-                If (!($InputObjects.ContainsKey($Session))) {
-                    $InputObjects.Add($Session, [pscustomobject]@{SessionID = $Session })
-                } Else {Write-Warning "SesssionID $Session has already been added. Skipping"}
-                $SessionIDCollection += $Session
+                [string]$Session="$($Session)"
+                [pscustomobject]@{SessionID = $Session} | ForEach-Object {
+                    If (!($ResultObjects.ContainsKey($Session))) {
+                        $ResultObjects.Add($Session, $_)
+                    } Else {Write-Warning "SesssionID $Session has already been added. Skipping"}
+                    $Null = $SessionCollection.Add($_)
+                }
             }
         }
     }
@@ -167,7 +170,7 @@ function Invoke-ControlCommand {
             $InputObject
         }
         
-        $ProcessSessions=@($InputObjects.Keys)
+        $ProcessSessions=@($ResultObjects.Keys)
         $RemainingSessions={}.Invoke()
         $AddSessions={}.Invoke()
         $EventDateFormatted=$Null
@@ -180,15 +183,14 @@ function Invoke-ControlCommand {
             }
 
             If ($AddSessions.Count -gt 0 -and $OfflineAction -eq 'Skip') {
-                $WaitingSessions=@($AddSessions.GetEnumerator())
+                $AddingSessions=@($AddSessions.GetEnumerator())
                 $ControlSessions = @{ };
-                Get-ControlSessions -SessionID $WaitingSessions | ForEach-Object { $ControlSessions.Add($_.SessionID, $($_ | Select-Object -Property OnlineStatusControl, LastConnected, CommandSubmitDate)) }
-                ForEach ($SessionsGUID in $WaitingSessions) {
+                Get-ControlSessions -SessionID $AddingSessions | ForEach-Object { $ControlSessions.Add($_.SessionID, $($_ | Select-Object -Property OnlineStatusControl, LastConnected, CommandSubmitDate)) }
+                ForEach ($AddGUID in $AddingSessions) {
                     #Check Online Status. Weed out sessions that have never connected or are not valid.
-                    $SessionsGUID=$SessionsGUID.ToString()
-                    If (!($ControlSessions[$SessionsGUID].OnlineStatusControl -eq $True)) {
-                        $InputObjects[$SessionsGUID] = New-ReturnObject -InputObject $InputObjects[$SessionsGUID] -Result 'Skipped. Session was not connected.' -PropertyName $ResultPropertyName -IsSuccess $false
-                        $Null = $AddSessions.Remove($SessionsGUID)
+                    If (!($ControlSessions[$AddGUID].OnlineStatusControl -eq $True)) {
+                        $ResultObjects[$AddGUID] = New-ReturnObject -InputObject $ResultObjects[$AddGUID] -Result 'Skipped. Session was not connected.' -PropertyName $ResultPropertyName -IsSuccess $false
+                        $Null = $AddSessions.Remove($AddGUID)
                     }
                 }
             }
@@ -227,10 +229,10 @@ function Invoke-ControlCommand {
                 $TimeOutDateTime = $EventDate.AddMilliseconds($TimeOut+3000)
                 Foreach ($SessionsGUID IN $AddSessions) {
                     If ($PSCmdlet.ParameterSetName -ne 'CommandID') {
-                        $InputObjects[$SessionsGUID] = New-ReturnObject -InputObject $InputObjects[$SessionsGUID] -Result $TimeOutDateTime -PropertyName 'CommandTimeout' -IsSuccess $false
+                        $ResultObjects[$SessionsGUID] = New-ReturnObject -InputObject $ResultObjects[$SessionsGUID] -Result $TimeOutDateTime -PropertyName '__CommandTimeout' -IsSuccess $false
                         $Null = $RemainingSessions.Add($SessionsGUID)
                     } Else {
-                        $InputObjects[$SessionsGUID] = New-ReturnObject -InputObject $InputObjects[$SessionsGUID] -Result 'Command was queued for the session' -PropertyName $ResultPropertyName -IsSuccess $true
+                        $ResultObjects[$SessionsGUID] = New-ReturnObject -InputObject $ResultObjects[$SessionsGUID] -Result 'Command was queued for the session' -PropertyName $ResultPropertyName -IsSuccess $true
                     }
                 }
                 $AddSessions.Clear()
@@ -271,40 +273,38 @@ function Invoke-ControlCommand {
                 $FNames = $SessionEvents.FieldNames
                 $Events = ($SessionEvents.Items | ForEach-Object { $x = $_; $SCEventRecord = [pscustomobject]@{ }; for ($i = 0; $i -lt $FNames.Length; $i++) { $Null = $SCEventRecord | Add-Member -NotePropertyName $FNames[$i] -NotePropertyValue $x[$i] }; $SCEventRecord } | Sort-Object -Property Time, SessionID -Descending)
                 Foreach ($Event in $Events) {
-                    If ($RemainingSessions.Contains($Event.SessionID)) {
-                        $SessionsGUID = $Event.SessionID
+                    [string]$EventGUID = "$($Event.SessionID)"
+                    If ($RemainingSessions.Contains($EventGUID)) {
                         $Output = $Event.Data.Trim()
                         If ($Output -match "$cmdMarker") {
                             $Output = $Output -replace "^.*?$cmdMarker\s+(?<=[\n])", ''
-                            $InputObjects[$SessionsGUID] = New-ReturnObject -InputObject $InputObjects[$SessionsGUID] -Result $Output -PropertyName $ResultPropertyName -IsSuccess $true
-                            $Null = $RemainingSessions.Remove($Event.SessionID)
+                            $ResultObjects[$EventGUID] = New-ReturnObject -InputObject $ResultObjects[$EventGUID] -Result $Output -PropertyName $ResultPropertyName -IsSuccess $true
+                            $Null = $RemainingSessions.Remove($EventGUID)
                         }
                     }
                 }
 
                 $WaitingSessions=@($RemainingSessions.GetEnumerator())
-                Foreach ($SessionsGUID IN $WaitingSessions) {
-                    If ($EventDate -gt $InputObjects[$SessionsGUID.ToString()].CommandTimeout) { 
-                        Write-Debug "Expiring Session $($SessionsGUID)"
+                Foreach ($WaitingGUID IN $WaitingSessions) {
+                    If ($EventDate -gt $ResultObjects[$WaitingGUID].__CommandTimeout) { 
+                        Write-Debug "Expiring Session $($WaitingGUID)"
                         If ($OfflineAction -eq 'Queue') {
-                            $InputObjects[$SessionsGUID] = New-ReturnObject -InputObject $InputObjects[$SessionsGUID] -Result 'Command was queued for the session' -PropertyName $ResultPropertyName -IsSuccess $false
+                            $ResultObjects[$WaitingGUID] = New-ReturnObject -InputObject $ResultObjects[$WaitingGUID] -Result 'Command was queued for the session' -PropertyName $ResultPropertyName -IsSuccess $false
                         } Else {
-                            $InputObjects[$SessionsGUID] = New-ReturnObject -InputObject $InputObjects[$SessionsGUID] -Result 'Command timed out for the session' -PropertyName $ResultPropertyName -IsSuccess $false
+                            $ResultObjects[$WaitingGUID] = New-ReturnObject -InputObject $ResultObjects[$WaitingGUID] -Result 'Command timed out for the session' -PropertyName $ResultPropertyName -IsSuccess $false
                         }
-                        $Null = $RemainingSessions.Remove($SessionsGUID)
+                        $Null = $RemainingSessions.Remove($WaitingGUID)
                     }
                 }
-
             }
         } Until ($SessionIndex -eq $ProcessSessions.Count -and $RemainingSessions.Count -eq 0)
 
-        Foreach ($Session in $SessionIDCollection) {
-            If ($SessionIDCollection.Count -eq 1 -and !$PassthroughObjects) {
-                $InputObjects[$Session] | Select-Object -ExpandProperty "$ResultPropertyName" -ErrorAction SilentlyContinue
-            }
-            Else {
-                $InputObjects[$Session] | Select-Object -Property * -ExcludeProperty CommandTimeout 
-            }
+        If ($SessionCollection.Count -eq 1 -and !($PassthroughObjects)) {
+            $ResultObjects.Values | Select-Object -ExpandProperty "$ResultPropertyName" -ErrorAction SilentlyContinue
+        } ElseIf (!($PassthroughObjects)) {
+            $SessionCollection | Select-Object -Property @{n=$ResultPropertyName;e={If ($_.SessionID) {[string]$SessionID=$_.SessionID} Else {[string]$SessionID=$_}; Write-Debug "Inserting results for sessionID $($SessionID)"; If ($ResultObjects.ContainsKey($SessionID)) {$ResultObjects[$SessionID]|Select-Object -Property * -ExcludeProperty __CommandTimeout} Else {"Results for SessionID $($SessionID) were not found"} }} | Select-Object -ExpandProperty "$ResultPropertyName"
+        } Else {
+            $SessionCollection | Select-Object -ExcludeProperty $ResultPropertyName -Property *,@{n=$ResultPropertyName;e={If ($_.SessionID) {[string]$SessionID=$_.SessionID} Else {[string]$SessionID=$_}; Write-Debug "Inserting results for sessionID $($SessionID)"; If ($ResultObjects.ContainsKey($SessionID)) {$ResultObjects[$SessionID]|Select-Object -Property * -ExcludeProperty __CommandTimeout} Else {"Results for SessionID $($SessionID) were not found"} }}
         }
     }
 }
