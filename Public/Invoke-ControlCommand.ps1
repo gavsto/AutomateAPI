@@ -26,7 +26,7 @@ function Invoke-ControlCommand {
     .NOTES
         Version:        2.2
         Author:         Chris Taylor
-        Modified By:    Gavin Stone 
+        Modified By:    Gavin Stone
         Modified By:    Darren White
         Creation Date:  2016-01-20
         Purpose/Change: Initial script development
@@ -38,7 +38,7 @@ function Invoke-ControlCommand {
         Update Date:    2019-02-23
         Author:         Darren White
         Purpose/Change: Enable command batching against multiple sessions. Added OfflineAction parameter.
-        
+
         Update Date:    2019-06-24
         Author:         Darren White
         Purpose/Change: Updates to process object returned by Get-ControlSessions
@@ -50,7 +50,7 @@ function Invoke-ControlCommand {
         Update Date:    2020-07-04
         Author:         Darren White
         Purpose/Change: Removed object processing on the remote host. Added -CommandID support
-        
+
     .EXAMPLE
         Get-AutomateComputer -ComputerID 5 | Get-AutomateControlInfo | Invoke-ControlCommand -Powershell -Command "Get-Service"
             Will retrieve Computer Information from Automate, Get ControlSession data and merge with the input object, then call Get-Service on the computer.
@@ -88,19 +88,19 @@ function Invoke-ControlCommand {
         [Parameter(ParameterSetName = ('ExecuteCommand','PassthroughObjects'))]
         [switch]$PowerShell,
         [Parameter(ParameterSetName = ('ExecuteCommand','PassthroughObjects'))]
-        [ValidateSet('Wait', 'Queue', 'Skip')] 
+        [ValidateSet('Wait', 'Queue', 'Skip')]
         $OfflineAction = 'Wait',
         [ValidateRange(1, 100)]
         [int]$BatchSize = 20,
         [switch]$PassthroughObjects,
-        [string]$ResultPropertyName = 'Output'        
+        [string]$ResultPropertyName = 'Output'
     )
 
     Begin {
         $ProgressPreference='SilentlyContinue'
 
         $Server = $Script:ControlServer -replace '/$', ''
-        If (('SessionID','IsSuccess','__CommandTimeout') -contains $ResultPropertyName) {throw "ResultPropertyName value $($ResultPropertyName) is reserved."} 
+        If (('SessionID','IsSuccess','__CommandTimeout') -contains $ResultPropertyName) {Throw "ResultPropertyName value $($ResultPropertyName) is reserved."}
 
         If ($PSCmdlet.ParameterSetName -eq 'CommandID') {
             $SessionEventType = $CommandID
@@ -110,7 +110,7 @@ function Invoke-ControlCommand {
             $FormattedCommand = @()
             $FormattedCommand += "#timeout=$TimeOut"
             $FormattedCommand += "#maxlength=$MaxLength"
-            if ($Powershell) {
+            If ($Powershell) {
                 $FormattedCommand = @('#!ps',$($FormattedCommand),"`$ProgressPreference='SilentlyContinue'; ECHO $cmdMarker")
             } Else {
                 $FormattedCommand += "@ECHO OFF&ECHO $cmdMarker"
@@ -164,12 +164,12 @@ function Invoke-ControlCommand {
 
     End {
         Function New-ReturnObject {
-            param([object]$InputObject, [object]$Result, [bool]$IsSuccess, [string]$PropertyName)            
+            param([object]$InputObject, [object]$Result, [bool]$IsSuccess, [string]$PropertyName)
             $InputObject | Add-Member -NotePropertyName $PropertyName -NotePropertyValue $Result -Force
             $InputObject | Add-Member -NotePropertyName 'IsSuccess' -NotePropertyValue $IsSuccess -Force
             $InputObject
         }
-        
+
         $ProcessSessions=@($ResultObjects.Keys)
         $RemainingSessions={}.Invoke()
         $AddSessions={}.Invoke()
@@ -227,7 +227,7 @@ function Invoke-ControlCommand {
                     $EventDateFormatted = (Get-Date $EventDate.ToUniversalTime() -UFormat "%Y-%m-%d %T")
                 }
                 $TimeOutDateTime = $EventDate.AddMilliseconds($TimeOut+3000)
-                Foreach ($SessionsGUID IN $AddSessions) {
+                Foreach ($SessionsGUID in $AddSessions) {
                     If ($PSCmdlet.ParameterSetName -ne 'CommandID') {
                         $ResultObjects[$SessionsGUID] = New-ReturnObject -InputObject $ResultObjects[$SessionsGUID] -Result $TimeOutDateTime -PropertyName '__CommandTimeout' -IsSuccess $false
                         $Null = $RemainingSessions.Add($SessionsGUID)
@@ -285,8 +285,8 @@ function Invoke-ControlCommand {
                 }
 
                 $WaitingSessions=@($RemainingSessions.GetEnumerator())
-                Foreach ($WaitingGUID IN $WaitingSessions) {
-                    If ($EventDate -gt $ResultObjects[$WaitingGUID].__CommandTimeout) { 
+                Foreach ($WaitingGUID in $WaitingSessions) {
+                    If ($EventDate -gt $ResultObjects[$WaitingGUID].__CommandTimeout) {
                         Write-Debug "Expiring Session $($WaitingGUID)"
                         If ($OfflineAction -eq 'Queue') {
                             $ResultObjects[$WaitingGUID] = New-ReturnObject -InputObject $ResultObjects[$WaitingGUID] -Result 'Command was queued for the session' -PropertyName $ResultPropertyName -IsSuccess $false
