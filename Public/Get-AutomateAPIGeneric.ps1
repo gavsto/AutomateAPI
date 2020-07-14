@@ -41,7 +41,7 @@ function Get-AutomateAPIGeneric {
       .EXAMPLE
         Get-AutomateAPIGeneric -Page 1 -Condition "RemoteAgentLastContact <= 2019-12-18T00:50:19.575Z" -Endpoint "computers"
     #>
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName='AllResults')]
     param (
         [Parameter(Mandatory = $false, ParameterSetName = "Page")]
         [ValidateRange(1,1000)]
