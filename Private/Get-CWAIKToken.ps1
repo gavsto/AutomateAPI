@@ -7,12 +7,10 @@ function Get-CWAIKToken {
     If (!$APIKey) {
         Throw "The API Key is not defined and must be provided"
         Continue
-    }
-
-    If ($APIKey.GetType() -match 'SecureString') {
+    } ElseIf ($APIKey.GetType() -match 'SecureString') {
         $APIKey = $([Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($APIKey)))
     }
-
+        
     # If you bothered to actually inspect this module thoroughly, come PM @Gavsto in Slack and win a free Gavsto Karma Point ;)
 
     $TimeStepSeconds = 600
