@@ -13,7 +13,7 @@ Used for Pipeline input from Get-AutomateComputer
 .OUTPUTS
 Custom object with the ComputerID and Control SessionID. Additional properties from the return data will be included.
 .NOTES
-Version:        1.0
+Version:        1.2
 Author:         Gavin Stone
 Creation Date:  2019-01-20
 Purpose/Change: Initial script development
@@ -21,6 +21,10 @@ Purpose/Change: Initial script development
 Update Date:    2019-02-12
 Author:         Darren White
 Purpose/Change: Modified returned object data
+
+Update Date:    2020-07-20
+Author:         Darren White
+Purpose/Change: Standardized on ComputerID for parameter name
 
 .EXAMPLE
 Get-AutomateControlInfo -ComputerId 123
@@ -30,9 +34,6 @@ Get-AutomateControlInfo -ComputerId 123
     (
         [Parameter(ParameterSetName = 'ID', Mandatory = $true, Position = 0, ValueFromPipeline = $true, ValueFromPipelineByPropertyName=$False)]
         [int32[]]$ComputerID,
-
-        [Parameter(ParameterSetName = 'pipeline', ValueFromPipelineByPropertyName=$true, Mandatory = $True)]
-        [int32[]]$ID,
 
         [Parameter(ParameterSetName = 'pipeline', ValueFromPipeline = $true, Mandatory = $True)]
         $ComputerObjects
@@ -52,7 +53,7 @@ Get-AutomateControlInfo -ComputerId 123
             $ComputerObjects = @()
             ForEach ($ComputerIDSingle in $ComputerID) {
                 $OurResult = [pscustomobject]@{
-                ID = $ComputerIdSingle
+                ComputerID = $ComputerIdSingle
                 SessionID = 'Not Found'
                 }
                 $Null = $OurResult.PSObject.TypeNames.Insert(0,'CWControl.Information')
@@ -65,7 +66,7 @@ Get-AutomateControlInfo -ComputerId 123
             If ($PSCmdlet.ParameterSetName -eq 'pipeline') {
                 $Null = $Computer | Add-Member -NotePropertyName 'SessionID' -NotePropertyValue 'Not Found' -Force
             }
-            $url = ($Script:CWAServer + "/cwa/api/v1/extensionactions/control/$($Computer.ID)")
+            $url = ($Script:CWAServer + "/cwa/api/v1/extensionactions/control/$($Computer.ComputerID)")
             Try {
                 $Result = Invoke-RestMethod -Uri $url -Headers $script:CWAToken -ContentType "application/json"
 
@@ -85,7 +86,6 @@ Get-AutomateControlInfo -ComputerId 123
                 } #End If
             } Catch {}
             $Null = $Computer | Add-Member -MemberType AliasProperty -Name ControlGUID -Value SessionID -Force
-            $Null = $Computer | Add-Member -MemberType AliasProperty -Name ComputerID -Value ID -Force
             $Computer
         } #End ForEach
     } #End Process
