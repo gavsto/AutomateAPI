@@ -101,7 +101,7 @@ function Get-AutomateComputer {
     Purpose/Change: Updates to support custom conditions plus parameter conditions, ID will be returned in ComputerIO property
 
 .EXAMPLE
-    Get-AutomateComputer -AllComputers
+    Get-AutomateComputer
 .EXAMPLE
     Get-AutomateComputer -OperatingSystem "Windows 7"
 .EXAMPLE
