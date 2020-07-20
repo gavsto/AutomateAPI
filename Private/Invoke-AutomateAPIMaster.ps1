@@ -127,7 +127,6 @@ function Invoke-AutomateAPIMaster {
         $Retry = 0
         while ($Retry -lt $MaxRetry -and $Result.StatusCode -eq 500) {
             $Retry++
-            # ConnectWise Manage recommended wait time
             $Wait = $([math]::pow( 2, $Retry))
             Write-Warning "Issue with request, status: $($Result.StatusCode) $($Result.StatusDescription)"
             Write-Warning "$($Retry)/$($MaxRetry) retries, waiting $($Wait)ms."
