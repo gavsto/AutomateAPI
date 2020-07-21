@@ -73,34 +73,32 @@ function Compare-AutomateControlStatus {
             $ObjectRebuild = Get-AutomateComputer | Select-Object ComputerId, ComputerName, @{Name = 'ClientName'; Expression = {$_.Client.Name}}, OperatingSystemName, Status 
         }
 
-        Foreach ($computer in $ObjectRebuild) {
+        Foreach ($Computer in $ObjectRebuild) {
             If (!$AutoControlSessions[[int]$Computer.ComputerID])
             {
-                $AutomateControlGUID = Get-AutomateControlInfo -ComputerID $($computer | Select-Object -ExpandProperty Computerid) | Select-Object -ExpandProperty SessionID
+                $AutoControlSessionID = Get-AutomateControlInfo -ComputerID $($Computer | Select-Object -ExpandProperty Computerid) | Select-Object -ExpandProperty SessionID
             } Else {
-                $AutomateControlGUID = $AutoControlSessions[[int]$Computer.ComputerID]
+                $AutoControlSessionID = $AutoControlSessions[[int]$Computer.ComputerID]
             }
 
-            $FinalComputerObject = $computer
-            $Null = $FinalComputerObject | Add-Member -MemberType NoteProperty -Name ComputerID -Value $Computer.ComputerID -Force -EA 0
+            $FinalComputerObject = $Computer
             $Null = $FinalComputerObject | Add-Member -MemberType NoteProperty -Name OnlineStatusAutomate -Value $Computer.Status -Force -EA 0
-            $Null = $FinalComputerObject | Add-Member -MemberType NoteProperty -Name SessionID -Value $AutomateControlGUID -Force -EA 0
+            $Null = $FinalComputerObject | Add-Member -MemberType NoteProperty -Name SessionID -Value $AutoControlSessionID -Force -EA 0
             If([string]::IsNullOrEmpty($Computer.ClientName)) {
                 $Null = $FinalComputerObject | Add-Member -MemberType NoteProperty -Name ClientName -Value $Computer.Client.Name -Force -EA 0
             }
-            $Null = $FinalComputerObject.PSObject.properties.remove('ID')
             $Null = $FinalComputerObject.PSObject.properties.remove('Status')
 
             $ComputerArray += $FinalComputerObject
         }
 
         #GUIDs to get Control information for
-        $GUIDsToLookupInControl = $ComputerArray | Where-Object {$_.SessionID -match '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'} | Select-Object -ExpandProperty SessionID
-        If ($GUIDsToLookupInControl.Count -gt 100) {$GUIDsToLookupInControl=$Null} #For larger groups, just retrieve all sessions.
+        $SessionIDsToCheck = $ComputerArray | Where-Object {$_.SessionID -match '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'} | Select-Object -ExpandProperty SessionID
+        If ($SessionIDsToCheck.Count -gt 100) {$SessionIDsToCheck=$Null} #For larger groups, just retrieve all sessions.
 
         #Control Sessions
         $ControlSessions=@{};
-        Get-ControlSessions -SessionID $GUIDsToLookupInControl | ForEach-Object {$ControlSessions.Add($_.SessionID, $($_|Select-Object -Property OnlineStatusControl,LastConnected))}
+        Get-ControlSessions -SessionID $SessionIDsToCheck | ForEach-Object {$ControlSessions.Add($_.SessionID, $($_|Select-Object -Property OnlineStatusControl,LastConnected))}
 
         Foreach ($Final in $ComputerArray) {
             $CAReturn = $Final
@@ -109,10 +107,10 @@ function Compare-AutomateControlStatus {
                     $Null = $CAReturn | Add-Member -MemberType NoteProperty -Name OnlineStatusControl -Value $($ControlSessions[$Final.SessionID].OnlineStatusControl) -Force -EA 0
                     $Null = $CAReturn | Add-Member -MemberType NoteProperty -Name LastConnectedControl -Value $($ControlSessions[$Final.SessionID].LastConnected) -Force -EA 0
                 } Else {
-                    $Null = $CAReturn | Add-Member -MemberType NoteProperty -Name OnlineStatusControl -Value "GUID Not in Control or No Connection Events" -Force -EA 0
+                    $Null = $CAReturn | Add-Member -MemberType NoteProperty -Name OnlineStatusControl -Value "SessionID not in Control" -Force -EA 0
                 } 
             } Else {
-                $Null = $CAReturn | Add-Member -MemberType NoteProperty -Name OnlineStatusControl -Value "Control not installed or GUID not in Automate" -Force -EA 0
+                $Null = $CAReturn | Add-Member -MemberType NoteProperty -Name OnlineStatusControl -Value "Control not installed or SessionID not in Automate" -Force -EA 0
             }
 
             $ReturnedObject += $CAReturn
