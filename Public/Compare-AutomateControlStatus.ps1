@@ -92,7 +92,7 @@ function Compare-AutomateControlStatus {
             $ComputerArray += $FinalComputerObject
         }
 
-        #GUIDs to get Control information for
+        #SessionIDs to check in Control
         $SessionIDsToCheck = $ComputerArray | Where-Object {$_.SessionID -match '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'} | Select-Object -ExpandProperty SessionID
         If ($SessionIDsToCheck.Count -gt 100) {$SessionIDsToCheck=$Null} #For larger groups, just retrieve all sessions.
 
