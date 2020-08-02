@@ -5,9 +5,11 @@ function Get-ControlSessions {
 .DESCRIPTION
    Gets bulk session info from Control using the Automate Control Reporting Extension
 .PARAMETER SessionID
-    The GUID identifier(s) for the machine you want status information on. If not provided, all sessions will be returned.
+    The Session(s) you want information on. If not provided, all sessions will be returned.
+.PARAMETER IncludeProperty
+    Specify additional Fields to be returned from the Session report endpoint as properties.
 .NOTES
-    Version:        1.5.0
+    Version:        1.6.0
     Author:         Gavin Stone 
     Modified By:    Darren White
     Purpose/Change: Initial script development
@@ -32,22 +34,85 @@ function Get-ControlSessions {
     Author:         Darren White
     Purpose/Change: Include valid sessions even if there are no connection events in history.
 
+    Update Date:    2020-07-28
+    Author:         Darren White
+    Purpose/Change: Added IncludeEnded, IncludeCustomProperties, IncludeProperty parameters to optionally return additional information
+
 .EXAMPLE
-   Get-ControlSesssions
+   Get-ControlSessions -SessionID 00000000-0000-0000-0000-000000000000
+
+   Return an object with the SessionID,OnlineStatusControl,LastConnected properties
+.EXAMPLE
+    $SessionList=Get-ControlSessions -IncludeProperty 'CreatedTime','GuestMachineSerialNumber','GuestHardwareNetworkAddress','Name' -IncludeCustomProperties
+    $ExtraSessions=$SessionList | Group-Object -Property CustomProperty1,Name,GuestMachineSerialNumber,GuestHardwareNetworkAddress | Foreach-Object {$_.Group|Sort-Object CreatedTime -Desc | Select-Object -skip 1}
+    $ExtraSessions | Invoke-ControlCommand -CommandID 21
+
+    Will return session information to find duplicate sessions (same CustomProperty1,Name,GuestMachineSerialNumber,GuestHardwareNetworkAddress), and end all but the most recently created.
+.EXAMPLE
+   Get-ControlSessions -SessionID 00000000-0000-0000-0000-000000000000 -IncludeScreenShot | Foreach-Object {If ($_.GuestScreenshotContent) {Set-Content -Path "sc-$($_.SessionID).jpg" -value ([Convert]::FromBase64String($_.GuestScreenshotContent)) -Encoding Byte}}
+
+   Will retrieve and save the session screenshot
 .INPUTS
    None
 .OUTPUTS
-   Custom object of session details for all sessions
+   Custom object of session details
 #>
     [CmdletBinding()]
     param (
         [Parameter(Mandatory=$False,ValueFromPipeline=$True,ValueFromPipelineByPropertyName=$True)]
-        [guid[]]$SessionID
-    )
+        [guid[]]$SessionID,
+
+        # Fields available for the Session report can be gathered from "${Script:ControlServer}/Report.json" - May add additional supported fields
+        [ValidateSet(
+        'Code','ConnectionCount','CreatedTime',
+        'CustomProperty1','CustomProperty2','CustomProperty3','CustomProperty4','CustomProperty5','CustomProperty6','CustomProperty7','CustomProperty8',
+        'EventCount','GuestAttributes','GuestDurationSeconds','GuestHardwareNetworkAddress',
+        'GuestInfoUpdateTime','GuestLastActivityTime','GuestLastBootTime','GuestLoggedOnUserDomain','GuestLoggedOnUserName',
+        'GuestMachineDescription','GuestMachineDomain','GuestMachineManufacturerName','GuestMachineModel','GuestMachineName','GuestMachineProductNumber','GuestMachineSerialNumber',
+        'GuestOperatingSystemLanguage','GuestOperatingSystemManufacturerName','GuestOperatingSystemName','GuestOperatingSystemVersion',
+        'GuestPrivateNetworkAddress','GuestProcessorArchitecture','GuestProcessorName','GuestProcessorVirtualCount',
+        #'GuestScreenshotContent','GuestScreenshotContentHash','GuestScreenshotContentType' not included in field list - Can include with the -IncludeScreenShot switch
+        'GuestSystemMemoryAvailableMegabytes','GuestSystemMemoryTotalMegabytes','GuestTimeZoneName','GuestTimeZoneOffsetHours','GuestWakeToken',
+        'Host','HostDurationSeconds','IsEnded','IsPublic','LegacyEncryptionKey','Name','SessionID','SessionType','UnknownDurationSeconds',
+        '*')]
+        [string[]]$IncludeProperty,
     
+        [Parameter()]
+        #Returns CustomProperty1 through CustomProperty8 on the output object
+        [switch]$IncludeCustomProperties,
+
+        [Parameter()]
+        #Returns GuestScreenshotContent,GuestScreenshotContentHash,GuestScreenshotContentType on the output object
+        [switch]$IncludeScreenShot,
+
+        [Parameter()]
+        #Include results for sessions that existed but have been ended.
+        [switch]$IncludeEnded
+    )
+
     Begin {
+        $MaxRecords=10000
         $InputSessionIDCollection=@()
         $SCConnected = @{};
+        $SessionLookup = @{};
+        If ($IncludeProperty -contains '*') {
+            $IncludeProperty+=((Get-Variable IncludeProperty).Attributes | Where-Object { $_ -is [System.Management.Automation.ValidateSetAttribute] }).ValidValues
+        }
+        [string[]]$IncludeProperty=$IncludeProperty | Where-Object {$_ -and $_ -ne '*'} #Redefine $IncludeProperty to allow additional values
+        [string[]]$SessionFields=@('SessionID','SessionType','CreatedTime','GuestLastActivityTime','IsEnded')
+        If ($IncludeEnded) {
+            $IncludeProperty+='IsEnded'
+        }
+        If ($IncludeCustomProperties) {
+            $IncludeProperty+=@('CustomProperty1','CustomProperty2','CustomProperty3','CustomProperty4','CustomProperty5','CustomProperty6','CustomProperty7','CustomProperty8')
+        }
+        If ($IncludeScreenShot) {
+            $IncludeProperty+=@('GuestScreenshotContent','GuestScreenshotContentHash','GuestScreenshotContentType')
+        }
+        If ($IncludeProperty) {
+            $IncludeProperty=$IncludeProperty | Select-Object -Unique
+            [string[]]$SessionFields=$( $SessionFields.GetEnumerator(); $IncludeProperty.GetEnumerator() ) | Select-Object -Unique
+        }
     }
     
     Process {
@@ -60,90 +125,57 @@ function Get-ControlSessions {
     }
     
     End {
+        Function New-ReturnObject {
+            param([object]$InputObject, [object]$ExtraObject, [string[]]$Property)
+            If (!$Property) {$Property=$ExtraObject.psobject.Properties.Name}
+            Foreach ($PropertyName IN $Property) {
+                $InputObject | Add-Member -NotePropertyName $PropertyName -NotePropertyValue $ExtraObject.$PropertyName -Force
+            }
+            $InputObject
+        }
+
         # Ensure the session list does not contain duplicate values.
         $SessionIDCollection = @($InputSessionIDCollection | Select-Object -Unique)
         #Split the list into groups of no more than 100 items
         $SplitGUIDsArray = Split-Every -list $SessionIDCollection -count 100
-        If (!$SplitGUIDsArray) {Write-Debug "Resetting to include all GUIDs"; $SplitGUIDsArray=@('')}
-        $Now = Get-Date 
+        If (!$SplitGUIDsArray) {Write-Debug "Resetting to include all Sessions"; $SplitGUIDsArray=@('')}
         ForEach ($GUIDs in $SplitGUIDsArray) {
-            If ('' -ne $GUIDs) {
-                $GuidCondition=$(ForEach ($GUID in $GUIDs) {"sessionid='$GUID'"}) -join ' OR '
-                If ($GuidCondition) {$GuidCondition="($GuidCondition) AND"}
-            }
-            $Body=ConvertTo-Json @("SessionConnectionEvent",@("SessionID","EventType"),@("LastTime"),"$GuidCondition SessionConnectionProcessType='Guest' AND (EventType = 'Connected' OR EventType = 'Disconnected')", "", 20000) -Compress
+            $GuidCondition=$(ForEach ($GUID in $GUIDs) {If ($GUID) {"sessionid='$GUID'"}}) -join ' OR '
+            If ($GuidCondition) {$GuidCondition="($GuidCondition) AND"}
+            $GuidCondition=@($GuidCondition,"DisconnectedTime IS NULL") -join ' '
+            $Body=ConvertTo-Json @("SessionConnection",@("SessionID"),@("Count"),$GuidCondition.Trim(), "", $MaxRecords) -Compress
+
             $RESTRequest = @{
-                'URI' = "${Script:ControlServer}/App_Extensions/fc234f0e-2e8e-4a1f-b977-ba41b14031f7/ReportService.ashx/GenerateReportForAutomate"
-                'Method' = 'POST'
-                'ContentType' = 'application/json'
+                'URI' = "ReportService.ashx/GenerateReportForAutomate"
                 'Body' = $Body
             }
-
-            If ($Script:ControlAPIKey) {
-                $RESTRequest.Add('Headers',@{'CWAIKToken' = (Get-CWAIKToken)})
-            } Else {
-                $RESTRequest.Add('Credential',${Script:ControlAPICredentials})
-            }
-            
-            $AllData=$Null
-            Try {
-                $SCData = Invoke-RestMethod @RESTRequest -InformationAction 'SilentlyContinue'
-                If ($SCData.Items -and $SCData.Items.Count -gt 0) {
-                    $FNames = $SCData.FieldNames; 
-                    $AllData = ($SCData.Items | ForEach-Object { $x = $_; $SCEventRecord = [pscustomobject]@{ }; for ($i = 0; $i -lt $FNames.Length; $i++) { $Null = $SCEventRecord | Add-Member -NotePropertyName $FNames[$i] -NotePropertyValue $x[$i] }; $SCEventRecord } | Sort-Object -Property SessionID,EventType -Descending)
-                } ElseIf (!($SCData.FieldNames)){
-                    Throw "Session report data was not returned: Error $_.Exception.Message"
-                    Return
-                }
-            } Catch {
-                Write-Debug "Request FAILED! Request Result: $($SCData | select-object -property * | convertto-json -Depth 10)"
-            }
+            $AllData = Invoke-ControlAPIMaster -Arguments $RESTRequest
+            If ($AllData.Count -ge $MaxRecords) {Write-Verbose "Records returned ($($AllData.Count)) equal maximum requested. Data may be incomplete!"}
 
             $AllData | Where-Object {$_} | ForEach-Object {
-                # Build $SCConnected hashtable with information from report request in $AllData
-                If ($_.EventType -like 'Disconnected') {
-                    $SCConnected.Add($_.SessionID,$_.LastTime)
-                } Else {
-                    If ($_.LastTime -ge $SCConnected[$_.SessionID]) {
-                            If ($SCConnected.ContainsKey($_.SessionID)) {
-                            $SCConnected[$_.SessionID]=$True
-                        } Else {
-                            $SCConnected.Add($_.SessionID,$True)
-                        }
-                    }
-                }
+                # Build $SCConnected hashtable with information from report request in $AllData - First pass - Only online sessions
+                $SCConnected.Add($_.SessionID,$True)
             }
 
-            $GuidCondition=$(ForEach ($GUID in $GUIDs) {If ($GUID -and !($SCConnected.ContainsKey($GUID) -and $SCConnected[$GUID])) {"sessionid='$GUID'"}}) -join ' OR '
+            $GuidCondition=$(ForEach ($GUID in $GUIDs) {If ($GUID -and ($IncludeProperty -or !($SCConnected.ContainsKey($GUID)))) {"sessionid='$GUID'"}}) -join ' OR '
             If (('' -eq $GUIDs) -or $GuidCondition) { #Pull information on sessions that are not connected
-                $Body=ConvertTo-Json @("Session","",@("SessionID","SessionType","CreatedTime","GuestLastActivityTime","IsEnded"),"$GuidCondition", "", 20000) -Compress
+                $Body=ConvertTo-Json @("Session","",$SessionFields,"$GuidCondition", "", $MaxRecords) -Compress
+
                 $RESTRequest = @{
-                    'URI' = "${Script:ControlServer}/App_Extensions/fc234f0e-2e8e-4a1f-b977-ba41b14031f7/ReportService.ashx/GenerateReportForAutomate"
-                    'Method' = 'POST'
-                    'ContentType' = 'application/json'
+                    'URI' = "ReportService.ashx/GenerateReportForAutomate"
                     'Body' = $Body
                 }
-    
-                If ($Script:ControlAPIKey) {
-                    $RESTRequest.Add('Headers',@{'CWAIKToken' = (Get-CWAIKToken)})
-                } Else {
-                    $RESTRequest.Add('Credential',${Script:ControlAPICredentials})
-                }
-                
-                $AllData=$Null
-                Try {
-                    $SCData = Invoke-RestMethod @RESTRequest -InformationAction 'SilentlyContinue'
-                    If ($SCData.Items -and $SCData.Items.Count -gt 0) {
-                        $FNames = $SCData.FieldNames; 
-                        $AllData = ($SCData.Items | ForEach-Object { $x = $_; $SCEventRecord = [pscustomobject]@{ }; for ($i = 0; $i -lt $FNames.Length; $i++) { $Null = $SCEventRecord | Add-Member -NotePropertyName $FNames[$i] -NotePropertyValue $x[$i] }; $SCEventRecord })
-                    } ElseIf (!($SCData.FieldNames)){
-                        Throw "Session report data was not returned: Error $_.Exception.Message"
-                        Return
+                $AllData = Invoke-ControlAPIMaster -Arguments $RESTRequest
+                If ($AllData.Count -ge $MaxRecords) {Write-Verbose "Records returned ($($AllData.Count)) equal maximum requested. Data may be incomplete!"}
+
+                $AllData | Where-Object {$_.SessionID} | ForEach-Object {
+                    If (!$_.IsEnded -or $_.IsEnded -eq $IncludeEnded) {
+                        If ($SessionLookup.ContainsKey($_.SessionID)) {
+                            $SessionLookup.$($_.SessionID)=$_
+                        } Else {
+                            $SessionLookup.Add($_.SessionID,$_)
+                        }
                     }
-                } Catch {
-                    Write-Debug "Request FAILED! Request Result: $($SCData | select-object -property * | convertto-json -Depth 10)"
-                }
-                $AllData | Where-Object {$_} | ForEach-Object {
                     If ($_.GuestLastActivityTime -and !($_.IsEnded) -and !($SCConnected.ContainsKey($_.SessionID))) {
                         $SCConnected.Add($_.SessionID,$_.GuestLastActivityTime)
                     } ElseIf ($_.IsEnded -and $SCConnected.ContainsKey($_.SessionID)) {
@@ -151,12 +183,32 @@ function Get-ControlSessions {
                     }
                 }
             }
+
+            $GuidCondition=$(ForEach ($GUID in $GUIDs) {If ($GUID -and $SCConnected.ContainsKey($GUID) -and $SCConnected[$GUID] -ne $True) {"sessionid='$GUID'"}}) -join ' OR '
+            If ($GuidCondition) {$GuidCondition="($GuidCondition) AND"}
+            If (('' -eq $GUIDs) -or $GuidCondition) { #Pull information on valid sessions that are not connected
+                $Body=ConvertTo-Json @("SessionConnection",@("SessionID"),@("LastDisconnectedTime"),"$GuidCondition ProcessType='Guest'", "", $MaxRecords) -Compress
+
+                $RESTRequest = @{
+                    'URI' = "ReportService.ashx/GenerateReportForAutomate"
+                    'Body' = $Body
+                }
+                $AllData = Invoke-ControlAPIMaster -Arguments $RESTRequest
+                If ($AllData.Count -ge $MaxRecords) {Write-Verbose "Records returned ($($AllData.Count)) equal maximum requested. Data may be incomplete!"}
+
+                $AllData | Where-Object {$_} | ForEach-Object {
+                    If ($_.LastDisconnectedTime -and $SCConnected.ContainsKey($_.SessionID) -and $SCConnected[$_.SessionID] -ne $True) {
+                        $SCConnected[$_.SessionID]=$_.LastDisconnectedTime
+                    }
+                }
+            }
         }
-        #Build final output objects with session information gathered into $SCConnected hashtable
 
         # If no sessions were requested, just send returned sessions.
         If (!($InputSessionIDCollection)) {$InputSessionIDCollection = $SCConnected.Keys}
 
+        #Build final output objects with session information gathered into $SCConnected hashtable
+        $Now = Get-Date 
         Foreach ($sessid IN $InputSessionIDCollection) {
             $sessid=$sessid.ToString()
             $SessionResult = [pscustomobject]@{
@@ -169,6 +221,9 @@ function Get-ControlSessions {
                 $SessionResult.LastConnected = $Now.ToUniversalTime()
             } ElseIf ($Null -ne $SCConnected[$sessid]) {
                 $SessionResult.LastConnected = Get-Date($SCConnected[$sessid])
+            }
+            If ($IncludeProperty) {
+                    $SessionResult=New-ReturnObject -InputObject $SessionResult -ExtraObject $SessionLookup[$sessid] -Property $IncludeProperty
             }
             $SessionResult
         }

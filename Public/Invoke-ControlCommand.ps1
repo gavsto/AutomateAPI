@@ -24,7 +24,7 @@ function Invoke-ControlCommand {
     .OUTPUTS
         The output of the Command provided.
     .NOTES
-        Version:        2.2
+        Version:        2.3.0
         Author:         Chris Taylor
         Modified By:    Gavin Stone
         Modified By:    Darren White
@@ -51,9 +51,9 @@ function Invoke-ControlCommand {
         Author:         Darren White
         Purpose/Change: Removed object processing on the remote host. Added -CommandID support
 
-    .EXAMPLE
-        Get-AutomateComputer -ComputerID 5 | Get-AutomateControlInfo | Invoke-ControlCommand -Powershell -Command "Get-Service"
-            Will retrieve Computer Information from Automate, Get ControlSession data and merge with the input object, then call Get-Service on the computer.
+        Update Date:    2020-08-01
+        Author:         Darren White
+        Purpose/Change: Use Invoke-ControlAPIMaster
     .EXAMPLE
         Invoke-ControlCommand -SessionID $SessionID -Command 'hostname'
             Will return the hostname of the machine.
@@ -61,15 +61,8 @@ function Invoke-ControlCommand {
         Invoke-ControlCommand -SessionID $SessionID -TimeOut 120000 -Command 'iwr -UseBasicParsing "https://bit.ly/ltposh" | iex; Restart-LTService' -PowerShell
             Will restart the Automate agent on the target machine.
     .EXAMPLE
-        $Results = Get-AutomateComputer -ClientName "Contoso" | Get-AutomateControlInfo | Invoke-ControlCommand -IncludeComputerName -ResultPropertyName "OfficePlatform" -PowerShell -Command { Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Office\ClickToRun\Configuration" -Name Platform }
-        $Results | select ComputerName, OfficePlatform
-    .EXAMPLE
-        $Results = Get-AutomateComputer -ClientName "Contoso" | Get-AutomateControlInfo | Invoke-ControlCommand -AsObjects -IncludeComputerName -ResultPropertyName "OfficeRegInfo" -PowerShell -Command { Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Office\ClickToRun\Configuration" }
-        $Results | ?{$_.OfficeRegInfo.Platform -eq "x86" -and $_.OfficeRegInfo.UpdateEnabled -notlike "true"} | select ComputerName
-    .EXAMPLE
         Invoke-ControlCommand -SessionID $SessionID -CommandID 40
             Will tell the control service to Reinstall (update)
-
     #>
     [CmdletBinding(DefaultParameterSetName = 'ExecuteCommand')]
     param (
@@ -78,7 +71,8 @@ function Invoke-ControlCommand {
         [Parameter(ParameterSetName = ('ExecuteCommand','PassthroughObjects'), Mandatory = $True)]
         [string]$Command,
         [Parameter(ParameterSetName = 'CommandID', Mandatory = $True)]
-        [int]$CommandID,
+        #For CommandID values see https://docs.connectwise.com/ConnectWise_Control_Documentation/Developers/Session_Manager_API_Reference/Enumerations
+        [int]$CommandID,   
         [Parameter(ParameterSetName = 'CommandID')]
         $CommandBody='',
         [Parameter(ParameterSetName = ('ExecuteCommand','PassthroughObjects'))]
@@ -99,7 +93,6 @@ function Invoke-ControlCommand {
     Begin {
         $ProgressPreference='SilentlyContinue'
 
-        $Server = $Script:ControlServer -replace '/$', ''
         If (('SessionID','IsSuccess','__CommandTimeout') -contains $ResultPropertyName) {Throw "ResultPropertyName value $($ResultPropertyName) is reserved."}
 
         If ($PSCmdlet.ParameterSetName -eq 'CommandID') {
@@ -132,12 +125,10 @@ function Invoke-ControlCommand {
 
         $ResultObjects = @{ }
         $SessionCollection = {}.Invoke()
-
     }
 
     Process {
         $ObjectsIn=$_
-        If (!($Server -match 'https?://[a-z0-9][a-z0-9\.\-]*(:[1-9][0-9]*)?(\/[a-z0-9\.\-\/]*)?$')) { throw "Control Server address ($Server) is in an invalid format. Use Connect-ControlAPI to assign the server URL."; return }
         If ($PassthroughObjects) {
             Foreach ($xObject in $ObjectsIn) {
                 If ($xObject -and $xObject.SessionID) {
@@ -199,34 +190,21 @@ function Invoke-ControlCommand {
                 $Body = ConvertTo-Json @($User, $AddSessions, $SessionEventType, $CommandBody) -Compress
 
                 $RESTRequest = @{
-                    'URI'         = "$Server/App_Extensions/fc234f0e-2e8e-4a1f-b977-ba41b14031f7/ReplicaService.ashx/PageAddEventToSessions"
-                    'Method'      = 'POST'
-                    'ContentType' = 'application/json'
+                    'URI'         = "ReplicaService.ashx/PageAddEventToSessions"
                     'Body'        = $Body
-                    'UseBasicParsing' = $Null
-                }
-                If ($Script:ControlAPIKey) {
-                    $RESTRequest.Add('Headers', @{'CWAIKToken' = (Get-CWAIKToken) })
-                }
-                Else {
-                    $RESTRequest.Add('Credential', $Script:ControlAPICredentials)
                 }
 
-                # Issue command
-                Try {
-                    $Results = Invoke-WebRequest @RESTRequest -InformationAction 'SilentlyContinue'
-                }
-                Catch {
-                    Write-Error "$(($_.ErrorDetails | ConvertFrom-Json).message)"
+                $CWCServerTime=$Null
+                $Null = Invoke-ControlAPIMaster -Arguments $RESTRequest
+                If (!$CWCServerTime) {
+                    Write-Error $Error[0]
                     return
                 }
-
                 $RequestTimer = [diagnostics.stopwatch]::StartNew()
-                $EventDate = Get-Date $($Results.Headers.Date)
                 If (!($EventDateFormatted)) {
-                    $EventDateFormatted = (Get-Date $EventDate.ToUniversalTime() -UFormat "%Y-%m-%d %T")
+                    $EventDateFormatted = (Get-Date $CWCServerTime.ToUniversalTime() -UFormat "%Y-%m-%d %T")
                 }
-                $TimeOutDateTime = $EventDate.AddMilliseconds($TimeOut+3000)
+                $TimeOutDateTime = $CWCServerTime.AddMilliseconds($TimeOut+3000)
                 Foreach ($SessionsGUID in $AddSessions) {
                     If ($PSCmdlet.ParameterSetName -ne 'CommandID') {
                         $ResultObjects[$SessionsGUID] = New-ReturnObject -InputObject $ResultObjects[$SessionsGUID] -Result $TimeOutDateTime -PropertyName '__CommandTimeout' -IsSuccess $false
@@ -245,33 +223,20 @@ function Invoke-ControlCommand {
                 $GuidCondition = $(ForEach ($SessionsGUID in $RemainingSessions) { "sessionid='$SessionsGUID'" }) -join ' OR '
                 # Look for results of command
                 $Body = ConvertTo-Json @("SessionConnectionEvent", @(), @("SessionID", "Time", "Data"), "($GuidCondition) AND EventType='RanCommand' AND Time>='$EventDateFormatted'", "", 200) -Compress
+
                 $RESTRequest = @{
-                    'URI'         = "$Server/App_Extensions/fc234f0e-2e8e-4a1f-b977-ba41b14031f7/ReportService.ashx/GenerateReportForAutomate"
-                    'Method'      = 'POST'
-                    'ContentType' = 'application/json'
+                    'URI'         = "ReportService.ashx/GenerateReportForAutomate"
                     'Body'        = $Body
-                    'UseBasicParsing' = $Null
                 }
 
-                If ($Script:ControlAPIKey) {
-                    $RESTRequest.Add('Headers', @{'CWAIKToken' = (Get-CWAIKToken) })
-                }
-                Else {
-                    $RESTRequest.Add('Credential', $Script:ControlAPICredentials)
-                }
-
-                Try {
-                    $Results = Invoke-WebRequest @RESTRequest -InformationAction 'SilentlyContinue'
-                }
-                Catch {
-                    Write-Error "$(($_.ErrorDetails | ConvertFrom-Json).message)"
+                $CWCServerTime=$Null
+                $Events = Invoke-ControlAPIMaster -Arguments $RESTRequest
+                If (!$CWCServerTime) {
+                    Write-Error $Error[0]
                     return
                 }
-                $EventDate = Get-Date $($Results.Headers.Date)
-                $EventDateFormatted = (Get-Date $EventDate.ToUniversalTime() -UFormat "%Y-%m-%d %T")
-                $SessionEvents = $Results.Content | ConvertFrom-JSON
-                $FNames = $SessionEvents.FieldNames
-                $Events = ($SessionEvents.Items | ForEach-Object { $x = $_; $SCEventRecord = [pscustomobject]@{ }; for ($i = 0; $i -lt $FNames.Length; $i++) { $Null = $SCEventRecord | Add-Member -NotePropertyName $FNames[$i] -NotePropertyValue $x[$i] }; $SCEventRecord } | Sort-Object -Property Time, SessionID -Descending)
+                $EventDateFormatted = (Get-Date $CWCServerTime.ToUniversalTime() -UFormat "%Y-%m-%d %T")
+
                 Foreach ($Event in $Events) {
                     [string]$EventGUID = "$($Event.SessionID)"
                     If ($RemainingSessions.Contains($EventGUID)) {
