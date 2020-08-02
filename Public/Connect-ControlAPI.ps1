@@ -72,6 +72,7 @@ function Connect-ControlAPI {
         }
         $Server = $Server -replace '/$', ''
         $AuthorizationResult=$Null
+        $Script:CWCIsConnected = $False
     }
     
     Process {
@@ -198,6 +199,8 @@ function Connect-ControlAPI {
                 Throw "Error - No parameter set was recognized."
             }
             $Script:ControlServer = $Server
+            $Script:CWCIsConnected = $True
+            $Script:CWCHeaders = @{}
             If (!$Quiet) {
                 If (!$SkipCheck) {
                     Write-Host -BackgroundColor Green -ForegroundColor Black "Successfully tested and connected to the Control API. Server version is $($AuthorizationResult)"
