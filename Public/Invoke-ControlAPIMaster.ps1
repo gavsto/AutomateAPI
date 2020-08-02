@@ -155,11 +155,11 @@ function Invoke-ControlAPIMaster {
                 $FNames = $SCData.FieldNames
                 $SCData.Items | ForEach-Object {
                     $x = $_
-                    $SCEventRecord = [pscustomobject]@{}
+                    $SCEventRecord = @{}
                     For ($i = 0; $i -lt $FNames.Length; $i++) {
-                        $Null = $SCEventRecord | Add-Member -NotePropertyName $FNames[$i] -NotePropertyValue $x[$i]
+                        $Null = $SCEventRecord.Add($FNames[$i],$x[$i])
                     }
-                    $SCEventRecord
+                    [pscustomobject]$SCEventRecord
                 }
             }
         }
