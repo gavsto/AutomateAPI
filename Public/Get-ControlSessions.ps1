@@ -73,7 +73,7 @@ function Get-ControlSessions {
         'GuestPrivateNetworkAddress','GuestProcessorArchitecture','GuestProcessorName','GuestProcessorVirtualCount',
         #'GuestScreenshotContent','GuestScreenshotContentHash','GuestScreenshotContentType' not included in field list - Can include with the -IncludeScreenShot switch
         'GuestSystemMemoryAvailableMegabytes','GuestSystemMemoryTotalMegabytes','GuestTimeZoneName','GuestTimeZoneOffsetHours','GuestWakeToken',
-        'Host','HostDurationSeconds','IsEnded','IsPublic','LegacyEncryptionKey','Name','SessionID','SessionType','UnknownDurationSeconds',
+        'Host','HostDurationSeconds','IsEnded','IsPublic','LegacyEncryptionKey','Name','SessionType','UnknownDurationSeconds',
         '*')]
         [string[]]$IncludeProperty,
     
