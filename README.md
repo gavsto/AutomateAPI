@@ -28,7 +28,7 @@ Great - dig in and submit a pull request! Please make sure your follow the conve
 # Special Thanks
 Special thanks to a number of people whose help (and in certain cases code) I have used within this project
 
-**Chris Taylor** where I have re-used and modified certain parts of the ConnectWise Control module to send commands to Contrl and his ConnectWise Automate module so we can reinstall services
+**Chris Taylor** where I have re-used and modified certain parts of the ConnectWise Control module to send commands to Control and his ConnectWise Automate module so we can reinstall services
 
 **Mendy Green** for helping me test the initial code
 

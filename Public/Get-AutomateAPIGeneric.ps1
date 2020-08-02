@@ -30,7 +30,7 @@ function Get-AutomateAPIGeneric {
       .OUTPUTS
         The returned results from the API call
       .NOTES
-        Version:        1.0
+        Version:        1.1.0
         Author:         Gavin Stone
         Creation Date:  2019-01-20
         Purpose/Change: Initial script development
@@ -89,8 +89,8 @@ function Get-AutomateAPIGeneric {
     )
     
     begin {
-        #Build the URL to hit
-        $URI = ($Script:CWAServer + '/cwa/api/v1/' + $EndPoint)
+        #Build the URI to hit
+        $URI = ('/cwa/api/v1/' + $EndPoint)
 
         #Build the Body Up
         $Body = @{}

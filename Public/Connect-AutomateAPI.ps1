@@ -23,7 +23,7 @@ Will not output any standard messages. Returns $True if connection was successfu
 .OUTPUTS
 Three strings into Script variables, $CWAServer containing the server address, $CWACredentials containing the bearer token and $CWACredentialsExpirationDate containing the date the credentials expire
 .NOTES
-Version:        1.1
+Version:        1.2.0
 Author:         Gavin Stone
 Creation Date:  2019-01-20
 Purpose/Change: Initial script development
@@ -31,6 +31,9 @@ Purpose/Change: Initial script development
 Update Date:    2019-02-12
 Author:         Darren White
 Purpose/Change: Credential and 2FA prompting is only if needed. Supports Token Refresh.
+
+Update Date:    2020-08-01
+Purpose/Change: Change to use CWAIsConnected script variable to track connection state
 
 .EXAMPLE
 Connect-AutomateAPI -Server "rancor.hostedrmm.com" -Credentials $CredentialObject -TwoFactorToken "999999"
@@ -82,6 +85,7 @@ Connect-AutomateAPI -Quiet
         }
         $Server = $Server -replace '^https?://','' -replace '/[^\/]*$',''
         $AuthorizationToken = $AuthorizationToken -replace 'Bearer ',''
+        $Script:CWAIsConnected=$False
     } #End Begin
     
     Process {
@@ -209,6 +213,7 @@ Connect-AutomateAPI -Quiet
             $Script:CWATokenKey = ConvertTo-SecureString $AuthorizationToken -AsPlainText -Force
             $Script:CWAServer = ("https://" + $Server)
             $Script:CWAToken = $AutomateToken
+            $Script:CWAIsConnected=$True
             If ($Credential) {
                 $Script:CWACredentials = $Credential
             }

@@ -1,86 +1,73 @@
 function Invoke-AutomateAPIMaster {
     <#
-      .SYNOPSIS
+    .SYNOPSIS
         Internal function used to make API calls
-      .DESCRIPTION
+    .DESCRIPTION
         Internal function used to make API calls
-      .PARAMETER PageSize
-        The page size of the results that come back from the API - limit this when needed
-      .PARAMETER Page
-        Brings back a particular page as defined
-      .PARAMETER AllResults
-        Will bring back all results for a particular query with no concern for result set size
-      .PARAMETER Endpoint
-        The individial URI to post to for results, IE computers?
-      .PARAMETER OrderBy
-        Order by - Used to sort the results by a field. Can be sorted in ascending or descending order.
-        Example - fieldname asc
-        Example - fieldname desc
-      .PARAMETER Condition
-        Condition - the searches that can be used to search for specific things. Supported operators are '=', 'eq', '>', '>=', '<', '<=', 'and', 'or', '()', 'like', 'contains', 'in', 'not'.
-        The 'not' operator is only used with 'in', 'like', or 'contains'. The '=' and 'eq' operator are the same. String values can be surrounded with either single or double quotes.
-        Boolean values are specified as 'true' or 'false'. Parenthesis can be used to control the order of operations and group conditions.
-        The 'like' operator translates to the MySQL 'like' operator.
-      .PARAMETER IncludeFields
-        A comma delimited list of fields, when specified only these fields will be included in the result set
-      .PARAMETER ExcludeFields
-        A comma delimited list of fields, when specified these fields will be excluded from the final result set
-      .PARAMETER IDs
-        A comma delimited list of fields, when specified only these IDs will be returned
-      .OUTPUTS
+    .PARAMETER Arguments
+        Required parameters for the API call
+    .OUTPUTS
         The returned results from the API call
-      .NOTES
-        Version:        1.0
+    .NOTES
+        Version:        1.1.0
         Author:         Darren White
         Creation Date:  2020-07-03
         Purpose/Change: Initial script development
-      .EXAMPLE
-        Get-AutomateAPIGeneric -Page 1 -Condition "RemoteAgentLastContact <= 2019-12-18T00:50:19.575Z" -Endpoint "computers?"
+
+        Update Date:    2020-08-01
+        Purpose/Change: Change to use CWAIsConnected script variable to track connection state
+    .EXAMPLE
+        Invoke-AutomateAPIMaster -Arguments $Arguments
     #>
     [CmdletBinding()]
     param(
+        [Parameter(Mandatory = $True)]
         $Arguments,
         [int]$MaxRetry = 5
     )
     
-    begin {
+    Begin {
     }
     
-    process {
+    Process {
         # Check that we have cached connection info
-        if(!$script:CWAToken){
+        If(!$Script:CWAIsConnected){
             $ErrorMessage = @()
             $ErrorMessage += "Not connected to an Automate server."
             $ErrorMessage +=  $_.ScriptStackTrace
-            $ErrorMessage += ''    
-            $ErrorMessage += '--> $CWAToken variable not found.'
+            $ErrorMessage += ''
             $ErrorMessage += "----> Run 'Connect-AutomateAPI' to initialize the connection before issuing other AutomateAPI commandlets."
             Write-Error ($ErrorMessage | Out-String)
-            return
+            Return
         }
         
         # Add default set of arguments
+        $Arguments.Item('UseBasicParsing')=$Null
         If (!$Arguments.Headers) {$Arguments.Headers=@{}}
-        foreach($Key in $script:CWAToken.Keys){
-            if($Arguments.Headers.Keys -notcontains $Key){
+        Foreach($Key in $script:CWAToken.Keys){
+            If($Arguments.Headers.Keys -notcontains $Key){
                 $Arguments.Headers += @{$Key = $script:CWAToken.$Key}
             }
         }
     #    if(!$Arguments.SessionVariable){ $Arguments.WebSession = $global:CWMServerConnection.Session }
 
         # Check URI format
-        if($Arguments.URI -notlike '*`?*' -and $Arguments.URI -like '*`&*') {
+        If($Arguments.URI -notlike '*`?*' -and $Arguments.URI -like '*`&*') {
             $Arguments.URI = $Arguments.URI -replace '(.*?)&(.*)', '$1?$2'
         }        
 
+        If($Arguments.URI -notmatch '^https?://') {
+          $Arguments.URI = ($Script:CWAServer + $Arguments.URI)
+        }
+
         # Issue request
-        try {
-            Write-Debug "Calling $($Arguments|Out-String)"
+        Try {
+            Write-Debug "Calling AutomateAPI with the following arguments:`n$(($Arguments|Out-String -Stream) -join "`n")"
             $ProgressPreference = 'SilentlyContinue'
-            $Result = Invoke-WebRequest @Arguments -UseBasicParsing
+            $Result = Invoke-WebRequest @Arguments
         } 
-        catch {
-            if($_.Exception.Response){
+        Catch {
+            If($_.Exception.Response){
                 # Read exception response
                 $ErrorStream = $_.Exception.Response.GetResponseStream()
                 $Reader = New-Object System.IO.StreamReader($ErrorStream)
@@ -117,7 +104,7 @@ function Invoke-AutomateAPIMaster {
                 }
             }
             Write-Error ($ErrorMessage | out-string)
-            return
+            Return
         }
 
         # Not sure this will be hit with current iwr error handling
@@ -132,15 +119,16 @@ function Invoke-AutomateAPIMaster {
             Write-Warning "$($Retry)/$($MaxRetry) retries, waiting $($Wait)ms."
             Start-Sleep -Milliseconds $Wait
             $ProgressPreference = 'SilentlyContinue'
-            $Result = Invoke-WebRequest @Arguments -UseBasicParsing
+            $Result = Invoke-WebRequest @Arguments
         }
-        if ($Retry -ge $MaxRetry) {
+        If ($Retry -ge $MaxRetry -and $Result.StatusCode -eq 500) {
+            $Script:CWAIsConnected=$False
             Write-Error "Max retries hit. Status: $($Result.StatusCode) $($Result.StatusDescription)"
-            return
+            Return
         }
     }
     
-    end {
-        return $Result
+    End {
+        Return $Result
     }
 }
