@@ -1,4 +1,4 @@
-function Get-ControlSessions {
+function Get-ControlSession {
 <#
 .Synopsis
    Gets bulk session info from Control using the Automate Control Reporting Extension
@@ -39,17 +39,17 @@ function Get-ControlSessions {
     Purpose/Change: Added IncludeEnded, IncludeCustomProperties, IncludeProperty parameters to optionally return additional information
 
 .EXAMPLE
-   Get-ControlSessions -SessionID 00000000-0000-0000-0000-000000000000
+   Get-ControlSession -SessionID 00000000-0000-0000-0000-000000000000
 
    Return an object with the SessionID,OnlineStatusControl,LastConnected properties
 .EXAMPLE
-    $SessionList=Get-ControlSessions -IncludeProperty 'CreatedTime','GuestMachineSerialNumber','GuestHardwareNetworkAddress','Name' -IncludeCustomProperties
+    $SessionList=Get-ControlSession -IncludeProperty 'CreatedTime','GuestMachineSerialNumber','GuestHardwareNetworkAddress','Name' -IncludeCustomProperties
     $ExtraSessions=$SessionList | Group-Object -Property CustomProperty1,Name,GuestMachineSerialNumber,GuestHardwareNetworkAddress | Foreach-Object {$_.Group|Sort-Object CreatedTime -Desc | Select-Object -skip 1}
     $ExtraSessions | Invoke-ControlCommand -CommandID 21
 
     Will return session information to find duplicate sessions (same CustomProperty1,Name,GuestMachineSerialNumber,GuestHardwareNetworkAddress), and end all but the most recently created.
 .EXAMPLE
-   Get-ControlSessions -SessionID 00000000-0000-0000-0000-000000000000 -IncludeScreenShot | Foreach-Object {If ($_.GuestScreenshotContent) {Set-Content -Path "sc-$($_.SessionID).jpg" -value ([Convert]::FromBase64String($_.GuestScreenshotContent)) -Encoding Byte}}
+   Get-ControlSession -SessionID 00000000-0000-0000-0000-000000000000 -IncludeScreenShot | Foreach-Object {If ($_.GuestScreenshotContent) {Set-Content -Path "sc-$($_.SessionID).jpg" -value ([Convert]::FromBase64String($_.GuestScreenshotContent)) -Encoding Byte}}
 
    Will retrieve and save the session screenshot
 .INPUTS
@@ -230,3 +230,4 @@ function Get-ControlSessions {
     }
 }
 
+Set-Alias -Name Get-ControlSessions -Value Get-ControlSession

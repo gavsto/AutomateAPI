@@ -30,4 +30,4 @@ IF([Net.SecurityProtocolType]::Tls) {[Net.ServicePointManager]::SecurityProtocol
 IF([Net.SecurityProtocolType]::Tls11) {[Net.ServicePointManager]::SecurityProtocol=[Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls11}
 IF([Net.SecurityProtocolType]::Tls12) {[Net.ServicePointManager]::SecurityProtocol=[Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12}
 
-Export-ModuleMember -Function $Public.BaseName
+Export-ModuleMember -Function $Public.BaseName -Alias *
