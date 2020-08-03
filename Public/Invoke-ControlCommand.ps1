@@ -11,6 +11,12 @@ function Invoke-ControlCommand {
         IE - Get-AutomateComputer -ComputerID 5 | Get-ControlSessions | Invoke-ControlCommand -Powershell -Command "Get-Service"
     .PARAMETER Command
         The command you wish to issue to the machine.
+    .PARAMETER CommandID
+        The command ID (Control SessionEventType) to issue to the machine.
+        When using -CommandID the command will be queued but results will not be checked for or returned. The "Wait" OfflineAction is treated like "Queue". 
+        For CommandID values see https://docs.connectwise.com/ConnectWise_Control_Documentation/Developers/Session_Manager_API_Reference/Enumerations
+    .PARAMETER CommandBody
+        The command body. Used with the -CommandID parameter.
     .PARAMETER MaxLength
         The maximum number of bytes to return from the remote session. The default is 5000 bytes.
     .PARAMETER PowerShell
@@ -21,10 +27,16 @@ function Invoke-ControlCommand {
         Number of control sessions to invoke commands in parallel.
     .PARAMETER ResultPropertyName
         String containing the name of the member you would like to add to the input pipeline object that will hold the result of this command
+    .PARAMETER OfflineAction
+        Specifies the action to take if the session is offline.
+        - Wait : Will queue the command and wait up to the timeout specified for a response.
+        - Queue : Will queue the command but not wait for any response.
+        - Skip : Will not queue the command to the session.
     .OUTPUTS
         The output of the Command provided.
+        When -CommandID is used, the output will only indicate if the commandid was queued or not.
     .NOTES
-        Version:        2.3.0
+        Version:        2.3.1
         Author:         Chris Taylor
         Modified By:    Gavin Stone
         Modified By:    Darren White
@@ -64,14 +76,13 @@ function Invoke-ControlCommand {
         Invoke-ControlCommand -SessionID $SessionID -CommandID 40
             Will tell the control service to Reinstall (update)
     #>
-    [CmdletBinding(DefaultParameterSetName = 'ExecuteCommand')]
+    [CmdletBinding(DefaultParameterSetName = 'ExecuteCommand',SupportsShouldProcess=$True)]
     param (
         [Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
         [guid[]]$SessionID,
         [Parameter(ParameterSetName = ('ExecuteCommand','PassthroughObjects'), Mandatory = $True)]
         [string]$Command,
         [Parameter(ParameterSetName = 'CommandID', Mandatory = $True)]
-        #For CommandID values see https://docs.connectwise.com/ConnectWise_Control_Documentation/Developers/Session_Manager_API_Reference/Enumerations
         [int]$CommandID,   
         [Parameter(ParameterSetName = 'CommandID')]
         $CommandBody='',
@@ -180,7 +191,9 @@ function Invoke-ControlCommand {
                 ForEach ($AddGUID in $AddingSessions) {
                     #Check Online Status. Weed out sessions that have never connected or are not valid.
                     If (!($ControlSessions[$AddGUID].OnlineStatusControl -eq $True)) {
-                        $ResultObjects[$AddGUID] = New-ReturnObject -InputObject $ResultObjects[$AddGUID] -Result 'Skipped. Session was not connected.' -PropertyName $ResultPropertyName -IsSuccess $false
+                        If ($PSCmdlet.ShouldProcess("Disconnected Session $($AddGUID)","Skipping")) {
+                            $ResultObjects[$AddGUID] = New-ReturnObject -InputObject $ResultObjects[$AddGUID] -Result 'Skipped. Session was not connected.' -PropertyName $ResultPropertyName -IsSuccess $false
+                        }
                         $Null = $AddSessions.Remove($AddGUID)
                     }
                 }
@@ -195,22 +208,24 @@ function Invoke-ControlCommand {
                 }
 
                 $CWCServerTime=$Null
-                $Null = Invoke-ControlAPIMaster -Arguments $RESTRequest
-                If (!$CWCServerTime) {
-                    Write-Error $Error[0]
-                    return
-                }
-                $RequestTimer = [diagnostics.stopwatch]::StartNew()
-                If (!($EventDateFormatted)) {
-                    $EventDateFormatted = (Get-Date $CWCServerTime.ToUniversalTime() -UFormat "%Y-%m-%d %T")
-                }
-                $TimeOutDateTime = $CWCServerTime.AddMilliseconds($TimeOut+3000)
-                Foreach ($SessionsGUID in $AddSessions) {
-                    If ($PSCmdlet.ParameterSetName -ne 'CommandID') {
-                        $ResultObjects[$SessionsGUID] = New-ReturnObject -InputObject $ResultObjects[$SessionsGUID] -Result $TimeOutDateTime -PropertyName '__CommandTimeout' -IsSuccess $false
-                        $Null = $RemainingSessions.Add($SessionsGUID)
-                    } Else {
-                        $ResultObjects[$SessionsGUID] = New-ReturnObject -InputObject $ResultObjects[$SessionsGUID] -Result 'Command was queued for the session' -PropertyName $ResultPropertyName -IsSuccess $true
+                If ($PSCmdlet.ShouldProcess("Session(s) $($Addsessions -join ',')","Queue command id $($SessionEventType)")) {
+                    $Null = Invoke-ControlAPIMaster -Arguments $RESTRequest
+                    If (!$CWCServerTime) {
+                        Write-Error $Error[0]
+                        return
+                    }
+                    $RequestTimer = [diagnostics.stopwatch]::StartNew()
+                    If (!($EventDateFormatted)) {
+                        $EventDateFormatted = (Get-Date $CWCServerTime.ToUniversalTime() -UFormat "%Y-%m-%d %T")
+                    }
+                    $TimeOutDateTime = $CWCServerTime.AddMilliseconds($TimeOut+3000)
+                    Foreach ($SessionsGUID in $AddSessions) {
+                        If ($PSCmdlet.ParameterSetName -ne 'CommandID') {
+                            $ResultObjects[$SessionsGUID] = New-ReturnObject -InputObject $ResultObjects[$SessionsGUID] -Result $TimeOutDateTime -PropertyName '__CommandTimeout' -IsSuccess $false
+                            $Null = $RemainingSessions.Add($SessionsGUID)
+                        } Else {
+                            $ResultObjects[$SessionsGUID] = New-ReturnObject -InputObject $ResultObjects[$SessionsGUID] -Result 'Command was queued for the session' -PropertyName $ResultPropertyName -IsSuccess $true
+                        }
                     }
                 }
                 $AddSessions.Clear()
