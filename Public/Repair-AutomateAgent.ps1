@@ -120,7 +120,8 @@ echo "Starting Services"
 sleep 5; launchctl load /Library/LaunchDaemons/com.labtechsoftware.LTSvc.plist
 for CURRUSER in $LOGGEDUSERS; do su -l $CURRUSER -c 'launchctl load /Library/LaunchAgents/com.labtechsoftware.LTTray.plist'; done
 echo "Checking Services"
-(launchctl list; for CURRUSER in $LOGGEDUSERS; do su -l $CURRUSER -c 'launchctl list'; done) | grep -i "com.labtechsoftware"
+(for CURRUSER in $LOGGEDUSERS; do su -l $CURRUSER -c 'launchctl list'; done) | grep -i "com.labtechsoftware"
+launchctl list | grep -i "com.labtechsoftware"&&echo "LTService Restarted successfully"
 '@ -TimeOut 60000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
             )
             $ObjectCapture | Where-Object {!($_.OperatingSystemName -like '*windows*' -or $_.OperatingSystemName -like '*OS X*')}  | ForEach-Object {
@@ -154,6 +155,7 @@ cd /tmp&&(
     [ -f config.sh.bak ]&&sed "s/LOCATION_ID=[0-9]*/LOCATION_ID=`$LOCATIONID/" config.sh.bak > config.sh&&[ -f config.sh ]&&echo "SUCCESS-Installer Data Updated for location `$LOCATIONID" 
     cat ./config.sh
     . ./config.sh ; installer -pkg ./LTSvc.mpkg -verbose -target /; [ -d /usr/local/ltechagent ]&&echo SUCCESS-Installer completed
+    launchctl list | grep -i "com.labtechsoftware"&&echo "LTService Started successfully"
    )  
   )||echo ERROR-Failed to extract
  )||echo ERROR-Failed to download cwaagent.zip
@@ -179,7 +181,7 @@ cd /tmp&&(
                $singleResult=$SResultLookup[$SessionID] | Select-Object -Expand $RepairProperty
                $AutofixSuccess = $false
                If ($Action -eq 'Check') {
-                  If ($singleResult.$RepairProperty -like '*LastSuccessStatus*') {$AutofixSuccess = $true}
+                  If ($singleResult.$RepairProperty -like '*LastSuccessStatus*' -or $singleResult.$RepairProperty -like '*is_signed_in*') {$AutofixSuccess = $true}
                } ElseIf ($Action -eq 'Update') {
                   If ($singleResult.$RepairProperty -like '*successfully*') {$AutofixSuccess = $true}
                } ElseIf ($Action -eq 'Restart') {
