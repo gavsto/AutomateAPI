@@ -183,8 +183,10 @@ Connect-AutomateAPI -Quiet
             $TwoFactorNeeded=$AutomateAPITokenResult.IsTwoFactorRequired
             If ($PSCmdlet.ParameterSetName -eq 'verify' -and !$AuthorizationToken -and $AutomateAPITokenResult -and $TwoFactorNeeded -ne $True) {
                 $AuthorizationToken = $Script:CWAToken.Authorization -replace 'Bearer ',''
+                $Script:CWAToken.Authorization=$Null
             }
         } Until ($Quiet -or ![string]::IsNullOrEmpty($AuthorizationToken) -or 
+                ($PSCmdlet.ParameterSetName -eq 'verify' -and !$AuthorizationToken) -or
                 ($TwoFactorNeeded -ne $True -and $Credential) -or 
                 ($TwoFactorNeeded -eq $True -and $TwoFactorToken -ne '')
             )
