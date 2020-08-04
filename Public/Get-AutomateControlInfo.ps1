@@ -13,7 +13,7 @@ Used for Pipeline input from Get-AutomateComputer
 .OUTPUTS
 Custom object with the ComputerID and Control SessionID. Additional properties from the return data will be included.
 .NOTES
-Version:        1.2
+Version:        1.2.1
 Author:         Gavin Stone
 Creation Date:  2019-01-20
 Purpose/Change: Initial script development
@@ -26,6 +26,10 @@ Update Date:    2020-07-20
 Author:         Darren White
 Purpose/Change: Standardized on ComputerID for parameter name
 
+Update Date:    2020-08-04
+Author:         Darren White
+Purpose/Change: Use Get-AutomateAPIGeneric internally, Error handling
+
 .EXAMPLE
 Get-AutomateControlInfo -ComputerId 123
 #>
@@ -37,7 +41,6 @@ Get-AutomateControlInfo -ComputerId 123
 
         [Parameter(ParameterSetName = 'pipeline', ValueFromPipeline = $true, Mandatory = $True)]
         $ComputerObjects
-        
     )
 
     Begin {
@@ -64,29 +67,32 @@ Get-AutomateControlInfo -ComputerId 123
 
         ForEach ($Computer in $ComputerObjects) {
             If ($PSCmdlet.ParameterSetName -eq 'pipeline') {
-                $Null = $Computer | Add-Member -NotePropertyName 'SessionID' -NotePropertyValue 'Not Found' -Force
+                $Null = $Computer | Add-Member -NotePropertyName 'SessionID' -NotePropertyValue 'Not Found' -Force -EA 0
             }
-            $url = ($Script:CWAServer + "/cwa/api/v1/extensionactions/control/$($Computer.ComputerID)")
-            Try {
-                $Result = Invoke-RestMethod -Uri $url -Headers $script:CWAToken -ContentType "application/json"
+            If ($Computer.ComputerID -and $Computer.ComputerID -gt 0) {
+                Try {
+                    $Result = Get-AutomateAPIGeneric -Endpoint "extensionactions/control/$($Computer.ComputerID)" -ResultSetSize 1
 
-                $ResultMatch=$Result|select-string -Pattern '^(https?://[^?]*)\??(.*)' -AllMatches
-                If ($ResultMatch.Matches) {
-                    $Null = $Computer | Add-Member -NotePropertyName LaunchURL -NotePropertyValue $($ResultMatch.Matches.Groups[0].Value) -Force
-                    $Null = $Computer | Add-Member -MemberType ScriptMethod -Name 'LaunchSession' -Value {Start-Process "$($this.LaunchURL)"} -Force
-                    ForEach ($NameValue in $($ResultMatch.Matches.Groups[2].Value -split '&')) {
-                        $xName = $NameValue -replace '=.*$',''
-                        $xValue = $NameValue -replace '^[^=]*=?',''
-                        If ($Computer | Get-Member -Name $xName) {
-                            $Computer.$xName=$xValue
-                        } Else {
-                            $Null = $Computer | Add-Member -NotePropertyName $xName -NotePropertyValue $xValue -Force
-                        } #End If
-                    } #End ForEach
-                } #End If
-            } Catch {}
-            $Null = $Computer | Add-Member -MemberType AliasProperty -Name ControlGUID -Value SessionID -Force
-            $Computer
+                    $ResultMatch=$Result|select-string -Pattern '^(https?://[^?]*)\??(.*)' -AllMatches
+                    If ($ResultMatch.Matches) {
+                        $Null = $Computer | Add-Member -NotePropertyName LaunchURL -NotePropertyValue $($ResultMatch.Matches.Groups[0].Value) -Force
+                        $Null = $Computer | Add-Member -MemberType ScriptMethod -Name 'LaunchSession' -Value {Start-Process "$($this.LaunchURL)"} -Force
+                        ForEach ($NameValue in $($ResultMatch.Matches.Groups[2].Value -split '&')) {
+                            $xName = $NameValue -replace '=.*$',''
+                            $xValue = $NameValue -replace '^[^=]*=?',''
+                            If ($Computer | Get-Member -Name $xName) {
+                                $Computer.$xName=$xValue
+                            } Else {
+                                $Null = $Computer | Add-Member -NotePropertyName $xName -NotePropertyValue $xValue -Force -EA 0
+                            } #End If
+                        } #End ForEach
+                    } #End If
+                } Catch {}
+                $Null = $Computer | Add-Member -MemberType AliasProperty -Name ControlGUID -Value SessionID -Force -EA 0
+                $Computer
+            } Else {
+                Write-Host -BackgroundColor Yellow -ForegroundColor Red "An object was passed that is missing a required property (ComputerID)"
+            }
         } #End ForEach
     } #End Process
 
