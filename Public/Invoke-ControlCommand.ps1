@@ -175,6 +175,7 @@ function Invoke-ControlCommand {
         $ProcessSessions=@($ResultObjects.Keys)
         $RemainingSessions={}.Invoke()
         $AddSessions={}.Invoke()
+        $BashSessions={}.Invoke()
         $EventDateFormatted=$Null
         $SessionIndex=0
         Do {
@@ -184,17 +185,23 @@ function Invoke-ControlCommand {
                 $SessionIndex++
             }
 
-            If ($AddSessions.Count -gt 0 -and $OfflineAction -eq 'Skip') {
+            If ($AddSessions.Count -gt 0 -and ($OfflineAction -eq 'Skip' -or $SessionEventType -eq 44)) { #Need to check session details before queueing command
                 $AddingSessions=@($AddSessions.GetEnumerator())
                 $ControlSessions = @{ };
-                Get-ControlSessions -SessionID $AddingSessions | ForEach-Object { $ControlSessions.Add($_.SessionID, $($_ | Select-Object -Property OnlineStatusControl, LastConnected, CommandSubmitDate)) }
+                Get-ControlSession -SessionID $AddingSessions -IncludeProperty GuestOperatingSystemManufacturerName,GuestOperatingSystemName | ForEach-Object { $ControlSessions.Add($_.SessionID, $($_ | Select-Object -Property OnlineStatusControl,LastConnected,CommandSubmitDate,GuestOperatingSystemManufacturerName,GuestOperatingSystemName)) }
                 ForEach ($AddGUID in $AddingSessions) {
-                    #Check Online Status. Weed out sessions that have never connected or are not valid.
-                    If (!($ControlSessions[$AddGUID].OnlineStatusControl -eq $True)) {
+                    Write-Debug "Checking if session $($AddGUID) running $($ControlSessions[$AddGUID].GuestOperatingSystemManufacturerName) $($ControlSessions[$AddGUID].GuestOperatingSystemName) is connected ($($ControlSessions[$AddGUID].OnlineStatusControl))"
+                    #Check Online Status.
+                    If ($OfflineAction -eq 'Skip' -and !($ControlSessions[$AddGUID].OnlineStatusControl -eq $True)) {
+                        #Weed out sessions that have never connected or are not valid.
                         If ($PSCmdlet.ShouldProcess("Disconnected Session $($AddGUID)","Skipping")) {
                             $ResultObjects[$AddGUID] = New-ReturnObject -InputObject $ResultObjects[$AddGUID] -Result 'Skipped. Session was not connected.' -PropertyName $ResultPropertyName -IsSuccess $false
                         }
                         $Null = $AddSessions.Remove($AddGUID)
+                    } ElseIf ($SessionEventType -eq 44 -and $ControlSessions[$AddGUID].GuestOperatingSystemName -and !($ControlSessions[$AddGUID].GuestOperatingSystemManufacturerName -match 'Microsoft' -or $ControlSessions[$AddGUID].GuestOperatingSystemName -match 'Windows')) {
+                        #Handle Commands for OSX/Linux agents
+                        $Null = $AddSessions.Remove($AddGUID)
+                        $Null = $BashSessions.Add($AddGUID)
                     }
                 }
             }
@@ -231,6 +238,38 @@ function Invoke-ControlCommand {
                 $AddSessions.Clear()
             }
 
+            If ($BashSessions.Count -gt 0) {
+                $Body = ConvertTo-Json @($User, $BashSessions, $SessionEventType, $($CommandBody -replace '(?s)^#!ps|(?<=[\n])(@ECHO OFF&|\$ProgressPreference=''SilentlyContinue''; )|[\r]','') ) -Compress
+
+                $RESTRequest = @{
+                    'URI'         = "ReplicaService.ashx/PageAddEventToSessions"
+                    'Body'        = $Body
+                }
+
+                $CWCServerTime=$Null
+                If ($PSCmdlet.ShouldProcess("Session(s) $($BashSessions -join ',')","Queue command id $($SessionEventType)")) {
+                    $Null = Invoke-ControlAPIMaster -Arguments $RESTRequest
+                    If (!$CWCServerTime) {
+                        Write-Error $Error[0]
+                        return
+                    }
+                    $RequestTimer = [diagnostics.stopwatch]::StartNew()
+                    If (!($EventDateFormatted)) {
+                        $EventDateFormatted = (Get-Date $CWCServerTime.ToUniversalTime() -UFormat "%Y-%m-%d %T")
+                    }
+                    $TimeOutDateTime = $CWCServerTime.AddMilliseconds($TimeOut+3000)
+                    Foreach ($SessionsGUID in $BashSessions) {
+                        If ($PSCmdlet.ParameterSetName -ne 'CommandID') {
+                            $ResultObjects[$SessionsGUID] = New-ReturnObject -InputObject $ResultObjects[$SessionsGUID] -Result $TimeOutDateTime -PropertyName '__CommandTimeout' -IsSuccess $false
+                            $Null = $RemainingSessions.Add($SessionsGUID)
+                        } Else {
+                            $ResultObjects[$SessionsGUID] = New-ReturnObject -InputObject $ResultObjects[$SessionsGUID] -Result 'Command was queued for the session' -PropertyName $ResultPropertyName -IsSuccess $true
+                        }
+                    }
+                }
+                $BashSessions.Clear()
+            }
+
             If ($RemainingSessions.Count -gt 0) {
 
                 Start-Sleep -Seconds $(Get-SleepDelay -Seconds $([int]($RequestTimer.Elapsed.TotalSeconds)) -TotalSeconds $([int]($TimeOut / 1000)))
@@ -257,7 +296,7 @@ function Invoke-ControlCommand {
                     If ($RemainingSessions.Contains($EventGUID)) {
                         $Output = $Event.Data.Trim()
                         If ($Output -match "$cmdMarker") {
-                            $Output = $Output -replace "^.*?$cmdMarker\s+(?<=[\n])", ''
+                            $Output = $Output -replace "^.*?$cmdMarker((?=$)|\s*(?<=[\n]))", ''
                             $ResultObjects[$EventGUID] = New-ReturnObject -InputObject $ResultObjects[$EventGUID] -Result $Output -PropertyName $ResultPropertyName -IsSuccess $true
                             $Null = $RemainingSessions.Remove($EventGUID)
                         }
@@ -266,7 +305,7 @@ function Invoke-ControlCommand {
 
                 $WaitingSessions=@($RemainingSessions.GetEnumerator())
                 Foreach ($WaitingGUID in $WaitingSessions) {
-                    If ($EventDate -gt $ResultObjects[$WaitingGUID].__CommandTimeout) {
+                    If ($CWCServerTime -gt $ResultObjects[$WaitingGUID].__CommandTimeout) {
                         Write-Debug "Expiring Session $($WaitingGUID)"
                         If ($OfflineAction -eq 'Queue') {
                             $ResultObjects[$WaitingGUID] = New-ReturnObject -InputObject $ResultObjects[$WaitingGUID] -Result 'Command was queued for the session' -PropertyName $ResultPropertyName -IsSuccess $false
@@ -280,7 +319,7 @@ function Invoke-ControlCommand {
         } Until ($SessionIndex -eq $ProcessSessions.Count -and $RemainingSessions.Count -eq 0)
 
         If ($SessionCollection.Count -eq 1 -and !($PassthroughObjects)) {
-            $ResultObjects.Values | Select-Object -ExpandProperty "$ResultPropertyName" -ErrorAction SilentlyContinue
+            $ResultObjects.Values | Select-Object -ExpandProperty $ResultPropertyName -ErrorAction SilentlyContinue
         } ElseIf (!($PassthroughObjects)) {
             $SessionCollection | Select-Object -Property @{n=$ResultPropertyName;e={If ($_.SessionID) {[string]$SessionID=$_.SessionID} Else {[string]$SessionID=$_}; Write-Debug "Inserting results for sessionID $($SessionID)"; If ($ResultObjects.ContainsKey($SessionID)) {$ResultObjects[$SessionID]|Select-Object -Property * -ExcludeProperty __CommandTimeout} Else {"Results for SessionID $($SessionID) were not found"} }} | Select-Object -ExpandProperty "$ResultPropertyName"
         } Else {
