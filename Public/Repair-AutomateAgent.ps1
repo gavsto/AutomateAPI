@@ -72,11 +72,11 @@ function Repair-AutomateAgent {
                      $_
                   }
                } | Invoke-ControlCommand -Command @'
-[ -f /usr/local/ltechagent/state ]&&(echo "["
-cat /usr/local/ltechagent/state 2>/dev/null
-[ -f /usr/local/ltechagent/agent_config ]&&echo ',{'
-cat /usr/local/ltechagent/agent_config | awk '{ print "\"" $1 "\": \"" $2 "\","} END { print "\"" $1 "\": \"" $2 "\"\n}]"}')
-'@ -TimeOut 60000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
+[ -f /usr/local/ltechagent/state ]&&(echo "[{\"state\": "; cat /usr/local/ltechagent/state 2>/dev/null; echo "}"
+[ -f /usr/local/ltechagent/agent_config ]&&(cat /usr/local/ltechagent/agent_config | awk 'BEGIN {print ",\{\"agent_config\": \{"}; { row[NR]= "\"" $1 "\": \"" $2 "\"" }; END { for (i = 1; i < NR; i++) { print row[i] ","}; print row[NR] "\n\}\n\}" }')
+[ -f /usr/local/ltechagent/agent.log ]&&(tail -n 100 /usr/local/ltechagent/agent.log | awk 'BEGIN { print ",\{\"lterrors\": \["}; { gsub ("[\\\\]","\\"); gsub ("[\\\"]","\\\""); gsub ("[\\\/]","\\\/"); gsub ("[\\b]","\\b"); gsub ("[\\f]","\\f"); gsub ("[\\t]","\\t"); row[NR]=$0 }; END { for (i = 1; i < NR; i++) { print "\"" row[i] "\","}; print "\"" row[NR] "\"\n\]\}" }')
+echo "]")
+'@ -TimeOut 60000 -MaxLength 102400 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
             )
             $ObjectCapture | Where-Object {!($_.OperatingSystemName -like '*windows*' -or $_.OperatingSystemName -like '*OS X*')}  | ForEach-Object {
                Write-Host -BackgroundColor Yellow -ForegroundColor Red "$($_.ComputerID) - $($_.ComputerName) - $Action action for Operating System ($($_.OperatingSystemName)) is not supported at present in this module"
@@ -122,7 +122,7 @@ for CURRUSER in $LOGGEDUSERS; do su -l $CURRUSER -c 'launchctl load /Library/Lau
 echo "Checking Services"
 (for CURRUSER in $LOGGEDUSERS; do su -l $CURRUSER -c 'launchctl list'; done) | grep -i "com.labtechsoftware"
 launchctl list | grep -i "com.labtechsoftware"&&echo "LTService Restarted successfully"
-'@ -TimeOut 60000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
+'@ -TimeOut 120000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
             )
             $ObjectCapture | Where-Object {!($_.OperatingSystemName -like '*windows*' -or $_.OperatingSystemName -like '*OS X*')}  | ForEach-Object {
                Write-Host -BackgroundColor Yellow -ForegroundColor Red "$($_.ComputerID) - $($_.ComputerName) - $Action action for Operating System ($($_.OperatingSystemName)) is not supported at present in this module"
@@ -153,7 +153,6 @@ cd /tmp&&(
    cd /tmp/CWAutomate&&(
     mv -f config.sh config.sh.bak 2>/dev/null
     [ -f config.sh.bak ]&&sed "s/LOCATION_ID=[0-9]*/LOCATION_ID=`$LOCATIONID/" config.sh.bak > config.sh&&[ -f config.sh ]&&echo "SUCCESS-Installer Data Updated for location `$LOCATIONID" 
-    cat ./config.sh
     . ./config.sh ; installer -pkg ./LTSvc.mpkg -verbose -target /; [ -d /usr/local/ltechagent ]&&echo SUCCESS-Installer completed
     launchctl list | grep -i "com.labtechsoftware"&&echo "LTService Started successfully"
    )  
@@ -161,7 +160,7 @@ cd /tmp&&(
  )||echo ERROR-Failed to download cwaagent.zip
 )||echo ERROR-Failed to change path to /tmp
 )| sed -e 's/`$/\'`$'\r/g'
-"@ -TimeOut 60000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
+"@ -TimeOut 300000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
                   }
                }
             )
