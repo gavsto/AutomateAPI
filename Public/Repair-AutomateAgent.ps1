@@ -74,7 +74,7 @@ function Repair-AutomateAgent {
                } | Invoke-ControlCommand -Command @'
 [ -f /usr/local/ltechagent/state ]&&(echo "[{\"state\": "; cat /usr/local/ltechagent/state 2>/dev/null; echo "}"
 [ -f /usr/local/ltechagent/agent_config ]&&(cat /usr/local/ltechagent/agent_config | awk 'BEGIN {print ",\{\"agent_config\": \{"}; { row[NR]= "\"" $1 "\": \"" $2 "\"" }; END { for (i = 1; i < NR; i++) { print row[i] ","}; print row[NR] "\n\}\n\}" }')
-[ -f /usr/local/ltechagent/agent.log ]&&(tail -n 100 /usr/local/ltechagent/agent.log | awk 'BEGIN { print ",\{\"lterrors\": \["}; { gsub ("[\\\\]","\\"); gsub ("[\\\"]","\\\""); gsub ("[\\\/]","\\\/"); gsub ("[\\b]","\\b"); gsub ("[\\f]","\\f"); gsub ("[\\t]","\\t"); row[NR]=$0 }; END { for (i = 1; i < NR; i++) { print "\"" row[i] "\","}; print "\"" row[NR] "\"\n\]\}" }')
+[ -f /usr/local/ltechagent/agent.log ]&&(tail -n 100 /usr/local/ltechagent/agent.log | awk 'BEGIN { print ",\{\"lterrors\": \["}; { gsub ("[\\\\]","\\\\"); gsub ("[\\\"]","\\\""); gsub ("[\\\/]","\\\/"); gsub ("[\\b]","\\b"); gsub ("[\\f]","\\f"); gsub ("[\\t]","\\t"); row[NR]=$0 }; END { for (i = 1; i < NR; i++) { print "\"" row[i] "\","}; print "\"" row[NR] "\"\n\]\}" }')
 echo "]")
 '@ -TimeOut 60000 -MaxLength 102400 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
             )
