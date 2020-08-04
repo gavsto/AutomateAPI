@@ -51,11 +51,14 @@ function Compare-AutomateControlStatus {
         $ComputerArray = @()
         $ObjectRebuild = @()
         $ReturnedObject = @()
+        $FullLookupMethod = $False
     }
     
     Process {
         If ($ComputerObject) {
-            $ObjectRebuild += $ComputerObject 
+            Foreach ($Computer in $ComputerObject) {
+                $ObjectRebuild += $Computer
+            }
         }
     }
     
@@ -64,13 +67,14 @@ function Compare-AutomateControlStatus {
         # We want to support all ComputerIDs being called if no computer object is passed in
         If (!$Quiet){Write-Host -BackgroundColor Blue -ForegroundColor White "Checking to see if the recommended Internal Monitor is present"}
         $AutoControlSessions=@{};
-        $Null=Get-AutomateAPIGeneric -Endpoint "InternalMonitorResults" -allresults -condition "(Name like '%GetControlSessionIDs%')" -EA 0 | Where-Object {($_.computerid -and $_.computerid -gt 0 -and $_.IdentityField -and $_.IdentityField -match '.+')} | ForEach-Object {$AutoControlSessions.Add($_.computerid,$_.IdentityField)};
+        $Null=Get-AutomateAPIGeneric -Endpoint "InternalMonitorResults" -allresults -condition "(Name like '%GetControlSessionIDs%')" -EA 0 | Where-Object {($_.computerid -and $_.computerid -gt 0 -and $_.IdentityField -and $_.IdentityField -match '.+')} | ForEach-Object {$AutoControlSessions.Add([int]$_.computerid,$_.IdentityField)};
+        If ($AutoControlSessions.Count -gt 0 -and !$Quiet){Write-Host -BackgroundColor Blue -ForegroundColor White "Internal Monitor is present"}
 
         # Check to see if any Computers were specified in the incoming object
         If (!($ObjectRebuild.Count -gt 0)) {$FullLookupMethod = $true}
 
         If ($FullLookupMethod) {
-            $ObjectRebuild = Get-AutomateComputer | Select-Object ComputerId, ComputerName, @{Name = 'ClientName'; Expression = {$_.Client.Name}}, OperatingSystemName, Status 
+            $ObjectRebuild = Get-AutomateComputer | Select-Object ComputerId, ComputerName, Client, Location, OperatingSystemName, Status 
         }
 
         Foreach ($Computer in $ObjectRebuild) {
@@ -82,9 +86,14 @@ function Compare-AutomateControlStatus {
             }
 
             $FinalComputerObject = $Computer
-            $Null = $FinalComputerObject | Add-Member -MemberType NoteProperty -Name OnlineStatusAutomate -Value $Computer.Status -Force -EA 0
+            If ($Computer|Get-Member -Name Status) {
+                $Null = $FinalComputerObject | Add-Member -MemberType NoteProperty -Name OnlineStatusAutomate -Value $Computer.Status -Force -EA 0
+            } Else {
+                Write-Debug "Refreshing Automate Status for Computer ID $($FinalComputerObject.ComputerID)"
+                $Null = $FinalComputerObject | Add-Member -MemberType NoteProperty -Name OnlineStatusAutomate -Value $(Get-AutomateComputer -ComputerID $FinalComputerObject.ComputerID -IncludeFields Status).Status -Force -EA 0
+            } 
             $Null = $FinalComputerObject | Add-Member -MemberType NoteProperty -Name SessionID -Value $AutoControlSessionID -Force -EA 0
-            If([string]::IsNullOrEmpty($Computer.ClientName)) {
+            If([string]::IsNullOrEmpty($Computer.ClientName) -and $Computer.Client -and $Computer.Client.Name -match '.+') {
                 $Null = $FinalComputerObject | Add-Member -MemberType NoteProperty -Name ClientName -Value $Computer.Client.Name -Force -EA 0
             }
             $Null = $FinalComputerObject.PSObject.properties.remove('Status')
@@ -98,7 +107,7 @@ function Compare-AutomateControlStatus {
 
         #Control Sessions
         $ControlSessions=@{};
-        Get-ControlSessions -SessionID $SessionIDsToCheck | ForEach-Object {$ControlSessions.Add($_.SessionID, $($_|Select-Object -Property OnlineStatusControl,LastConnected))}
+        Get-ControlSessions -SessionID $SessionIDsToCheck | ForEach-Object {$ControlSessions.Add([string]$_.SessionID, $($_|Select-Object -Property OnlineStatusControl,LastConnected))}
 
         Foreach ($Final in $ComputerArray) {
             $CAReturn = $Final
