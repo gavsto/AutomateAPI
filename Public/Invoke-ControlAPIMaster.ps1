@@ -78,20 +78,19 @@ function Invoke-ControlAPIMaster {
         }
 
         # Issue request
-        Write-Debug "Calling ControlAPI the following arguments:`n$(($Arguments|Out-String -Stream) -join "`n")"
+        Write-Debug "Calling Control Server Extension with the following arguments:`n$(($Arguments|Out-String -Stream) -join "`n")"
         Try {
             $ProgressPreference = 'SilentlyContinue'
             $Result = Invoke-WebRequest @Arguments -InformationAction 'SilentlyContinue'
         } 
         Catch {
+            # Start error message
+            $ErrorMessage = @()
             If($_.Exception.Response){
                 # Read exception response
                 $ErrorStream = $_.Exception.Response.GetResponseStream()
                 $Reader = New-Object System.IO.StreamReader($ErrorStream)
                 $global:ErrBody = $Reader.ReadToEnd() | ConvertFrom-Json
-
-                # Start error message
-                $ErrorMessage = @()
 
                 If($errBody.code){
                     $ErrorMessage += "An exception has been thrown."
@@ -119,7 +118,8 @@ function Invoke-ControlAPIMaster {
                     $ErrorMessage += "-----> $($errDetails.errors.message)"
                 }
             }
-            Write-Error ($ErrorMessage | out-string -Stream)
+            If (!$ErrorMessage) {$ErrorMessage+='An unknown error was returned'; $ErrorMessage+=$Result|Out-String -Stream}
+            Write-Error ($ErrorMessage | Out-String)
             Return
         }
 
