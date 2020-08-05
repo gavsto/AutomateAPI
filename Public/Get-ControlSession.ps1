@@ -218,7 +218,7 @@ function Get-ControlSession {
                 }
             If ($SCConnected[$sessid] -eq $True) {
                 $SessionResult.OnlineStatusControl = $True
-                $SessionResult.LastConnected = $Now.ToUniversalTime()
+                $SessionResult.LastConnected = $Now
             } ElseIf ($Null -ne $SCConnected[$sessid]) {
                 $SessionResult.LastConnected = Get-Date($SCConnected[$sessid])
             }
