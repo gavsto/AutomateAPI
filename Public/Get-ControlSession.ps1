@@ -205,7 +205,7 @@ function Get-ControlSession {
         }
 
         # If no sessions were requested, just send returned sessions.
-        If (!($InputSessionIDCollection)) {$InputSessionIDCollection = $SCConnected.Keys}
+        If (!($InputSessionIDCollection)) {$InputSessionIDCollection = $SessionLookup.Keys}
 
         #Build final output objects with session information gathered into $SCConnected hashtable
         $Now = Get-Date 
