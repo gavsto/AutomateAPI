@@ -60,12 +60,12 @@ function Repair-AutomateAgent {
          Write-Host -ForegroundColor Green "Starting fixes"
          If ($Action -eq 'Check') {
             $ServiceResults = $(
-               $ObjectCapture | Where-Object {$_.OperatingSystemName -like '*windows*'} | ForEach-Object {
+               $ObjectCapture | Where-Object {$_.OperatingSystemName -like '*Windows*'} | ForEach-Object {
                   If ($PSCmdlet.ShouldProcess("Automate Services on $($_.ComputerID) - $($_.ComputerName)",$Action)) {
                      Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($_.ComputerID) - $($_.ComputerName) - Attempting to $Action Automate Services - job will be submitted to online systems"
                      $_
                   }
-               } | Invoke-ControlCommand -Powershell -Command "(new-object Net.WebClient).DownloadString('$($LTPoShURI)') | iex; Get-LTServiceInfo" -TimeOut 60000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
+               } | Invoke-ControlCommand -Powershell -Command "(new-object Net.WebClient).DownloadString('$($LTPoShURI)') | iex; Try {Get-LTServiceInfo} Catch {'Error getting service settings. Checking LTErrors.txt'; Get-Content `"`${env:windir}\ltsvc\lterrors.txt`" | Select-Object -Last 100 }" -TimeOut 60000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
                $ObjectCapture | Where-Object {$_.OperatingSystemName -like '*OS X*'}  | ForEach-Object {
                   If ($PSCmdlet.ShouldProcess("Automate Services on $($_.ComputerID) - $($_.ComputerName)",$Action)) {
                      Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($_.ComputerID) - $($_.ComputerName) - Attempting to $Action Automate Services - job will be submitted to online systems"
@@ -73,17 +73,28 @@ function Repair-AutomateAgent {
                   }
                } | Invoke-ControlCommand -Command @'
 [ -f /usr/local/ltechagent/state ]&&(echo "[{\"state\": "; cat /usr/local/ltechagent/state 2>/dev/null; echo "}"
-[ -f /usr/local/ltechagent/agent_config ]&&(cat /usr/local/ltechagent/agent_config | awk 'BEGIN {print ",\{\"agent_config\": \{"}; { row[NR]= "\"" $1 "\": \"" $2 "\"" }; END { for (i = 1; i < NR; i++) { print row[i] ","}; print row[NR] "\n\}\n\}" }')
+[ -f /usr/local/ltechagent/agent_config ]&&(cat /usr/local/ltechagent/agent_config | awk 'BEGIN { print ",\{\"agent_config\": \{"}; { row[NR]= "\"" $1 "\": \"" $2 "\"" }; END { for (i = 1; i < NR; i++) { print row[i] ","}; print row[NR] "\n\}\n\}" }')
+[ -f /usr/local/ltechagent/agent.log ]&&(tail -n 100 /usr/local/ltechagent/agent.log | awk 'BEGIN { print ",\{\"lterrors\": \["}; { gsub ("[\\\\]","\\\\"); gsub ("[\\\"]","\\\""); gsub ("[\\\/]","\\\/"); gsub ("[\\b]","\\b"); gsub ("[\\f]","\\f"); gsub ("[\\t]","\\t"); row[NR]=$0 }; END { for (i = 1; i < NR; i++) { print "\"" row[i] "\","}; print "\"" row[NR] "\"\n\]\}" }')
+echo "]")
+'@ -TimeOut 60000 -MaxLength 102400 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
+               $ObjectCapture | Where-Object {$_.OperatingSystemName -like '*Linux*'}  | ForEach-Object {
+                  If ($PSCmdlet.ShouldProcess("Automate Services on $($_.ComputerID) - $($_.ComputerName)",$Action)) {
+                     Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($_.ComputerID) - $($_.ComputerName) - Attempting to $Action Automate Services - job will be submitted to online systems"
+                     $_
+                  }
+               } | Invoke-ControlCommand -Command @'
+[ -f /usr/local/ltechagent/state ]&&(echo "[{\"state\": "; cat /usr/local/ltechagent/state 2>/dev/null; echo "}"
+[ -f /usr/local/ltechagent/agent_config ]&&(cat /usr/local/ltechagent/agent_config | awk 'BEGIN { print ",\{\"agent_config\": \{"}; { row[NR]= "\"" $1 "\": \"" $2 "\"" }; END { for (i = 1; i < NR; i++) { print row[i] ","}; print row[NR] "\n\}\n\}" }')
 [ -f /usr/local/ltechagent/agent.log ]&&(tail -n 100 /usr/local/ltechagent/agent.log | awk 'BEGIN { print ",\{\"lterrors\": \["}; { gsub ("[\\\\]","\\\\"); gsub ("[\\\"]","\\\""); gsub ("[\\\/]","\\\/"); gsub ("[\\b]","\\b"); gsub ("[\\f]","\\f"); gsub ("[\\t]","\\t"); row[NR]=$0 }; END { for (i = 1; i < NR; i++) { print "\"" row[i] "\","}; print "\"" row[NR] "\"\n\]\}" }')
 echo "]")
 '@ -TimeOut 60000 -MaxLength 102400 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
             )
-            $ObjectCapture | Where-Object {!($_.OperatingSystemName -like '*windows*' -or $_.OperatingSystemName -like '*OS X*')}  | ForEach-Object {
+            $ObjectCapture | Where-Object {!($_.OperatingSystemName -like '*Windows*' -or $_.OperatingSystemName -like '*OS X*' -or $_.OperatingSystemName -like '*Linux*')}  | ForEach-Object {
                Write-Host -BackgroundColor Yellow -ForegroundColor Red "$($_.ComputerID) - $($_.ComputerName) - $Action action for Operating System ($($_.OperatingSystemName)) is not supported at present in this module"
             }
          } ElseIf ($Action -eq 'Update') {
             $ServiceResults = $(
-               $ObjectCapture | Where-Object {$_.OperatingSystemName -like '*windows*'} | ForEach-Object {
+               $ObjectCapture | Where-Object {$_.OperatingSystemName -like '*Windows*'} | ForEach-Object {
                   If ($PSCmdlet.ShouldProcess("Automate Services on $($_.ComputerID) - $($_.ComputerName)",$Action)) {
                      Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($_.ComputerID) - $($_.ComputerName) - Attempting to $Action Automate Services - job will be submitted to online systems"
                      $_
@@ -95,24 +106,30 @@ echo "]")
                      $_
                   }
                } | Invoke-ControlCommand -Command '/usr/local/ltechagent/ltupdate' -TimeOut 60000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
-            )
-            $ObjectCapture | Where-Object {!($_.OperatingSystemName -like '*windows*' -or $_.OperatingSystemName -like '*OS X*')}  | ForEach-Object {
-               Write-Host -BackgroundColor Yellow -ForegroundColor Red "$($_.ComputerID) - $($_.ComputerName) - $Action action for Operating System ($($_.OperatingSystemName)) is not supported at present in this module"
-            }
-         } ElseIf ($Action -eq 'Restart') {
-            $ServiceResults = $(
-               $ObjectCapture | Where-Object {$_.OperatingSystemName -like '*windows*'} | ForEach-Object {
+               $ObjectCapture | Where-Object {$_.OperatingSystemName -like '*Linux*'}  | ForEach-Object {
                   If ($PSCmdlet.ShouldProcess("Automate Services on $($_.ComputerID) - $($_.ComputerName)",$Action)) {
                      Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($_.ComputerID) - $($_.ComputerName) - Attempting to $Action Automate Services - job will be submitted to online systems"
                      $_
                   }
-               } | Invoke-ControlCommand -Powershell -Command "(new-object Net.WebClient).DownloadString('$($LTPoShURI)') | iex; Restart-LTService" -TimeOut 120000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
+               } | Invoke-ControlCommand -Command '/usr/local/ltechagent/ltupdate' -TimeOut 60000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
+            )
+            $ObjectCapture | Where-Object {!($_.OperatingSystemName -like '*Windows*' -or $_.OperatingSystemName -like '*OS X*' -or $_.OperatingSystemName -like '*Linux*')}  | ForEach-Object {
+               Write-Host -BackgroundColor Yellow -ForegroundColor Red "$($_.ComputerID) - $($_.ComputerName) - $Action action for Operating System ($($_.OperatingSystemName)) is not supported at present in this module"
+            }
+         } ElseIf ($Action -eq 'Restart') {
+            $ServiceResults = $(
+               $ObjectCapture | Where-Object {$_.OperatingSystemName -like '*Windows*'} | ForEach-Object {
+                  If ($PSCmdlet.ShouldProcess("Automate Services on $($_.ComputerID) - $($_.ComputerName)",$Action)) {
+                     Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($_.ComputerID) - $($_.ComputerName) - Attempting to $Action Automate Services - job will be submitted to online systems"
+                     $_
+                  }
+               } | Invoke-ControlCommand -Powershell -Command "(new-object Net.WebClient).DownloadString('$($LTPoShURI)') | iex; Try {Restart-LTService} Catch {net stop ltsvcmon; net stop labvnc; net stop ltservice; TASKKILL /im ltsvcmon.exe /f; TASKKILL /im ltsvc.exe /f; TASKKILL /im lttray.exe /f; TASKKILL /im labvnc.exe /f; TASKKILL /im labtechupdate.exe /f /t; net start ltsvcmon; net start ltservice}" -TimeOut 120000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
                $ObjectCapture | Where-Object {$_.OperatingSystemName -like '*OS X*'}  | ForEach-Object {
                   If ($PSCmdlet.ShouldProcess("Automate Services on $($_.ComputerID) - $($_.ComputerName)",$Action)) {
                      Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($_.ComputerID) - $($_.ComputerName) - Attempting to $Action Automate Services - job will be submitted to online systems"
                      $_
                   }
-               }| Invoke-ControlCommand -Command @'
+               } | Invoke-ControlCommand -Command @'
 LOGGEDUSERS=`who | grep console | awk '{ print $1 }'`
 echo "Stopping Services"
 (launchctl unload /Library/LaunchDaemons/com.labtechsoftware.LTSvc.plist; launchctl unload /Library/LaunchDaemons/com.labtechsoftware.LTUpdate.plist; for CURRUSER in $LOGGEDUSERS; do su -l $CURRUSER -c 'launchctl unload /Library/LaunchAgents/com.labtechsoftware.LTTray.plist'; done)
@@ -123,17 +140,22 @@ echo "Checking Services"
 (for CURRUSER in $LOGGEDUSERS; do su -l $CURRUSER -c 'launchctl list'; done) | grep -i "com.labtechsoftware"
 launchctl list | grep -i "com.labtechsoftware"&&echo "LTService Restarted successfully"
 '@ -TimeOut 120000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
+               $ObjectCapture | Where-Object {$_.OperatingSystemName -like '*Linux*'}  | ForEach-Object {
+#                  If ($PSCmdlet.ShouldProcess("Automate Services on $($_.ComputerID) - $($_.ComputerName)",$Action)) {
+                     Write-Host -BackgroundColor Yellow -ForegroundColor Red "$($_.ComputerID) - $($_.ComputerName) - $Action action for Operating System ($($_.OperatingSystemName)) is not supported at present in this module"
+#                  }
+               }
             )
-            $ObjectCapture | Where-Object {!($_.OperatingSystemName -like '*windows*' -or $_.OperatingSystemName -like '*OS X*')}  | ForEach-Object {
+            $ObjectCapture | Where-Object {!($_.OperatingSystemName -like '*Windows*' -or $_.OperatingSystemName -like '*OS X*' -or $_.OperatingSystemName -like '*Linux*')}  | ForEach-Object {
                Write-Host -BackgroundColor Yellow -ForegroundColor Red "$($_.ComputerID) - $($_.ComputerName) - $Action action for Operating System ($($_.OperatingSystemName)) is not supported at present in this module"
             }
          } ElseIf ($Action -eq 'Reinstall') {
             $ServiceResults = $(
                $InstallerToken = Get-AutomateInstallerToken
-               $ObjectCapture | Where-Object {$_.OperatingSystemName -like '*windows*'} | ForEach-Object {
+               $ObjectCapture | Where-Object {$_.OperatingSystemName -like '*Windows*'} | ForEach-Object {
                   If ($PSCmdlet.ShouldProcess("Automate Services on $($_.ComputerID) - $($_.ComputerName)",$Action)) {
                      Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($_.ComputerID) - $($_.ComputerName) - Attempting to $Action Automate Services - job will be submitted to online systems"
-                     $_ | Invoke-ControlCommand -Powershell -Command "(new-object Net.WebClient).DownloadString('$($LTPoShURI)') | iex; Install-LTService -Server '$($Script:CWAServer)' -LocationID $($_.Location.Id) -InstallerToken '$($InstallerToken)' -Force -SkipDotNet -WhatIf" -TimeOut 300000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
+                     $_ | Invoke-ControlCommand -Powershell -Command "(new-object Net.WebClient).DownloadString('$($LTPoShURI)') | iex; Install-LTService -Server '$($Script:CWAServer)' -LocationID $($_.Location.Id) -InstallerToken '$($InstallerToken)' -Force -SkipDotNet" -TimeOut 300000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
                   }
                }
                $InstallerToken = Get-AutomateInstallerToken -InstallerType 5
@@ -141,7 +163,7 @@ launchctl list | grep -i "com.labtechsoftware"&&echo "LTService Restarted succes
                   If ($PSCmdlet.ShouldProcess("Automate Services on $($_.ComputerID) - $($_.ComputerName)",$Action)) {
                      Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($_.ComputerID) - $($_.ComputerName) - Attempting to $Action Automate Services - job will be submitted to online systems"
                      $_ | Invoke-ControlCommand -Command @"
-(LOCATIONID=$($_.Location.Id)
+LOCATIONID=$($_.Location.Id)
 cd /tmp&&(
  (rm -f cwaagent.zip; rm -Rf CWAutomate)&>/dev/null
  curl '$($Script:CWAServer)/LabTech/Deployment.aspx?InstallerToken=$($InstallerToken)' -s -o cwaagent.zip
@@ -159,12 +181,38 @@ cd /tmp&&(
   )||echo ERROR-Failed to extract
  )||echo ERROR-Failed to download cwaagent.zip
 )||echo ERROR-Failed to change path to /tmp
-)| sed -e 's/`$/\'`$'\r/g'
 "@ -TimeOut 300000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
                   }
                }
+               $InstallerToken = Get-AutomateInstallerToken -InstallerType 3
+               $ObjectCapture | Where-Object {$_.OperatingSystemName -like '*Linux*'} | ForEach-Object {
+                  Write-Host -BackgroundColor Yellow -ForegroundColor Red "$($_.ComputerID) - $($_.ComputerName) - $Action action for Operating System ($($_.OperatingSystemName)) is not supported at present in this module"
+<#                  If ($PSCmdlet.ShouldProcess("Automate Services on $($_.ComputerID) - $($_.ComputerName)",$Action)) {
+                     Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($_.ComputerID) - $($_.ComputerName) - Attempting to $Action Automate Services - job will be submitted to online systems"
+                     $_ | Invoke-ControlCommand -Command @"
+LOCATIONID=$($_.Location.Id)
+cd /tmp&&(
+ (rm -f cwaagent.zip; rm -Rf CWAutomate)&>/dev/null
+ curl '$($Script:CWAServer)/LabTech/Deployment.aspx?InstallerToken=$($InstallerToken)' -s -o cwaagent.zip
+ [[ `$(find cwaagent.zip -type f -size +1500000c 2>/dev/null) ]]&&(
+  echo SUCCESS-cwaagent.zip was downloaded
+  unzip -n -d CWAutomate cwaagent.zip &>/dev/null
+  [ -f CWAutomate/config.sh ]&&(
+   [ -f /usr/local/ltechagent/uninstaller.sh ]&&(echo Existing installation found. Removing.; /usr/local/ltechagent/uninstaller.sh)
+   cd /tmp/CWAutomate&&(
+    mv -f config.sh config.sh.bak 2>/dev/null
+    [ -f config.sh.bak ]&&sed "s/LOCATION_ID=[0-9]*/LOCATION_ID=`$LOCATIONID/" config.sh.bak > config.sh&&[ -f config.sh ]&&echo "SUCCESS-Installer Data Updated for location `$LOCATIONID" 
+    . ./config.sh ; installer -pkg ./LTSvc.mpkg -verbose -target /; [ -d /usr/local/ltechagent ]&&echo SUCCESS-Installer completed
+    launchctl list | grep -i "com.labtechsoftware"&&echo "LTService Started successfully"
+   )  
+  )||echo ERROR-Failed to extract
+ )||echo ERROR-Failed to download cwaagent.zip
+)||echo ERROR-Failed to change path to /tmp
+"@ -TimeOut 300000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects 
+                  } #>
+               }
             )
-            $ObjectCapture | Where-Object {!($_.OperatingSystemName -like '*windows*' -or $_.OperatingSystemName -like '*OS X*')}  | ForEach-Object {
+            $ObjectCapture | Where-Object {!($_.OperatingSystemName -like '*Windows*' -or $_.OperatingSystemName -like '*OS X*' -or $_.OperatingSystemName -like '*Linux*')}  | ForEach-Object {
                Write-Host -BackgroundColor Yellow -ForegroundColor Red "$($_.ComputerID) - $($_.ComputerName) - $Action action for Operating System ($($_.OperatingSystemName)) is not supported at present in this module"
             }
          } Else {
@@ -184,7 +232,7 @@ cd /tmp&&(
                } ElseIf ($Action -eq 'Update') {
                   If ($singleResult.$RepairProperty -like '*successfully*') {$AutofixSuccess = $true}
                } ElseIf ($Action -eq 'Restart') {
-                  If ($singleResult.$RepairProperty -like '*Restarted successfully*') {$AutofixSuccess = $true}
+                  If ($singleResult.$RepairProperty -like '*started successfully*') {$AutofixSuccess = $true}
                } ElseIf ($Action -eq 'ReInstall') {
                   If ($singleResult.$RepairProperty -like '*successfully*') {$AutofixSuccess = $true}
                } Else {
@@ -197,7 +245,7 @@ cd /tmp&&(
                $AutofixSuccess = $False
             }
             #Output the final object
-            $singleObject | Select-Object -ExcludeProperty $RepairProperty -Property *,@{n=$RepairProperty;e={[pscustomobject]@{'AutofixResult'=$singleResult.$RepairProperty; 'AutofixSuccess'=$AutofixSuccess}}}
+            $singleObject | Select-Object -ExcludeProperty $RepairProperty -Property *,@{n=$RepairProperty;e={[pscustomobject]@{'AutofixSuccess'=$AutofixSuccess; 'AutofixResult'=$singleResult.$RepairProperty}}}
          }
 
          Write-Host -ForegroundColor Green "All jobs completed"
