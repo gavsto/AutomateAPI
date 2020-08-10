@@ -72,22 +72,26 @@ function Repair-AutomateAgent {
                      $_
                   }
                } | Invoke-ControlCommand -Command @'
-[ -f /usr/local/ltechagent/state ]&&(echo "[{\"state\": "; cat /usr/local/ltechagent/state 2>/dev/null; echo "}"
-[ -f /usr/local/ltechagent/agent_config ]&&(cat /usr/local/ltechagent/agent_config | awk 'BEGIN { print ",\{\"agent_config\": \{"}; { row[NR]= "\"" $1 "\": \"" $2 "\"" }; END { for (i = 1; i < NR; i++) { print row[i] ","}; print row[NR] "\n\}\n\}" }')
-[ -f /usr/local/ltechagent/agent.log ]&&(tail -n 100 /usr/local/ltechagent/agent.log | awk 'BEGIN { print ",\{\"lterrors\": \["}; { gsub ("[\\\\]","\\\\"); gsub ("[\\\"]","\\\""); gsub ("[\\\/]","\\\/"); gsub ("[\\b]","\\b"); gsub ("[\\f]","\\f"); gsub ("[\\t]","\\t"); row[NR]=$0 }; END { for (i = 1; i < NR; i++) { print "\"" row[i] "\","}; print "\"" row[NR] "\"\n\]\}" }')
-echo "]")
-'@ -TimeOut 60000 -MaxLength 102400 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
+[ -f /usr/local/ltechagent/state ]&&(echo '{'
+echo '"state": '; cat /usr/local/ltechagent/state 2>/dev/null
+[ -f /usr/local/ltechagent/agent_config ]&&(cat /usr/local/ltechagent/agent_config | awk 'BEGIN { print ",\"agent_config\": \{"}; { row[NR]= "\"" $1 "\": \"" $2 "\"" }; END { for (i = 1; i < NR; i++) { print row[i] ","}; print row[NR] "\n\}" }')
+[ -f /usr/local/ltechagent/agent.log ]&&(tail -n 100 /usr/local/ltechagent/agent.log | awk 'BEGIN { print ",\"lterrors\": \["}; { gsub ("[\\\\]","\\\\"); gsub ("[\\\"]","\\\""); gsub ("[\\\/]","\\\/"); gsub ("[\\b]","\\b"); gsub ("[\\f]","\\f"); gsub ("[\\t]","\\t"); row[NR]=$0 }; END { for (i = 1; i < NR; i++) { print "\"" row[i] "\","}; print "\"" row[NR] "\"\n\]" }')
+echo '}'
+)
+'@.Replace("`r",'') -TimeOut 60000 -MaxLength 102400 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
                $ObjectCapture | Where-Object {$_.OperatingSystemName -like '*Linux*'}  | ForEach-Object {
                   If ($PSCmdlet.ShouldProcess("Automate Services on $($_.ComputerID) - $($_.ComputerName)",$Action)) {
                      Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($_.ComputerID) - $($_.ComputerName) - Attempting to $Action Automate Services - job will be submitted to online systems"
                      $_
                   }
                } | Invoke-ControlCommand -Command @'
-[ -f /usr/local/ltechagent/state ]&&(echo "[{\"state\": "; cat /usr/local/ltechagent/state 2>/dev/null; echo "}"
-[ -f /usr/local/ltechagent/agent_config ]&&(cat /usr/local/ltechagent/agent_config | awk 'BEGIN { print ",\{\"agent_config\": \{"}; { row[NR]= "\"" $1 "\": \"" $2 "\"" }; END { for (i = 1; i < NR; i++) { print row[i] ","}; print row[NR] "\n\}\n\}" }')
-[ -f /usr/local/ltechagent/agent.log ]&&(tail -n 100 /usr/local/ltechagent/agent.log | awk 'BEGIN { print ",\{\"lterrors\": \["}; { gsub ("[\\\\]","\\\\"); gsub ("[\\\"]","\\\""); gsub ("[\\\/]","\\\/"); gsub ("[\\b]","\\b"); gsub ("[\\f]","\\f"); gsub ("[\\t]","\\t"); row[NR]=$0 }; END { for (i = 1; i < NR; i++) { print "\"" row[i] "\","}; print "\"" row[NR] "\"\n\]\}" }')
-echo "]")
-'@ -TimeOut 60000 -MaxLength 102400 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
+[ -f /usr/local/ltechagent/state ]&&(echo '{'
+echo '"state": '; cat /usr/local/ltechagent/state 2>/dev/null
+[ -f /usr/local/ltechagent/agent_config ]&&(cat /usr/local/ltechagent/agent_config | awk 'BEGIN { print ",\"agent_config\": \{"}; { row[NR]= "\"" $1 "\": \"" $2 "\"" }; END { for (i = 1; i < NR; i++) { print row[i] ","}; print row[NR] "\n\}" }')
+[ -f /usr/local/ltechagent/agent.log ]&&(tail -n 100 /usr/local/ltechagent/agent.log | awk 'BEGIN { print ",\"lterrors\": \["}; { gsub ("[\\\\]","\\\\"); gsub ("[\\\"]","\\\""); gsub ("[\\\/]","\\\/"); gsub ("[\\b]","\\b"); gsub ("[\\f]","\\f"); gsub ("[\\t]","\\t"); row[NR]=$0 }; END { for (i = 1; i < NR; i++) { print "\"" row[i] "\","}; print "\"" row[NR] "\"\n\]" }')
+echo '}'
+)
+'@.Replace("`r",'') -TimeOut 60000 -MaxLength 102400 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
             )
             $ObjectCapture | Where-Object {!($_.OperatingSystemName -like '*Windows*' -or $_.OperatingSystemName -like '*OS X*' -or $_.OperatingSystemName -like '*Linux*')}  | ForEach-Object {
                Write-Host -BackgroundColor Yellow -ForegroundColor Red "$($_.ComputerID) - $($_.ComputerName) - $Action action for Operating System ($($_.OperatingSystemName)) is not supported at present in this module"
@@ -139,7 +143,7 @@ for CURRUSER in $LOGGEDUSERS; do su -l $CURRUSER -c 'launchctl load /Library/Lau
 echo "Checking Services"
 (for CURRUSER in $LOGGEDUSERS; do su -l $CURRUSER -c 'launchctl list'; done) | grep -i "com.labtechsoftware"
 launchctl list | grep -i "com.labtechsoftware"&&echo "LTService Restarted successfully"
-'@ -TimeOut 120000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
+'@.Replace("`r",'') -TimeOut 120000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
                $ObjectCapture | Where-Object {$_.OperatingSystemName -like '*Linux*'}  | ForEach-Object {
 #                  If ($PSCmdlet.ShouldProcess("Automate Services on $($_.ComputerID) - $($_.ComputerName)",$Action)) {
                      Write-Host -BackgroundColor Yellow -ForegroundColor Red "$($_.ComputerID) - $($_.ComputerName) - $Action action for Operating System ($($_.OperatingSystemName)) is not supported at present in this module"
@@ -181,7 +185,7 @@ cd /tmp&&(
   )||echo ERROR-Failed to extract
  )||echo ERROR-Failed to download cwaagent.zip
 )||echo ERROR-Failed to change path to /tmp
-"@ -TimeOut 300000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
+"@.Replace("`r",'') -TimeOut 300000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
                   }
                }
                $InstallerToken = Get-AutomateInstallerToken -InstallerType 3
@@ -208,7 +212,7 @@ cd /tmp&&(
   )||echo ERROR-Failed to extract
  )||echo ERROR-Failed to download cwaagent.zip
 )||echo ERROR-Failed to change path to /tmp
-"@ -TimeOut 300000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects 
+"@.Replace("`r",'') -TimeOut 300000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects 
                   } #>
                }
             )
