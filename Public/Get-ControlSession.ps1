@@ -63,6 +63,7 @@ function Get-ControlSession {
         [guid[]]$SessionID,
 
         # Fields available for the Session report can be gathered from "${Script:ControlServer}/Report.json" - May add additional supported fields
+        # Field List from Control 20.7
         [ValidateSet(
         'Code','ConnectionCount','CreatedTime',
         'CustomProperty1','CustomProperty2','CustomProperty3','CustomProperty4','CustomProperty5','CustomProperty6','CustomProperty7','CustomProperty8',
@@ -71,7 +72,7 @@ function Get-ControlSession {
         'GuestMachineDescription','GuestMachineDomain','GuestMachineManufacturerName','GuestMachineModel','GuestMachineName','GuestMachineProductNumber','GuestMachineSerialNumber',
         'GuestOperatingSystemLanguage','GuestOperatingSystemManufacturerName','GuestOperatingSystemName','GuestOperatingSystemVersion',
         'GuestPrivateNetworkAddress','GuestProcessorArchitecture','GuestProcessorName','GuestProcessorVirtualCount',
-        #'GuestScreenshotContent','GuestScreenshotContentHash','GuestScreenshotContentType' not included in field list - Can include with the -IncludeScreenShot switch
+        #'GuestScreenshotContent','GuestScreenshotContentHash','GuestScreenshotContentType', - Excluding from primary field list - Can include with the -IncludeScreenShot switch
         'GuestSystemMemoryAvailableMegabytes','GuestSystemMemoryTotalMegabytes','GuestTimeZoneName','GuestTimeZoneOffsetHours','GuestWakeToken',
         'Host','HostDurationSeconds','IsEnded','IsPublic','LegacyEncryptionKey','Name','SessionType','UnknownDurationSeconds',
         '*')]
@@ -93,8 +94,8 @@ function Get-ControlSession {
     Begin {
         $MaxRecords=10000
         $InputSessionIDCollection=@()
-        $SCConnected = @{};
-        $SessionLookup = @{};
+        $SCConnected = @{}
+        $SessionLookup = @{}
         If ($IncludeProperty -contains '*') {
             $IncludeProperty+=((Get-Variable IncludeProperty).Attributes | Where-Object { $_ -is [System.Management.Automation.ValidateSetAttribute] }).ValidValues
         }
@@ -110,7 +111,14 @@ function Get-ControlSession {
             $IncludeProperty+=@('GuestScreenshotContent','GuestScreenshotContentHash','GuestScreenshotContentType')
         }
         If ($IncludeProperty) {
-            $IncludeProperty=$IncludeProperty | Select-Object -Unique
+            If (!${Script:ControlReportVariables}) {
+                Try {
+                    $Script:ControlReportVariables = Invoke-ControlAPIMaster -Arguments @{'URI' = "ReportService.ashx/GenerateReportForAutomate"} | Where-Object {$_.ReportType -eq 'Session' -and $_.GroupType -eq 'Primary'} | Select-Object -ExpandProperty FieldName
+                } Catch {}
+            }
+            $IncludeProperty=$IncludeProperty | Foreach-Object {
+                If ($Script:ControlReportVariables -contains $_) {$_} Else { Write-Warning "Property $($_) is not supported by this version of Control"}
+            } | Select-Object -Unique
             [string[]]$SessionFields=$( $SessionFields.GetEnumerator(); $IncludeProperty.GetEnumerator() ) | Select-Object -Unique
         }
     }
