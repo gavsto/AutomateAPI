@@ -9,7 +9,7 @@ function Get-ControlSession {
 .PARAMETER IncludeProperty
     Specify additional Fields to be returned from the Session report endpoint as properties.
 .NOTES
-    Version:        1.6.0
+    Version:        1.6.1
     Author:         Gavin Stone 
     Modified By:    Darren White
     Purpose/Change: Initial script development
@@ -100,7 +100,7 @@ function Get-ControlSession {
             $IncludeProperty+=((Get-Variable IncludeProperty).Attributes | Where-Object { $_ -is [System.Management.Automation.ValidateSetAttribute] }).ValidValues
         }
         [string[]]$IncludeProperty=$IncludeProperty | Where-Object {$_ -and $_ -ne '*'} #Redefine $IncludeProperty to allow additional values
-        [string[]]$SessionFields=@('SessionID','SessionType','CreatedTime','GuestLastActivityTime','IsEnded')
+        [string[]]$SessionFields=@('SessionID','SessionType','CreatedTime','GuestInfoUpdateTime','GuestLastActivityTime','IsEnded')
         If ($IncludeEnded) {
             $IncludeProperty+='IsEnded'
         }
@@ -186,6 +186,12 @@ function Get-ControlSession {
                     }
                     If ($_.GuestLastActivityTime -and !($_.IsEnded) -and !($SCConnected.ContainsKey($_.SessionID))) {
                         $SCConnected.Add($_.SessionID,$_.GuestLastActivityTime)
+                        If ($_.CreatedTime -and (Get-Date $_.CreatedTime) -gt (Get-Date $SCConnected.$($_.SessionID))) {
+                            $SCConnected.$($_.SessionID)=$_.CreatedTime
+                        }
+                        If ($_.GuestInfoUpdateTime -and (Get-Date $_.GuestInfoUpdateTime) -gt (Get-Date $SCConnected.$($_.SessionID))) {
+                            $SCConnected.$($_.SessionID)=$_.GuestInfoUpdateTime
+                        }
                     } ElseIf ($_.IsEnded -and $SCConnected.ContainsKey($_.SessionID)) {
                         $SCConnected.Remove(($_.SessionID))
                     }
