@@ -65,7 +65,6 @@ function Compare-AutomateControlStatus {
         If ($ComputerObject) {
             Foreach ($Computer in $ComputerObject) {
                 If ($Computer -and $Computer.ComputerID -match '^[1-9]\d*$') {
-#                    $ObjectRebuild += $Computer
                     $Null = $ObjectRebuild.Add($Computer)
                 } Else {
                     Write-Warning "Input Object ComputerID property is missing or invalid. Skipping."
@@ -114,7 +113,6 @@ function Compare-AutomateControlStatus {
             $Null = $FinalComputerObject | Add-Member -MemberType NoteProperty -Name SessionID -Value $AutoControlSessionID -Force -EA 0
             $Null = $FinalComputerObject.PSObject.properties.remove('Status')
 
-#            $ComputerArray += $FinalComputerObject
             $Null = $ComputerArray.Add($FinalComputerObject)
         }
 
@@ -139,7 +137,6 @@ function Compare-AutomateControlStatus {
                 $Null = $CAReturn | Add-Member -MemberType NoteProperty -Name OnlineStatusControl -Value "Control not installed or SessionID not in Automate" -Force -EA 0
             }
 
-#            $ReturnedObject += $CAReturn
             $Null = $ReturnedObject.Add($CAReturn)
         }
         
@@ -151,7 +148,6 @@ function Compare-AutomateControlStatus {
             $ControlSessions.GetEnumerator() | Foreach-Object {
                 $CAReturn=$_.Value | Select-Object -Property @{n='ComputerId';e={0}},@{n='ComputerName';e={[string]$_.Name}},@{n='ClientName';e={$_.CustomProperty1}},@{n='Location';e={$_.CustomProperty2}},@{n='OperatingSystemName';e={(@($_.GuestOperatingSystemManufacturerName,$_.GuestOperatingSystemName).GetEnumerator()|Where-Object {$_}) -join ' '}},@{n='OnlineStatusAutomate';e={'Offline'}},SessionType,SessionID,OnlineStatusControl,CreatedTime,@{n='LastConnectedControl';e={$_.LastConnected}}
                 If (!$CAReturn.ComputerName) {$CAReturn.ComputerName=''}
-#                $ReturnedObject += $CAReturn
                 $Null = $ReturnedObject.Add($CAReturn)
             }
         }

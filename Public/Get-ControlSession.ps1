@@ -62,6 +62,9 @@ function Get-ControlSession {
         [Parameter(Mandatory=$False,ValueFromPipeline=$True,ValueFromPipelineByPropertyName=$True)]
         [guid[]]$SessionID,
 
+        [ValidateSet('Access','Meeting','Support')]
+        [string[]]$SessionType = 'Access',
+
         # Fields available for the Session report can be gathered from "${Script:ControlServer}/Report.json" - May add additional supported fields
         # Field List from Control 20.7
         [ValidateSet(
@@ -96,6 +99,7 @@ function Get-ControlSession {
         $InputSessionIDCollection=@()
         $SCConnected = @{}
         $SessionLookup = @{}
+        $SessionTypeFilter = ($SessionType | Foreach-Object {If ($_) {"SessionType='$($_)'"}}) -join ' OR '
         If ($IncludeProperty -contains '*') {
             $IncludeProperty+=((Get-Variable IncludeProperty).Attributes | Where-Object { $_ -is [System.Management.Automation.ValidateSetAttribute] }).ValidValues
         }
@@ -148,10 +152,11 @@ function Get-ControlSession {
         $SplitGUIDsArray = Split-Every -list $SessionIDCollection -count 100
         If (!$SplitGUIDsArray) {Write-Debug "Resetting to include all Sessions"; $SplitGUIDsArray=@('')}
         ForEach ($GUIDs in $SplitGUIDsArray) {
-            $GuidCondition=$(ForEach ($GUID in $GUIDs) {If ($GUID) {"sessionid='$GUID'"}}) -join ' OR '
-            If ($GuidCondition) {$GuidCondition="($GuidCondition) AND"}
-            $GuidCondition=@($GuidCondition,"DisconnectedTime IS NULL") -join ' '
-            $Body=ConvertTo-Json @("SessionConnection",@("SessionID"),@("Count"),$GuidCondition.Trim(), "", $MaxRecords) -Compress
+            $FilterCondition="($SessionTypeFilter)"
+            $GuidCondition=$(ForEach ($GUID in $GUIDs) {If ($GUID -and ($IncludeProperty -or !($SCConnected.ContainsKey($GUID)))) {"sessionid='$GUID'"}}) -join ' OR '
+            If ($GuidCondition) {$FilterCondition="$FilterCondition AND ($GuidCondition)"}
+            #Pull Session details
+            $Body=ConvertTo-Json @("Session","",$SessionFields,$FilterCondition, "", $MaxRecords) -Compress
 
             $RESTRequest = @{
                 'URI' = "ReportService.ashx/GenerateReportForAutomate"
@@ -160,48 +165,43 @@ function Get-ControlSession {
             $AllData = Invoke-ControlAPIMaster -Arguments $RESTRequest
             If ($AllData.Count -ge $MaxRecords) {Write-Verbose "Records returned ($($AllData.Count)) equal maximum requested. Data may be incomplete!"}
 
-            $AllData | Where-Object {$_} | ForEach-Object {
-                # Build $SCConnected hashtable with information from report request in $AllData - First pass - Only online sessions
-                $SCConnected.Add($_.SessionID,$True)
-            }
-
-            $GuidCondition=$(ForEach ($GUID in $GUIDs) {If ($GUID -and ($IncludeProperty -or !($SCConnected.ContainsKey($GUID)))) {"sessionid='$GUID'"}}) -join ' OR '
-            If (('' -eq $GUIDs) -or $GuidCondition) { #Pull information on sessions that are not connected
-                $Body=ConvertTo-Json @("Session","",$SessionFields,"$GuidCondition", "", $MaxRecords) -Compress
-
-                $RESTRequest = @{
-                    'URI' = "ReportService.ashx/GenerateReportForAutomate"
-                    'Body' = $Body
+            $AllData | Where-Object {$_.SessionID} | ForEach-Object {
+                If (!$_.IsEnded -or $_.IsEnded -eq $IncludeEnded) {
+                        $SessionLookup.Add($_.SessionID,$_)
+                        $SCLastConnected=$_.CreatedTime
+                If ((Get-Date $_.GuestLastActivityTime) -gt (Get-Date $SCLastConnected)) {
+                    $SCLastConnected=$_.GuestLastActivityTime
                 }
-                $AllData = Invoke-ControlAPIMaster -Arguments $RESTRequest
-                If ($AllData.Count -ge $MaxRecords) {Write-Verbose "Records returned ($($AllData.Count)) equal maximum requested. Data may be incomplete!"}
-
-                $AllData | Where-Object {$_.SessionID} | ForEach-Object {
-                    If (!$_.IsEnded -or $_.IsEnded -eq $IncludeEnded) {
-                        If ($SessionLookup.ContainsKey($_.SessionID)) {
-                            $SessionLookup.$($_.SessionID)=$_
-                        } Else {
-                            $SessionLookup.Add($_.SessionID,$_)
-                        }
-                    }
-                    If ($_.GuestLastActivityTime -and !($_.IsEnded) -and !($SCConnected.ContainsKey($_.SessionID))) {
-                        $SCConnected.Add($_.SessionID,$_.GuestLastActivityTime)
-                        If ($_.CreatedTime -and (Get-Date $_.CreatedTime) -gt (Get-Date $SCConnected.$($_.SessionID))) {
-                            $SCConnected.$($_.SessionID)=$_.CreatedTime
-                        }
-                        If ($_.GuestInfoUpdateTime -and (Get-Date $_.GuestInfoUpdateTime) -gt (Get-Date $SCConnected.$($_.SessionID))) {
-                            $SCConnected.$($_.SessionID)=$_.GuestInfoUpdateTime
-                        }
-                    } ElseIf ($_.IsEnded -and $SCConnected.ContainsKey($_.SessionID)) {
-                        $SCConnected.Remove(($_.SessionID))
-                    }
+                If ((Get-Date $_.GuestInfoUpdateTime) -gt (Get-Date $SCLastConnected)) {
+                    $SCLastConnected=$_.GuestInfoUpdateTime
+                }
+                $SCConnected.Add($_.SessionID,$SCLastConnected)
                 }
             }
 
+            $FilterCondition="DisconnectedTime IS NULL AND ($($SessionTypeFilter.Replace('SessionType=','SessionSessionType=')))"
+            $GuidCondition=$(ForEach ($GUID in $GUIDs) {If ($GUID) {"sessionid='$GUID'"}}) -join ' OR '
+            If ($GuidCondition) {$FilterCondition="$FilterCondition AND ($GuidCondition)"}
+            $Body=ConvertTo-Json @("SessionConnection",@("SessionID"),@("Count"),$FilterCondition, "", $MaxRecords) -Compress
+
+            $RESTRequest = @{
+                'URI' = "ReportService.ashx/GenerateReportForAutomate"
+                'Body' = $Body
+            }
+            $AllData = Invoke-ControlAPIMaster -Arguments $RESTRequest
+            If ($AllData.Count -ge $MaxRecords) {Write-Verbose "Records returned ($($AllData.Count)) equal maximum requested. Data may be incomplete!"}
+
+            $AllData | Where-Object {$_.SessionID -and $SCConnected.ContainsKey($_.SessionID)} | ForEach-Object {
+                $SCConnected[$_.SessionID]=$True
+            }
+
+            $FilterCondition="ProcessType='Guest' AND ($($SessionTypeFilter.Replace('SessionType=','SessionSessionType=')))"
             $GuidCondition=$(ForEach ($GUID in $GUIDs) {If ($GUID -and $SCConnected.ContainsKey($GUID) -and $SCConnected[$GUID] -ne $True) {"sessionid='$GUID'"}}) -join ' OR '
-            If ($GuidCondition) {$GuidCondition="($GuidCondition) AND"}
-            If (('' -eq $GUIDs) -or $GuidCondition) { #Pull information on valid sessions that are not connected
-                $Body=ConvertTo-Json @("SessionConnection",@("SessionID"),@("LastDisconnectedTime"),"$GuidCondition ProcessType='Guest'", "", $MaxRecords) -Compress
+            If ($GuidCondition) {$FilterCondition="$FilterCondition AND ($GuidCondition)"}
+            ElseIf ($GUIDs -and $GUIDs.Count -ge 1 -and $GUIDs -match '.+') {$FilterCondition=$Null}
+            If ($FilterCondition) {
+                #Pull information on valid sessions that are not connected
+                $Body=ConvertTo-Json @("SessionConnection",@("SessionID"),@("LastDisconnectedTime"),$FilterCondition, "", $MaxRecords) -Compress
 
                 $RESTRequest = @{
                     'URI' = "ReportService.ashx/GenerateReportForAutomate"
@@ -210,8 +210,8 @@ function Get-ControlSession {
                 $AllData = Invoke-ControlAPIMaster -Arguments $RESTRequest
                 If ($AllData.Count -ge $MaxRecords) {Write-Verbose "Records returned ($($AllData.Count)) equal maximum requested. Data may be incomplete!"}
 
-                $AllData | Where-Object {$_} | ForEach-Object {
-                    If ($_.LastDisconnectedTime -and $SCConnected.ContainsKey($_.SessionID) -and $SCConnected[$_.SessionID] -ne $True) {
+                $AllData | Where-Object {$_.LastDisconnectedTime} | ForEach-Object {
+                    If ($SCConnected.ContainsKey($_.SessionID) -and $SCConnected[$_.SessionID] -ne $True -and (Get-Date $_.LastDisconnectedTime) -gt (Get-Date $SCConnected[$_.SessionID])) {
                         $SCConnected[$_.SessionID]=$_.LastDisconnectedTime
                     }
                 }
