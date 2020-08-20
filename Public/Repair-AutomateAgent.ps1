@@ -73,7 +73,7 @@ Try {
   'Error getting service settings. Checking LTErrors.txt'
   Get-Content "`${env:windir}\ltsvc\lterrors.txt" | Select-Object -Last 100
 }
-"@ -TimeOut 60000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
+"@ -TimeOut 60000 -MaxLength 102400 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
                $ObjectCapture | Where-Object {$_.OperatingSystemName -like '*OS X*'}  | ForEach-Object {
                   If ($PSCmdlet.ShouldProcess("Automate Services on $($_.ComputerID) - $($_.ComputerName)",$Action)) {
                      Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($_.ComputerID) - $($_.ComputerName) - Attempting to $Action Automate Services - job will be submitted to online systems"
@@ -114,7 +114,7 @@ echo '}'
                } | Invoke-ControlCommand -Powershell -Command @"
 (new-object Net.WebClient).DownloadString('$($LTPoShURI)') | iex
 Update-LTService
-"@ -TimeOut 120000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
+"@ -TimeOut 120000 -MaxLength 20480 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
                $ObjectCapture | Where-Object {$_.OperatingSystemName -like '*OS X*'}  | ForEach-Object {
                   If ($PSCmdlet.ShouldProcess("Automate Services on $($_.ComputerID) - $($_.ComputerName)",$Action)) {
                      Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($_.ComputerID) - $($_.ComputerName) - Attempting to $Action Automate Services - job will be submitted to online systems"
@@ -161,7 +161,7 @@ Catch {
   net start ltsvcmon
   net start ltservice
 }
-"@ -TimeOut 120000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
+"@ -TimeOut 120000 -MaxLength 20480 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
                $ObjectCapture | Where-Object {$_.OperatingSystemName -like '*OS X*'}  | ForEach-Object {
                   If ($PSCmdlet.ShouldProcess("Automate Services on $($_.ComputerID) - $($_.ComputerName)",$Action)) {
                      Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($_.ComputerID) - $($_.ComputerName) - Attempting to $Action Automate Services - job will be submitted to online systems"
@@ -201,7 +201,7 @@ launchctl list | grep -i "com.labtechsoftware"&&echo "LTService Restarted succes
                      $_ | Invoke-ControlCommand -Powershell -Command @"
 (new-object Net.WebClient).DownloadString('$($LTPoShURI)') | iex
 Install-LTService -Server '$($Script:CWAServer)' -LocationID $($_.Location.Id) -InstallerToken '$($InstallerToken)' -Force -SkipDotNet
-"@ -TimeOut 300000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
+"@ -TimeOut 300000 -MaxLength 20480 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
                   }
                }
                $InstallerToken = Get-AutomateInstallerToken -InstallerType 5
@@ -228,7 +228,7 @@ cd /tmp&&(
   )||echo ERROR-Failed to extract
  )||echo ERROR-Failed to download cwaagent.zip
 )||echo ERROR-Failed to change path to /tmp
-"@.Replace("`r",'') -TimeOut 300000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
+"@.Replace("`r",'') -TimeOut 300000 -MaxLength 20480 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
                   }
                }
                $InstallerToken = Get-AutomateInstallerToken -InstallerType 3

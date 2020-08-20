@@ -55,9 +55,9 @@ function Compare-AutomateControlStatus {
     )
     
     Begin {
-        $ComputerArray = @()
-        $ObjectRebuild = @()
-        $ReturnedObject = @()
+        $ComputerArray = {}.Invoke()
+        $ObjectRebuild = {}.Invoke()
+        $ReturnedObject = {}.Invoke()
         $FullLookupMethod = $False
     }
     
@@ -65,7 +65,8 @@ function Compare-AutomateControlStatus {
         If ($ComputerObject) {
             Foreach ($Computer in $ComputerObject) {
                 If ($Computer -and $Computer.ComputerID -match '^[1-9]\d*$') {
-                    $ObjectRebuild += $Computer
+#                    $ObjectRebuild += $Computer
+                    $Null = $ObjectRebuild.Add($Computer)
                 } Else {
                     Write-Warning "Input Object ComputerID property is missing or invalid. Skipping."
                 }
@@ -101,6 +102,9 @@ function Compare-AutomateControlStatus {
             }
 
             $FinalComputerObject = $Computer
+            If([string]::IsNullOrEmpty($Computer.ClientName) -and $Computer.Client -and $Computer.Client.Name -match '.+') {
+                $Null = $FinalComputerObject | Add-Member -MemberType NoteProperty -Name ClientName -Value $Computer.Client.Name -Force -EA 0
+            }
             If ($Computer|Get-Member -Name Status) {
                 $Null = $FinalComputerObject | Add-Member -MemberType NoteProperty -Name OnlineStatusAutomate -Value $Computer.Status -Force -EA 0
             } Else {
@@ -108,12 +112,10 @@ function Compare-AutomateControlStatus {
                 $Null = $FinalComputerObject | Add-Member -MemberType NoteProperty -Name OnlineStatusAutomate -Value $(Get-AutomateComputer -ComputerID $FinalComputerObject.ComputerID -IncludeFields Status).Status -Force -EA 0
             } 
             $Null = $FinalComputerObject | Add-Member -MemberType NoteProperty -Name SessionID -Value $AutoControlSessionID -Force -EA 0
-            If([string]::IsNullOrEmpty($Computer.ClientName) -and $Computer.Client -and $Computer.Client.Name -match '.+') {
-                $Null = $FinalComputerObject | Add-Member -MemberType NoteProperty -Name ClientName -Value $Computer.Client.Name -Force -EA 0
-            }
             $Null = $FinalComputerObject.PSObject.properties.remove('Status')
 
-            $ComputerArray += $FinalComputerObject
+#            $ComputerArray += $FinalComputerObject
+            $Null = $ComputerArray.Add($FinalComputerObject)
         }
 
         #SessionIDs to check in Control
@@ -137,7 +139,8 @@ function Compare-AutomateControlStatus {
                 $Null = $CAReturn | Add-Member -MemberType NoteProperty -Name OnlineStatusControl -Value "Control not installed or SessionID not in Automate" -Force -EA 0
             }
 
-            $ReturnedObject += $CAReturn
+#            $ReturnedObject += $CAReturn
+            $Null = $ReturnedObject.Add($CAReturn)
         }
         
         If ($Force) {
@@ -148,7 +151,8 @@ function Compare-AutomateControlStatus {
             $ControlSessions.GetEnumerator() | Foreach-Object {
                 $CAReturn=$_.Value | Select-Object -Property @{n='ComputerId';e={0}},@{n='ComputerName';e={[string]$_.Name}},@{n='ClientName';e={$_.CustomProperty1}},@{n='Location';e={$_.CustomProperty2}},@{n='OperatingSystemName';e={(@($_.GuestOperatingSystemManufacturerName,$_.GuestOperatingSystemName).GetEnumerator()|Where-Object {$_}) -join ' '}},@{n='OnlineStatusAutomate';e={'Offline'}},SessionType,SessionID,OnlineStatusControl,CreatedTime,@{n='LastConnectedControl';e={$_.LastConnected}}
                 If (!$CAReturn.ComputerName) {$CAReturn.ComputerName=''}
-                $ReturnedObject += $CAReturn
+#                $ReturnedObject += $CAReturn
+                $Null = $ReturnedObject.Add($CAReturn)
             }
         }
 
