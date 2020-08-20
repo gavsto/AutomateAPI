@@ -81,7 +81,7 @@ function Invoke-ControlAPIMaster {
         Write-Debug "Calling Control Server Extension with the following arguments:`n$(($Arguments|Out-String -Stream) -join "`n")"
         Try {
             $ProgressPreference = 'SilentlyContinue'
-            $Result = Invoke-WebRequest @Arguments -InformationAction 'SilentlyContinue'
+            $Result = Invoke-WebRequest @Arguments
         } 
         Catch {
             # Start error message
