@@ -135,7 +135,7 @@ function Invoke-ControlAPIMaster {
             Write-Warning "$($Retry)/$($MaxRetry) retries, waiting $($Wait)ms."
             Start-Sleep -Milliseconds $Wait
             $ProgressPreference = 'SilentlyContinue'
-            $Result = Invoke-WebRequest @Arguments -InformationAction 'SilentlyContinue'
+            $Result = Invoke-WebRequest @Arguments
         }
         If ($Retry -ge $MaxRetry -and $Result.StatusCode -eq 500) {
             $Script:CWCIsConnected=$False
