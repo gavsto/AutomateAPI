@@ -34,7 +34,12 @@ function Get-AutomateAPIGeneric {
         Author:         Gavin Stone
         Creation Date:  20/01/2019
         Purpose/Change: Initial script development
-      .EXAMPLE
+        
+        Update Date:    2020-11-18
+        Author:         Brandon Fahnestock
+        Purpose/Change: ConnectWise Automate v2020.11 requires a registered ClientID for API access. Added Support for ClientIDs
+      .
+      EXAMPLE
         Get-AutomateAPIGeneric -Page 1 -Condition "RemoteAgentLastContact <= 2019-12-18T00:50:19.575Z" -Endpoint "computers?"
     #>
     [CmdletBinding()]
@@ -89,6 +94,11 @@ function Get-AutomateAPIGeneric {
     begin {
         #Build the URL to hit
         $url = ($Script:CWAServer + '/cwa/api/v1/' + $EndPoint)
+        
+        #Add Token and ClientID to Headers
+        $Headers = @{}
+        $Script:CWAToken.keys | ForEach-Object { $Headers[$_] = $Script:CWAToken[$_] }
+        $Headers.Add('clientID',"$Script:CWAClientID")
 
         #Build the Body Up
         $Body = @{}
@@ -142,7 +152,7 @@ function Get-AutomateAPIGeneric {
                 [int]$i += 1
                 $URLNew = "$($url)?page=$($i)"
                 try {
-                    $return = Invoke-RestMethod -Uri $URLNew -Headers $script:CWAToken -ContentType "application/json" -Body $Body
+                    $return = Invoke-RestMethod -Uri $URLNew -Headers $Headers -ContentType "application/json" -Body $Body
                 }
                 catch {
                     Write-Error "Failed to perform Invoke-RestMethod to Automate API with error $_.Exception.Message"
@@ -158,7 +168,7 @@ function Get-AutomateAPIGeneric {
             [System.Collections.ArrayList]$ReturnedResults
             $URLNew = "$($url)?page=$($Page)"
             try {
-                $return = Invoke-RestMethod -Uri $URLNew -Headers $script:CWAToken -ContentType "application/json" -Body $Body
+                $return = Invoke-RestMethod -Uri $URLNew -Headers $Headers -ContentType "application/json" -Body $Body
             }
             catch {
                 Write-Error "Failed to perform Invoke-RestMethod to Automate API with error $_.Exception.Message"
@@ -172,7 +182,7 @@ function Get-AutomateAPIGeneric {
           [System.Collections.ArrayList]$ReturnedResults
           $URLNew = "$($url)"
           try {
-              $return = Invoke-RestMethod -Uri $URLNew -Headers $script:CWAToken -ContentType "application/json" -Body $Body -Method 'Post'
+              $return = Invoke-RestMethod -Uri $URLNew -Headers $Headers -ContentType "application/json" -Body $Body -Method 'Post'
           }
           catch {
               Write-Error "Failed to perform Invoke-RestMethod to Automate API with error $_.Exception.Message"

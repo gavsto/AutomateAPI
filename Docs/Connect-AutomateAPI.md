@@ -20,7 +20,7 @@ Connect-AutomateAPI [-Server <String>] [-AuthorizationToken <String>] [-SkipChec
 
 ### credential
 ```
-Connect-AutomateAPI [-Credential <PSCredential>] [-Server <String>] [-SkipCheck] [-TwoFactorToken <String>]
+Connect-AutomateAPI [-Credential <PSCredential>] [-Server <String>] [-apiClientID <String>] [-SkipCheck] [-TwoFactorToken <String>]
  [-Force] [-Quiet] [<CommonParameters>]
 ```
 
@@ -36,7 +36,7 @@ Connects to the Automate API and returns a bearer token which when passed with e
 
 ### EXAMPLE 1
 ```
-Connect-AutomateAPI -Server "rancor.hostedrmm.com" -Credentials $CredentialObject -TwoFactorToken "999999"
+Connect-AutomateAPI -Server "rancor.hostedrmm.com" -Credentials $CredentialObject -TwoFactorToken "999999" -apiClientID '123123123-1234-1234-1234-123123123123'
 ```
 
 ### EXAMPLE 2
@@ -73,6 +73,21 @@ Aliases:
 Required: False
 Position: Named
 Default value: $Script:CWAServer
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -apiClientID
+Your Registered clientID obtained here: https://developer.connectwise.com/ClientID
+
+```yaml
+Type: String
+Parameter Sets: (credential)
+Aliases:
+
+Required: False
+Position: Named
+Default value: none
 Accept pipeline input: False
 Accept wildcard characters: False
 ```

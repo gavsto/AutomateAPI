@@ -1,47 +1,56 @@
 function Connect-AutomateAPI {
-<#
-.SYNOPSIS
-Connect to the Automate API.
-.DESCRIPTION
-Connects to the Automate API and returns a bearer token which when passed with each requests grants up to an hours worth of access.
-.PARAMETER Server
-The address to your Automate Server. Example 'rancor.hostedrmm.com'
-.PARAMETER Credentials
-Takes a standard powershell credential object, this can be built with $CredentialsToPass = Get-Credential, then pass $CredentialsToPass
-.PARAMETER TwoFactorToken
-Takes a string that represents the 2FA number
-.PARAMETER AuthorizationToken
-Used internally when quietly refreshing the Token
-.PARAMETER SkipCheck
-Used internally when quietly refreshing the Token
-.PARAMETER Verify
-Specifies to test the current token, and if it is not valid attempt to obtain a new one using the current credentials. Does not refresh (re-issue) the current token.
-.PARAMETER Force
-Will not attempt to refresh a current session
-.PARAMETER Quiet
-Will not output any standard messages. Returns $True if connection was successful.
-.OUTPUTS
-Three strings into Script variables, $CWAServer containing the server address, $CWACredentials containing the bearer token and $CWACredentialsExpirationDate containing the date the credentials expire
-.NOTES
-Version:        1.1
-Author:         Gavin Stone
-Creation Date:  2019-01-20
-Purpose/Change: Initial script development
+  <#
+      .SYNOPSIS
+      Connect to the Automate API.
+      .DESCRIPTION
+      Connects to the Automate API and returns a bearer token which when passed with each requests grants up to an hours worth of access.
+      .PARAMETER Server
+      The address to your Automate Server. Example 'rancor.hostedrmm.com'
+      .PARAMETER Credentials
+      Takes a standard powershell credential object, this can be built with $CredentialsToPass = Get-Credential, then pass $CredentialsToPass
+      .PARAMETER apiClientID
+      Takes a string that is your Registered clientID obtained here: https://developer.connectwise.com/ClientID
+      .PARAMETER TwoFactorToken
+      Takes a string that represents the 2FA number
+      .PARAMETER AuthorizationToken
+      Used internally when quietly refreshing the Token
+      .PARAMETER SkipCheck
+      Used internally when quietly refreshing the Token
+      .PARAMETER Verify
+      Specifies to test the current token, and if it is not valid attempt to obtain a new one using the current credentials. Does not refresh (re-issue) the current token.
+      .PARAMETER Force
+      Will not attempt to refresh a current session
+      .PARAMETER Quiet
+      Will not output any standard messages. Returns $True if connection was successful.
+      .OUTPUTS
+      Three strings into Script variables, $CWAServer containing the server address, $CWACredentials containing the bearer token and $CWACredentialsExpirationDate containing the date the credentials expire
+      .NOTES
+      Version:        1.1
+      Author:         Gavin Stone
+      Creation Date:  2019-01-20
+      Purpose/Change: Initial script development
 
-Update Date:    2019-02-12
-Author:         Darren White
-Purpose/Change: Credential and 2FA prompting is only if needed. Supports Token Refresh.
+      Update Date:    2019-02-12
+      Author:         Darren White
+      Purpose/Change: Credential and 2FA prompting is only if needed. Supports Token Refresh.
 
-.EXAMPLE
-Connect-AutomateAPI -Server "rancor.hostedrmm.com" -Credentials $CredentialObject -TwoFactorToken "999999"
+      Update Date:    2020-11-18
+      Author:         Brandon Fahnestock
+      Purpose/Change: ConnectWise Automate v2020.11 requires a registered ClientID for API access. Added Support for ClientIDs 
 
-.EXAMPLE
-Connect-AutomateAPI -Quiet
-#>
+      .EXAMPLE
+      Connect-AutomateAPI -Server "rancor.hostedrmm.com" -Credentials $CredentialObject -TwoFactorToken "999999" -apiClientID '123123123-1234-1234-1234-123123123123'
+
+      .EXAMPLE
+      Connect-AutomateAPI -Quiet
+  #>
     [CmdletBinding(DefaultParameterSetName = 'refresh')]
     param (
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
         [System.Management.Automation.PSCredential]$Credential,
+        
+        [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
+        [String]$apiClientID,
 
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
         [Parameter(ParameterSetName = 'refresh', Mandatory = $False)]
@@ -73,8 +82,8 @@ Connect-AutomateAPI -Quiet
 
     Begin {
         # Check for locally stored credentials
-#        [string]$CredentialDirectory = "$($env:USERPROFILE)\AutomateAPI\"
-#        $LocalCredentialsExist = Test-Path "$($CredentialDirectory)Automate - Credentials.txt"
+    #        [string]$CredentialDirectory = "$($env:USERPROFILE)\AutomateAPI\"
+    #        $LocalCredentialsExist = Test-Path "$($CredentialDirectory)Automate - Credentials.txt"
         If ($TwoFactorToken -match '.+') {$Force=$True}
         $TwoFactorNeeded=$False
 
@@ -85,6 +94,8 @@ Connect-AutomateAPI -Quiet
         }
         $Server = $Server -replace '^https?://','' -replace '/[^\/]*$',''
         $AuthorizationToken = $AuthorizationToken -replace 'Bearer ',''
+        $Script:CWAClientID = $apiClientID
+        
     } #End Begin
     
     Process {
