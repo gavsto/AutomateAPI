@@ -35,8 +35,12 @@ Purpose/Change: Credential and 2FA prompting is only if needed. Supports Token R
 Update Date:    2020-08-01
 Purpose/Change: Change to use CWAIsConnected script variable to track connection state
 
+Update Date:    2020-11-19
+Author:         Brandon Fahnestock
+Purpose/Change: ConnectWise Automate v2020.11 requires a registered ClientID for API access. Added Support for ClientIDs 
+
 .EXAMPLE
-Connect-AutomateAPI -Server "rancor.hostedrmm.com" -Credentials $CredentialObject -TwoFactorToken "999999"
+Connect-AutomateAPI -Server "rancor.hostedrmm.com" -Credentials $CredentialObject -TwoFactorToken "999999" -apiClientID '123123123-1234-1234-1234-123123123123'
 
 .EXAMPLE
 Connect-AutomateAPI -Quiet
@@ -45,6 +49,9 @@ Connect-AutomateAPI -Quiet
     param (
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
         [System.Management.Automation.PSCredential]$Credential,
+
+        [Parameter(ParameterSetName = 'credential', Mandatory = $True)]
+        [String]$apiClientID,
 
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
         [Parameter(ParameterSetName = 'refresh', Mandatory = $False)]
@@ -86,6 +93,8 @@ Connect-AutomateAPI -Quiet
         $Server = $Server -replace '^https?://','' -replace '/[^\/]*$',''
         $AuthorizationToken = $AuthorizationToken -replace 'Bearer ',''
         $Script:CWAIsConnected=$False
+        $Script:CWAClientID = $apiClientID
+
     } #End Begin
     
     Process {
