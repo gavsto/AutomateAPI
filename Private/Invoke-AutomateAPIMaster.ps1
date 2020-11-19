@@ -16,6 +16,10 @@ function Invoke-AutomateAPIMaster {
 
         Update Date:    2020-08-01
         Purpose/Change: Change to use CWAIsConnected script variable to track connection state
+      
+        Update Date:    2020-11-19
+        Author:         Brandon Fahnestock
+        Purpose/Change: ConnectWise Automate v2020.11 requires a registered ClientID for API access. Added Support for ClientIDs 
     .EXAMPLE
         Invoke-AutomateAPIMaster -Arguments $Arguments
     #>
@@ -59,6 +63,8 @@ function Invoke-AutomateAPIMaster {
         If($Arguments.URI -notmatch '^https?://') {
           $Arguments.URI = ($Script:CWAServer + $Arguments.URI)
         }
+        #Add required CWA ClientID to API request
+        $Arguments.Headers += @{'clientID' = "$Script:CWAClientID"}
 
         # Issue request
         Try {
