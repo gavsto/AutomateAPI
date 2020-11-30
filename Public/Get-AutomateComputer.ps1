@@ -331,20 +331,20 @@ function Get-AutomateComputer {
         $ArrayOfConditions += "(AssetTag like '%$AssetTag%')"
     }
 
-    if (($PSBoundParameters.ContainsKey('Server')) -and (!$Server)) {
-        $ArrayOfConditions += "(Type != 'Server')"
+    If ($PSBoundParameters.ContainsKey('Server')) {
+        If ($Server -eq $False) {
+            $ArrayOfConditions += "(Type != 'Server')"
+        } Else {
+            $ArrayOfConditions += "(Type = 'Server')"
+        }
     }
 
-    if (($PSBoundParameters.ContainsKey('Server')) -and ($Server)) {
-        $ArrayOfConditions += "(Type = 'Server')"
-    }
-
-    if (($PSBoundParameters.ContainsKey('Workstation')) -and (!$Workstation)) {
-        $ArrayOfConditions += "(Type != 'Workstation')"
-    }
-
-    if (($PSBoundParameters.ContainsKey('Workstation')) -and ($Workstation)) {
-        $ArrayOfConditions += "(Type = 'Workstation')"
+    If ($PSBoundParameters.ContainsKey('Workstation')) {
+        If ($Workstation -eq $False) {
+            $ArrayOfConditions += "(Type != 'Workstation')"
+        } Else {
+            $ArrayOfConditions += "(Type = 'Workstation')"
+        }
     }
 
     if ($AntivirusScanner) {
