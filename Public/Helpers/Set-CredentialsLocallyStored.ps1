@@ -57,7 +57,7 @@ function Set-CredentialsLocallyStored {
 
     If ($Automate) {
         If (!$SaveCurrent) {
-            # The Connect-AutomateAPI Cmdlet will interrogate the user for when give passed the following parameters
+            # The Connect-AutomateAPI Cmdlet will interrogate the user for credentials when give passed the following parameters
             # The variables are stored in script scope variables
             Connect-AutomateAPI -Server '' -Force
         }
@@ -66,7 +66,8 @@ function Set-CredentialsLocallyStored {
             @{'Name' = 'CWAServer'; 'Scope' = 'Script'},
             @{'Name' = 'CWACredentials'; 'Scope' = 'Script'},
             @{'Name' = 'CWATokenKey'; 'Scope' = 'Script'},
-            @{'Name' = 'CWATokenInfo'; 'Scope' = 'Script'}
+            @{'Name' = 'CWATokenInfo'; 'Scope' = 'Script'},
+            @{'Name' = 'CWAClientID'; 'Scope' = 'Script'}
         )
 
         $StoreBlock = [pscustomobject]@{}

@@ -64,7 +64,9 @@ function Invoke-AutomateAPIMaster {
           $Arguments.URI = ($Script:CWAServer + $Arguments.URI)
         }
         #Add required CWA ClientID to API request
-        $Arguments.Headers += @{'clientID' = "$Script:CWAClientID"}
+        If($Arguments.Headers.Keys -notcontains 'clientID' -and $Script:CWAClientID -match '.+') {
+            $Arguments.Headers += @{'clientID' = "$Script:CWAClientID"}
+        }
 
         # Issue request
         Try {

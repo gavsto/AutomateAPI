@@ -50,8 +50,10 @@ Connect-AutomateAPI -Quiet
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
         [System.Management.Automation.PSCredential]$Credential,
 
-        [Parameter(ParameterSetName = 'credential', Mandatory = $True)]
-        [String]$apiClientID,
+        [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
+        [Parameter(ParameterSetName = 'refresh', Mandatory = $False)]
+        [Parameter(ParameterSetName = 'verify', Mandatory = $False)]
+        [String]$apiClientID = $Script:CWAClientID,
 
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
         [Parameter(ParameterSetName = 'refresh', Mandatory = $False)]
@@ -89,11 +91,17 @@ Connect-AutomateAPI -Quiet
             While (!($Server -match '.+')) {
                 $Server = Read-Host -Prompt "Please enter your Automate Server address, IE: rancor.hostedrmm.com" 
             }
+            If (!($apiClientID -match '.+')) {
+                $apiClientID = Read-Host -Prompt "Please enter API Client ID (Required for 2020.P11 and above)" 
+            }
         }
         $Server = $Server -replace '^https?://','' -replace '/[^\/]*$',''
         $AuthorizationToken = $AuthorizationToken -replace 'Bearer ',''
         $Script:CWAIsConnected=$False
-        $Script:CWAClientID = $apiClientID
+        If ($apiClientID -notmatch '.+') {
+            $apiClientID=$Null
+            Write-Warning "API ClientID is missing or in invalid format."
+        }
 
     } #End Begin
     
@@ -111,6 +119,10 @@ Connect-AutomateAPI -Quiet
                 $Null = $AutomateToken.Add("Authorization", "Bearer $AuthorizationToken")
                 Write-Debug "Setting Authorization Token to $($AutomateToken.Authorization)"
                 $Script:CWAToken = $AutomateToken
+            }
+            If ($apiClientID) {
+                Write-Debug "Setting ClientID to $apiClientID"
+                $Script:CWAClientID = $apiClientID
             }
             Return
         }
@@ -152,6 +164,7 @@ Connect-AutomateAPI -Quiet
                     'URI' = ($AutomateAPIURI + '/apitoken')
                     'Method' = 'POST'
                     'ContentType' = 'application/json'
+                    'Headers' = @{}
                     'Body' = $($PostBody | ConvertTo-Json -Compress)
                 }
             } ElseIf ($PSCmdlet.ParameterSetName -eq 'refresh') {
@@ -160,6 +173,7 @@ Connect-AutomateAPI -Quiet
                     'URI' = ($AutomateAPIURI + '/apitoken/refresh')
                     'Method' = 'POST'
                     'ContentType' = 'application/json'
+                    'Headers' = @{}
                     'Body' = $PostBody | ConvertTo-Json -Compress
                 }
             } ElseIf ($PSCmdlet.ParameterSetName -eq 'verify') {
@@ -170,6 +184,9 @@ Connect-AutomateAPI -Quiet
                     'ContentType' = 'application/json'
                     'Headers' = @{'Authorization' = "Bearer $PostBody"}
                 }
+            }
+            If ($apiClientID) {
+                $RESTRequest.Headers += @{'clientID' = "$apiClientID"}
             }
 
             #Invoke the REST Method
@@ -203,6 +220,7 @@ Connect-AutomateAPI -Quiet
 
     End {
         If ($SkipCheck) {
+            $Script:CWAIsConnected=$True
             If ($Quiet) {
                 Return $False
             } Else {
@@ -227,6 +245,9 @@ Connect-AutomateAPI -Quiet
             $Script:CWAIsConnected=$True
             If ($Credential) {
                 $Script:CWACredentials = $Credential
+            }
+            If ($apiClientID) {
+                $Script:CWAClientID = $apiClientID
             }
             If ($PSCmdlet.ParameterSetName -ne 'verify') {
                 $AutomateAPITokenResult.PSObject.properties.remove('AccessToken')
