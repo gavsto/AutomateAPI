@@ -34,6 +34,11 @@ function Connect-ControlAPI {
     Creation Date:  2019-06-24
     Purpose/Change: Added support for APIKey authentication. The new function was not complex enough.
 
+    Version:        1.2.1
+    Author:         Darren White
+    Creation Date:  2020-12-01
+    Purpose/Change: Added origin to standard header
+
     .EXAMPLE
     All values will be prompted for one by one:
     Connect-ControlAPI
