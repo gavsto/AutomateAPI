@@ -45,9 +45,9 @@ function Invoke-ControlAPIMaster {
         # Add default set of arguments
         $Arguments.Item('UseBasicParsing')=$Null
         If (!$Arguments.Headers) {$Arguments.Headers=@{}}
-        Foreach($Key in $script:CWCToken.Keys){
+        Foreach($Key in $script:CWCHeaders.Keys){
             If($Arguments.Headers.Keys -notcontains $Key){
-                $Arguments.Headers += @{$Key = $script:CWCToken.$Key}
+                $Arguments.Headers += @{$Key = $script:CWCHeaders.$Key}
             }
         }
         If ($Script:ControlAPIKey) {

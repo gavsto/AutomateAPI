@@ -200,7 +200,8 @@ function Connect-ControlAPI {
             }
             $Script:ControlServer = $Server
             $Script:CWCIsConnected = $True
-            $Script:CWCHeaders = @{}
+            $Script:CWCHeaders = @{'origin'=$Server}
+
             If (!$Quiet) {
                 If (!$SkipCheck) {
                     Write-Host -BackgroundColor Green -ForegroundColor Black "Successfully tested and connected to the Control API. Server version is $($AuthorizationResult)"
