@@ -63,6 +63,9 @@ Connect-AutomateAPI -Quiet
         [String]$TwoFactorToken,
 
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
+        [String]$ClientId,
+
+        [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
         [Switch]$Force,
 
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
@@ -102,6 +105,11 @@ Connect-AutomateAPI -Quiet
                 Write-Debug "Setting Authorization Token to $($AutomateToken.Authorization)"
                 $Script:CWAToken = $AutomateToken
             }
+            if($ClientId) {
+                Write-Debug "Setting Client ID to $ClientId"
+                $Null = $Script:CWAToken.Add("ClientId", $ClientId);
+            }
+
             Return
         }
         If (!$AuthorizationToken -and $PSCmdlet.ParameterSetName -eq 'verify') {
@@ -128,6 +136,10 @@ Connect-AutomateAPI -Quiet
                 }
                 If ($TwoFactorNeeded -eq $True -and $TwoFactorToken -match '') {
                     $TwoFactorToken = Read-Host -Prompt "Please enter your 2FA Token"
+                }
+
+                if($ClientIdNeeded -eq $true -and $ClientId -match '') {
+                    $ClientId = Read-Host -Prompt "Please enter your Client ID"
                 }
             }
 
@@ -186,9 +198,29 @@ Connect-AutomateAPI -Quiet
                 $AuthorizationToken = $Script:CWAToken.Authorization -replace 'Bearer ',''
             }
             $TwoFactorNeeded=$AutomateAPITokenResult.IsTwoFactorRequired
-        } Until ($Quiet -or ![string]::IsNullOrEmpty($AuthorizationToken) -or 
+            Write-Debug "Client ID Provided: $ClientId"
+            if(-Not($ClientId)) {
+                try {
+                    $RESTRequest = @{
+                        'URI' = ($AutomateAPIURI + '/Computers')
+                        'Method' = 'GET'
+                        'ContentType' = 'application/json'
+                        'Headers' = $Script:CWAToken
+                    }
+                    $response = Invoke-RestMethod @RESTRequest
+                    $ClientIdNeeded = $False
+                }
+                catch {
+                    Write-Debug $_.Exception.Message
+                    $ClientIdNeeded = $True
+                }
+            }
+        } Until (
+                ($Quiet -or ![string]::IsNullOrEmpty($AuthorizationToken) -or 
                 ($TwoFactorNeeded -ne $True -and $Credential) -or 
-                ($TwoFactorNeeded -eq $True -and $TwoFactorToken -ne '')
+                ($TwoFactorNeeded -eq $True -and $TwoFactorToken -ne '')) -and
+                (($ClientIdNeeded -eq $True -and $ClientId -ne '') -or
+                ($ClientIdNeeded -eq $False))
             )
     } #End Process
 
@@ -211,6 +243,9 @@ Connect-AutomateAPI -Quiet
             #Build the returned token
             $AutomateToken = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
             $AutomateToken.Add("Authorization", "Bearer $AuthorizationToken")
+            if($ClientId) {
+                $AutomateToken.Add("ClientId", "$ClientId");
+            }
             #Create Script Variables for this session in order to use the token
             $Script:CWATokenKey = ConvertTo-SecureString $AuthorizationToken -AsPlainText -Force
             $Script:CWAServer = ("https://" + $Server)
