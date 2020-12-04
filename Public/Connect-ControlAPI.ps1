@@ -155,10 +155,11 @@ function Connect-ControlAPI {
 
             # Invoke the REST Request
             Try {
-                $ControlAPITokenResult = Invoke-RestMethod @RESTRequest
+                $ControlAPITokenResult = Invoke-RestMethod @RESTRequest -SkipCertificateCheck
             }
             Catch {
                 # The authentication has failed, so remove the credentials from the script scope and throw an error
+                Write-Debug $_.Exception.Message
                 Throw "Unable to connect to Control. Server Address or Control Credentials are wrong. This module does not support 2FA for Control Users"
             }
             Write-Debug "Request Results: $($ControlAPITokenResult|ConvertTo-Json -Depth 5 -Compress)"
