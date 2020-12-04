@@ -207,6 +207,7 @@ function Connect-ControlAPI {
             $Script:CWCIsConnected = $True
             $Script:CWCHeaders = @{'Origin'=$Server -replace ':\d+.*$',''}
             Write-Debug "CWC Header Set: $($Script:CWCHeaders|Out-String)"
+            If ($Script:CWAClientID) {$Script:CWCHeaders.Add('ClientID',$Script:CWAClientID)}
 
             If (!$Quiet) {
                 If (!$SkipCheck) {
