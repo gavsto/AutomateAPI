@@ -13,6 +13,12 @@ function Invoke-ControlAPIMaster {
         Author:         Darren White
         Creation Date:  2020-08-01
         Purpose/Change: Initial script development
+
+        Version:        1.1.0
+        Author:         Darren White
+        Creation Date:  2020-12-01
+        Purpose/Change: Include values in $Script:CWCHeaders variable in request
+
     .EXAMPLE
         $APIRequest = @{
             'URI' = "/App_Extensions/fc234f0e-2e8e-4a1f-b977-ba41b14031f7/ReportService.ashx/GenerateReportForAutomate"
@@ -45,9 +51,9 @@ function Invoke-ControlAPIMaster {
         # Add default set of arguments
         $Arguments.Item('UseBasicParsing')=$Null
         If (!$Arguments.Headers) {$Arguments.Headers=@{}}
-        Foreach($Key in $script:CWCToken.Keys){
+        Foreach($Key in $script:CWCHeaders.Keys){
             If($Arguments.Headers.Keys -notcontains $Key){
-                $Arguments.Headers += @{$Key = $script:CWCToken.$Key}
+                $Arguments.Headers += @{$Key = $script:CWCHeaders.$Key}
             }
         }
         If ($Script:ControlAPIKey) {
@@ -56,8 +62,6 @@ function Invoke-ControlAPIMaster {
         Else {
             $Arguments.Item('Credential')=$Script:ControlAPICredentials
         }
-
-        #    if(!$Arguments.SessionVariable){ $Arguments.WebSession = $global:CWCServerConnection.Session }
 
         # Check URI format
         if($Arguments.URI -notlike '*`?*' -and $Arguments.URI -like '*`&*') {

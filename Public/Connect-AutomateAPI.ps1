@@ -107,6 +107,7 @@ Connect-AutomateAPI -Quiet
     
     Process {
         If (!($Server -match '^[a-z0-9][a-z0-9\.\-\/]*$')) {Throw "Server address ($Server) is missing or in invalid format."; Return}
+        $AutomateAPIURI = ('https://' + $Server + '/cwa/api/v1')
         If ($SkipCheck) {
             $Script:CWAServer = ("https://" + $Server)
             If ($Credential) {
@@ -130,8 +131,23 @@ Connect-AutomateAPI -Quiet
             If (!$Quiet) { Throw "Attempt to verify token failed. No token was provided or was cached." }
             Return
         }
+        If (!$apiClientID) {
+            $RESTRequest = @{
+                'URI' = ($AutomateAPIURI + '/APIToken')
+                'Method' = 'GET'
+                'ContentType' = 'application/json'
+            }
+            Write-Debug "Retrieving ClientID from $($RESTRequest.URI)"
+            Try {
+                $apiClientID = Invoke-RestMethod @RESTRequest -EA 0 | Select-Object -Expand Services | Select-Object -First 1 -Expand ClientID
+            }
+            Catch {}
+            If ($apiClientID) {
+                $Script:CWAClientID = $apiClientID
+            }
+        }
+
         Do {
-            $AutomateAPIURI = ('https://' + $Server + '/cwa/api/v1')
             $testCredentials=$Credential
             If (!$Quiet) {
                 If (!$Credential -and ($Force -or !$AuthorizationToken)) {

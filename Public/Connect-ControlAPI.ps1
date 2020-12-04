@@ -34,6 +34,11 @@ function Connect-ControlAPI {
     Creation Date:  2019-06-24
     Purpose/Change: Added support for APIKey authentication. The new function was not complex enough.
 
+    Version:        1.2.1
+    Author:         Darren White
+    Creation Date:  2020-12-01
+    Purpose/Change: Added origin to standard header
+
     .EXAMPLE
     All values will be prompted for one by one:
     Connect-ControlAPI
@@ -201,7 +206,10 @@ function Connect-ControlAPI {
             }
             $Script:ControlServer = $Server
             $Script:CWCIsConnected = $True
-            $Script:CWCHeaders = @{}
+            $Script:CWCHeaders = @{'Origin'=$Server -replace ':\d+.*$',''}
+            Write-Debug "CWC Header Set: $($Script:CWCHeaders|Out-String)"
+            If ($Script:CWAClientID) {$Script:CWCHeaders.Add('ClientID',$Script:CWAClientID)}
+
             If (!$Quiet) {
                 If (!$SkipCheck) {
                     Write-Host -BackgroundColor Green -ForegroundColor Black "Successfully tested and connected to the Control API. Server version is $($AuthorizationResult)"
