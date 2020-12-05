@@ -160,7 +160,7 @@ function Connect-ControlAPI {
 
             # Invoke the REST Request
             Try {
-                $ControlAPITokenResult = Invoke-RestMethod @RESTRequest -SkipCertificateCheck
+                $ControlAPITokenResult = Invoke-RestMethod @RESTRequest
             }
             Catch {
                 # The authentication has failed, so remove the credentials from the script scope and throw an error
