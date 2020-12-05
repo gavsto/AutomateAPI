@@ -48,7 +48,7 @@ Connect-AutomateAPI -Quiet
     [CmdletBinding(DefaultParameterSetName = 'refresh')]
     param (
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
-        [System.Management.Automation.PSCredential]$Credential,
+        [System.Management.Automation.PSCredential]$Credentials,
 
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
         [Parameter(ParameterSetName = 'refresh', Mandatory = $False)]
@@ -110,9 +110,9 @@ Connect-AutomateAPI -Quiet
         $AutomateAPIURI = ('https://' + $Server + '/cwa/api/v1')
         If ($SkipCheck) {
             $Script:CWAServer = ("https://" + $Server)
-            If ($Credential) {
-                Write-Debug "Setting Credentials to $($Credential.UserName)"
-                $Script:CWACredentials = $Credential
+            If ($Credentials) {
+                Write-Debug "Setting Credentials to $($Credentials.UserName)"
+                $Script:CWACredentials = $Credentials
             }
             If ($AuthorizationToken) {
                 #Build the token
@@ -148,14 +148,14 @@ Connect-AutomateAPI -Quiet
         }
 
         Do {
-            $testCredentials=$Credential
+            $testCredentials=$Credentials
             If (!$Quiet) {
-                If (!$Credential -and ($Force -or !$AuthorizationToken)) {
+                If (!$Credentials -and ($Force -or !$AuthorizationToken)) {
                     If ($Force -or !$Script:CWACredentials) {
                         $Username = Read-Host -Prompt "Please enter your Automate Username"
                         $Password = Read-Host -Prompt "Please enter your Automate Password" -AsSecureString
-                        $Credential = New-Object System.Management.Automation.PSCredential ($Username, $Password)
-                        $testCredentials=$Credential
+                        $Credentials = New-Object System.Management.Automation.PSCredential ($Username, $Password)
+                        $testCredentials=$Credentials
                     }
                 }
                 If ($TwoFactorNeeded -eq $True -and $TwoFactorToken -match '') {
@@ -215,7 +215,7 @@ Connect-AutomateAPI -Quiet
                 If ($testCredentials) {
                     Remove-Variable CWACredentials -Scope Script -ErrorAction 0
                 }
-                If ($Credential) {
+                If ($Credentials) {
                     Throw "Attempt to authenticate to the Automate API has failed with error $_.Exception.Message"
                     Return
                 }
@@ -229,7 +229,7 @@ Connect-AutomateAPI -Quiet
             }
         } Until ($Quiet -or ![string]::IsNullOrEmpty($AuthorizationToken) -or 
                 ($PSCmdlet.ParameterSetName -eq 'verify' -and !$AuthorizationToken) -or
-                ($TwoFactorNeeded -ne $True -and $Credential) -or 
+                ($TwoFactorNeeded -ne $True -and $Credentials) -or 
                 ($TwoFactorNeeded -eq $True -and $TwoFactorToken -ne '')
             )
     } #End Process
@@ -259,8 +259,8 @@ Connect-AutomateAPI -Quiet
             $Script:CWAServer = ("https://" + $Server)
             $Script:CWAToken = $AutomateToken
             $Script:CWAIsConnected=$True
-            If ($Credential) {
-                $Script:CWACredentials = $Credential
+            If ($Credentials) {
+                $Script:CWACredentials = $Credentials
             }
             If ($apiClientID) {
                 $Script:CWAClientID = $apiClientID

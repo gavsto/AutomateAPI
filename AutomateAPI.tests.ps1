@@ -17,7 +17,8 @@ Describe AutomateAPI {
         Write-Output $creds.Automate
         $password = ConvertTo-SecureString $creds.Automate.password -AsPlainText -Force
         $credentials = New-Object System.Management.Automation.PSCredential($creds.Automate.user, $password)
-        $result = Connect-AutomateAPI -Server $creds.Automate.server -Credentials $credentials -apiClientID $creds.Automate.clientid
+        $result = Connect-AutomateAPI -Server $creds.Automate.server -Credentials $credentials `
+                    -apiClientID $creds.Automate.clientid
         $result | Should -be $null
     }
 

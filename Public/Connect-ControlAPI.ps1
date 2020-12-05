@@ -48,7 +48,7 @@ function Connect-ControlAPI {
     [CmdletBinding(DefaultParameterSetName = 'credential')]
     param (
         [Parameter(ParameterSetName = 'credential', Mandatory = $false)]
-        [System.Management.Automation.PSCredential]$Credential,
+        [System.Management.Automation.PSCredential]$Credentials,
 
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
         [Parameter(ParameterSetName = 'apikey', Mandatory = $False)]
@@ -128,18 +128,18 @@ function Connect-ControlAPI {
             # Clear the ControlAPIKey variable
             Remove-Variable ControlAPIKey -Scope Script -ErrorAction 0
 
-            IF ($PSCmdlet.ParameterSetName -eq 'verify' -and $Null -eq $Credential) {
+            IF ($PSCmdlet.ParameterSetName -eq 'verify' -and $Null -eq $Credentials) {
                 # The Verify parameter will use the current ControlAPICredentials value.
-                $Credential = $Script:ControlAPICredentials
+                $Credentials = $Script:ControlAPICredentials
             }
             # Clear the ControlAPICredentials variable
             Remove-Variable ControlAPICredentials -Scope Script -ErrorAction 0
 
             # If we have not been given credentials, lets ask for them
-            If (!$Credential -and !$Quiet) {
+            If (!$Credentials -and !$Quiet) {
                 $Username = Read-Host -Prompt "Please enter your Control Username"
                 $Password = Read-Host -Prompt "Please enter your Control Password" -AsSecureString
-                $Credential = New-Object System.Management.Automation.PSCredential ($Username, $Password)
+                $Credentials = New-Object System.Management.Automation.PSCredential ($Username, $Password)
             }
 
             If ($SkipCheck) {
@@ -154,7 +154,7 @@ function Connect-ControlAPI {
                 'URI'         = $ControlAPITestURI
                 'Method'      = 'GET'
                 'ContentType' = 'application/json'
-                'Credential'  = $Credential
+                'Credential'  = $Credentials
             }
             Write-Debug "Submitting Request to $($RESTRequest.URI)"
 
@@ -175,7 +175,7 @@ function Connect-ControlAPI {
     }
 
     End {
-        If ($SkipCheck -and (!$Server -or ($PSCmdlet.ParameterSetName -eq 'apikey' -and ($Null -eq $APIKey)) -or ($PSCmdlet.ParameterSetName -eq 'credential' -and ($Null -eq $Credential)))) {
+        If ($SkipCheck -and (!$Server -or ($PSCmdlet.ParameterSetName -eq 'apikey' -and ($Null -eq $APIKey)) -or ($PSCmdlet.ParameterSetName -eq 'credential' -and ($Null -eq $Credentials)))) {
             # If Skipping Checks, validate required information exists and throw error if missing.
             Throw "SkipCheck failed because the Server, APIKey, or Credentials were not provided."
             If ($Quiet) {
@@ -194,9 +194,9 @@ function Connect-ControlAPI {
             }
         }
         Else {
-            If ($PSCmdlet.ParameterSetName -eq 'credential' -or ($PSCmdlet.ParameterSetName -eq 'verify' -and $Credential)) {
+            If ($PSCmdlet.ParameterSetName -eq 'credential' -or ($PSCmdlet.ParameterSetName -eq 'verify' -and $Credentials)) {
                 # Set the credentials at the script level
-                $Script:ControlAPICredentials = $Credential
+                $Script:ControlAPICredentials = $Credentials
             } 
             ElseIf ($PSCmdlet.ParameterSetName -eq 'apikey' -or ($PSCmdlet.ParameterSetName -eq 'verify' -and $APIKey)) {
                 $Script:ControlAPIKey = $APIKey
