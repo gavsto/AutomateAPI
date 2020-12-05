@@ -6,7 +6,7 @@ Connect to the Automate API.
 Connects to the Automate API and returns a bearer token which when passed with each requests grants up to an hours worth of access.
 .PARAMETER Server
 The address to your Automate Server. Example 'rancor.hostedrmm.com'
-.PARAMETER Credentials
+.PARAMETER Credential
 Takes a standard powershell credential object, this can be built with $CredentialsToPass = Get-Credential, then pass $CredentialsToPass
 .PARAMETER TwoFactorToken
 Takes a string that represents the 2FA number
@@ -40,7 +40,7 @@ Author:         Brandon Fahnestock
 Purpose/Change: ConnectWise Automate v2020.11 requires a registered ClientID for API access. Added Support for ClientIDs 
 
 .EXAMPLE
-Connect-AutomateAPI -Server "rancor.hostedrmm.com" -Credentials $CredentialObject -TwoFactorToken "999999" -apiClientID '123123123-1234-1234-1234-123123123123'
+Connect-AutomateAPI -Server "rancor.hostedrmm.com" -Credential $CredentialObject -TwoFactorToken "999999" -apiClientID '123123123-1234-1234-1234-123123123123'
 
 .EXAMPLE
 Connect-AutomateAPI -Quiet
@@ -148,14 +148,14 @@ Connect-AutomateAPI -Quiet
         }
 
         Do {
-            $testCredentials=$Credential
+            $testCredential=$Credential
             If (!$Quiet) {
                 If (!$Credential -and ($Force -or !$AuthorizationToken)) {
                     If ($Force -or !$Script:CWACredentials) {
                         $Username = Read-Host -Prompt "Please enter your Automate Username"
                         $Password = Read-Host -Prompt "Please enter your Automate Password" -AsSecureString
                         $Credential = New-Object System.Management.Automation.PSCredential ($Username, $Password)
-                        $testCredentials=$Credential
+                        $testCredential=$Credential
                     }
                 }
                 If ($TwoFactorNeeded -eq $True -and $TwoFactorToken -match '') {
@@ -163,14 +163,14 @@ Connect-AutomateAPI -Quiet
                 }
             }
 
-            If (!$AuthorizationToken -and !$testCredentials -and $Script:CWACredentials -and $Force -ne $True -and $PSCmdlet.ParameterSetName -ne 'verify') {
-                $testCredentials = $Script:CWACredentials
+            If (!$AuthorizationToken -and !$testCredential -and $Script:CWACredentials -and $Force -ne $True -and $PSCmdlet.ParameterSetName -ne 'verify') {
+                $testCredential = $Script:CWACredentials
             }
-            If ($testCredentials) {
+            If ($testCredential) {
                 #Build the headers for the Authentication
                 $PostBody = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
-                $PostBody.Add("username", $testCredentials.UserName)
-                $PostBody.Add("password", $testCredentials.GetNetworkCredential().Password)
+                $PostBody.Add("username", $testCredential.UserName)
+                $PostBody.Add("password", $testCredential.GetNetworkCredential().Password)
                 If (!([string]::IsNullOrEmpty($TwoFactorToken))) {
                     #Remove any spaces that were added
                     $TwoFactorToken = $TwoFactorToken -replace '\s', ''
@@ -212,7 +212,7 @@ Connect-AutomateAPI -Quiet
             }
             Catch {
                 Remove-Variable CWAToken,CWATokenKey -Scope Script -ErrorAction 0
-                If ($testCredentials) {
+                If ($testCredential) {
                     Remove-Variable CWACredentials -Scope Script -ErrorAction 0
                 }
                 If ($Credential) {

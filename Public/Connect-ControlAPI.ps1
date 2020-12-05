@@ -43,7 +43,7 @@ function Connect-ControlAPI {
     All values will be prompted for one by one:
     Connect-ControlAPI
     All values needed to Automatically create appropriate output
-    Connect-ControlAPI -Server "https://control.rancorthebeast.com:8040" -Credentials $CredentialsToPass
+    Connect-ControlAPI -Server "https://control.rancorthebeast.com:8040" -Credential $CredentialsToPass
     #>
     [CmdletBinding(DefaultParameterSetName = 'credential')]
     param (
@@ -164,6 +164,7 @@ function Connect-ControlAPI {
             }
             Catch {
                 # The authentication has failed, so remove the credentials from the script scope and throw an error
+                Write-Debug $_.Exception.Message
                 Throw "Unable to connect to Control. Server Address or Control Credentials are wrong. This module does not support 2FA for Control Users"
             }
             Write-Debug "Request Results: $($ControlAPITokenResult|ConvertTo-Json -Depth 5 -Compress)"
