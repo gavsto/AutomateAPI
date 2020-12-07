@@ -16,8 +16,8 @@ Describe AutomateAPI {
     It "Connects to the Automate API" {
         $password = ConvertTo-SecureString $creds.Automate.password -AsPlainText -Force
         $credentials = New-Object System.Management.Automation.PSCredential($creds.Automate.user, $password)
-        $result = Connect-AutomateAPI -Server $creds.Automate.server -Credentials $credentials `
-                    -apiClientID $creds.Automate.clientid
+        $result = Connect-AutomateAPI -Server $creds.Automate.server -Credential $credentials `
+                    -ClientID $creds.Automate.clientid
         $result | Should -be $null
     }
 
@@ -28,7 +28,7 @@ Describe AutomateAPI {
     It "Connects to the Control API" {
         $password = ConvertTo-SecureString $creds.Control.password -AsPlainText -Force
         $credentials = New-Object System.Management.Automation.PSCredential($creds.Control.user, $password)
-        $result = Connect-ControlAPI -Server $creds.Control.server -Credentials $credentials
+        $result = Connect-ControlAPI -Server $creds.Control.server -Credential $credentials
         $result | Should -be $null
     }
     
