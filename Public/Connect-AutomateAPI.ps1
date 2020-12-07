@@ -40,7 +40,7 @@ Author:         Brandon Fahnestock
 Purpose/Change: ConnectWise Automate v2020.11 requires a registered ClientID for API access. Added Support for ClientIDs 
 
 .EXAMPLE
-Connect-AutomateAPI -Server "rancor.hostedrmm.com" -Credential $CredentialObject -TwoFactorToken "999999" -apiClientID '123123123-1234-1234-1234-123123123123'
+Connect-AutomateAPI -Server "rancor.hostedrmm.com" -Credential $CredentialObject -TwoFactorToken "999999" -ClientID '123123123-1234-1234-1234-123123123123'
 
 .EXAMPLE
 Connect-AutomateAPI -Quiet
@@ -53,7 +53,7 @@ Connect-AutomateAPI -Quiet
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
         [Parameter(ParameterSetName = 'refresh', Mandatory = $False)]
         [Parameter(ParameterSetName = 'verify', Mandatory = $False)]
-        [String]$apiClientID = $Script:CWAClientID,
+        [String]$ClientID = $Script:CWAClientID,
 
         [Parameter(ParameterSetName = 'credential', Mandatory = $False)]
         [Parameter(ParameterSetName = 'refresh', Mandatory = $False)]
@@ -91,15 +91,15 @@ Connect-AutomateAPI -Quiet
             While (!($Server -match '.+')) {
                 $Server = Read-Host -Prompt "Please enter your Automate Server address, IE: rancor.hostedrmm.com" 
             }
-            If (!($apiClientID -match '.+')) {
-                $apiClientID = Read-Host -Prompt "Please enter API Client ID (Required for 2020.P11 and above)" 
+            If (!($ClientID -match '.+')) {
+                $ClientID = Read-Host -Prompt "Please enter API Client ID (Required for 2020.P11 and above)" 
             }
         }
         $Server = $Server -replace '^https?://','' -replace '/[^\/]*$',''
         $AuthorizationToken = $AuthorizationToken -replace 'Bearer ',''
         $Script:CWAIsConnected=$False
-        If ($apiClientID -notmatch '.+') {
-            $apiClientID=$Null
+        If ($ClientID -notmatch '.+') {
+            $ClientID=$Null
             Write-Warning "API ClientID is missing or in invalid format."
         }
 
@@ -121,9 +121,9 @@ Connect-AutomateAPI -Quiet
                 Write-Debug "Setting Authorization Token to $($AutomateToken.Authorization)"
                 $Script:CWAToken = $AutomateToken
             }
-            If ($apiClientID) {
-                Write-Debug "Setting ClientID to $apiClientID"
-                $Script:CWAClientID = $apiClientID
+            If ($ClientID) {
+                Write-Debug "Setting ClientID to $ClientID"
+                $Script:CWAClientID = $ClientID
             }
             Return
         }
@@ -131,22 +131,6 @@ Connect-AutomateAPI -Quiet
             If (!$Quiet) { Throw "Attempt to verify token failed. No token was provided or was cached." }
             Return
         }
-        If (!$apiClientID) {
-            $RESTRequest = @{
-                'URI' = ($AutomateAPIURI + '/APIToken')
-                'Method' = 'GET'
-                'ContentType' = 'application/json'
-            }
-            Write-Debug "Retrieving ClientID from $($RESTRequest.URI)"
-            Try {
-                $apiClientID = Invoke-RestMethod @RESTRequest -EA 0 | Select-Object -Expand Services | Select-Object -First 1 -Expand ClientID
-            }
-            Catch {}
-            If ($apiClientID) {
-                $Script:CWAClientID = $apiClientID
-            }
-        }
-
         Do {
             $testCredential=$Credential
             If (!$Quiet) {
@@ -201,8 +185,8 @@ Connect-AutomateAPI -Quiet
                     'Headers' = @{'Authorization' = "Bearer $PostBody"}
                 }
             }
-            If ($apiClientID) {
-                $RESTRequest.Headers += @{'clientID' = "$apiClientID"}
+            If ($ClientID) {
+                $RESTRequest.Headers += @{'clientID' = "$ClientID"}
             }
 
             #Invoke the REST Method
@@ -262,8 +246,8 @@ Connect-AutomateAPI -Quiet
             If ($Credential) {
                 $Script:CWACredentials = $Credential
             }
-            If ($apiClientID) {
-                $Script:CWAClientID = $apiClientID
+            If ($ClientID) {
+                $Script:CWAClientID = $ClientID
             }
             If ($PSCmdlet.ParameterSetName -ne 'verify') {
                 $AutomateAPITokenResult.PSObject.properties.remove('AccessToken')

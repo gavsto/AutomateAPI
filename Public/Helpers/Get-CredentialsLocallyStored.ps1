@@ -116,15 +116,9 @@ function Get-CredentialsLocallyStored {
         If (-not (Test-Path $CredentialPath -EA 0)) {
             Throw [System.IO.FileNotFoundException] "Control Credentials not found at $($CredentialPath)"
         }
-        $StoreVariables = @(
-            @{'Name' = 'ControlAPICredentials'; 'Scope' = 'Script'},
-            @{'Name' = 'ControlServer'; 'Scope' = 'Script'},
-            @{'Name' = 'ControlAPIKey'; 'Scope' = 'Script'}
-        )
-
         $StoreBlock = Get-Content $CredentialPath | ConvertFrom-Json
-        Foreach ($SaveVar in $StoreVariables) {
-            If (!($StoreBlock.$($SaveVar.Name))) {Continue}
+        Foreach ($SaveVar in $StoreBlock.psobject.Properties) {
+            Write-Debug "Restoring $($SaveVar.Name)"
             If ($SaveVar.Name -match 'Credential') {
                 Try {
                     $Null = Set-Variable @SaveVar -Value $(New-Object System.Management.Automation.PSCredential -ArgumentList $($StoreBlock.$($SaveVar.Name).Username), $(ConvertTo-SecureString $($StoreBlock.$($SaveVar.Name).Password)))

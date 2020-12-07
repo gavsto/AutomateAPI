@@ -78,6 +78,7 @@ function Connect-ControlAPI {
         $Server = $Server -replace '/$', ''
         $AuthorizationResult=$Null
         $Script:CWCIsConnected = $False
+        $AntiForgeryToken=$Script:CWCHeaders.'x-anti-forgery-token'
     }
     
     Process {
@@ -147,6 +148,15 @@ function Connect-ControlAPI {
                 Return # Bypass "Processing", execution resumes in the End {} Block.
             }
 
+            # Retrieve AntiForgeryToken
+            Try {
+                $SvrCheck = Invoke-WebRequest $Server -Method Get -UseBasicParsing | Select-Object -Expand Content | Select-String -Pattern '"antiForgeryToken":"([^"]*)"' 
+                If ($SvrCheck -and $SvrCheck.Matches -and $SvrCheck.Matches.Count -gt 0) {
+                    $AntiForgeryToken = $SvrCheck.Matches.Groups[1].Value
+                    Write-Debug "AntiForgeryToken $($AntiForgeryToken) retrieved"
+                } Else {Write-Verbose "No AntiForgeryToken was found"}
+            } Catch {}
+
             # Now we will test the credentials
             # Build up the REST request that we will use to test with
             $ControlAPITestURI = ($Server + '/Services/PageService.ashx/GetHostSessionInfo')
@@ -156,6 +166,7 @@ function Connect-ControlAPI {
                 'ContentType' = 'application/json'
                 'Credential'  = $Credential
             }
+            If ($AntiForgeryToken) {$RESTRequest.Add('Headers',@{'x-anti-forgery-token'=$AntiForgeryToken})}
             Write-Debug "Submitting Request to $($RESTRequest.URI)"
 
             # Invoke the REST Request
@@ -207,8 +218,9 @@ function Connect-ControlAPI {
             $Script:ControlServer = $Server
             $Script:CWCIsConnected = $True
             $Script:CWCHeaders = @{'Origin'=$Server -replace ':\d+.*$',''}
-            Write-Debug "CWC Header Set: $($Script:CWCHeaders|Out-String)"
+            If ($AntiForgeryToken) {$Script:CWCHeaders.Add('x-anti-forgery-token',$AntiForgeryToken)}
             If ($Script:CWAClientID) {$Script:CWCHeaders.Add('ClientID',$Script:CWAClientID)}
+            Write-Debug "CWC Header Set: $($Script:CWCHeaders|Out-String)"
 
             If (!$Quiet) {
                 If (!$SkipCheck) {

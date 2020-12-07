@@ -107,7 +107,8 @@ function Set-CredentialsLocallyStored {
         $StoreVariables = @(
             @{'Name' = 'ControlAPICredentials'; 'Scope' = 'Script'},
             @{'Name' = 'ControlServer'; 'Scope' = 'Script'},
-            @{'Name' = 'ControlAPIKey'; 'Scope' = 'Script'}
+            @{'Name' = 'ControlAPIKey'; 'Scope' = 'Script'},
+            @{'Name' = 'CWCHeaders'; 'Scope' = 'Script'}
         )
 
         $StoreBlock = [pscustomobject]@{}
