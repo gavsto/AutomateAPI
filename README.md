@@ -1,12 +1,12 @@
 # AutomateAPI
-Latest Tested Versions on 20201206:
-Automate 20.0.373 (Patch 11)
-Automate Control Plugin 6.5.20005.4
-Control 20.11.1385.7587
-Control Automate Extension 4.1.0.3
-
-Note: A Partner "ClientID" token is needed with Automate 20 Patch 11 and above. See https://developer.connectwise.com/ClientID
-
+Latest Tested Versions on 20201206: 
+Automate 20.0.373 (Patch 11) 
+Automate Control Plugin 6.5.20005.4 
+Control 20.11.1385.7587 
+Control Automate Extension 4.1.0.3 
+ 
+Note: A Partner "ClientID" token is needed with Automate 20 Patch 11 and above. See https://developer.connectwise.com/ClientID 
+ 
 # Features
 1) Get, search and return PowerShell objects for pre-defined searches or custom conditions using Get-AutomateComputer. See https://github.com/gavsto/AutomateAPI/wiki/Get-AutomateComputer
 
