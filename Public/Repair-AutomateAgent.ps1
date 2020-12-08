@@ -198,17 +198,20 @@ launchctl list | grep -i "com.labtechsoftware"&&echo "LTService Restarted succes
                $ObjectCapture | Where-Object {$_.OperatingSystemName -like '*Windows*'} | ForEach-Object {
                   If ($PSCmdlet.ShouldProcess("Automate Services on $($_.ComputerID) - $($_.ComputerName)",$Action)) {
                      Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($_.ComputerID) - $($_.ComputerName) - Attempting to $Action Automate Services - job will be submitted to online systems"
-                     $_ | Invoke-ControlCommand -Powershell -Command @"
+                     $_ 
+                  }
+               } | Invoke-ControlCommand -Powershell -Command @"
 (new-object Net.WebClient).DownloadString('$($LTPoShURI)') | iex
 Install-LTService -Server '$($Script:CWAServer)' -LocationID $($_.Location.Id) -InstallerToken '$($InstallerToken)' -Force -SkipDotNet
 "@ -TimeOut 300000 -MaxLength 20480 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
-                  }
-               }
+
                $InstallerToken = Get-AutomateInstallerToken -InstallerType 5
                $ObjectCapture | Where-Object {$_.OperatingSystemName -like '*OS X*'} | ForEach-Object {
                   If ($PSCmdlet.ShouldProcess("Automate Services on $($_.ComputerID) - $($_.ComputerName)",$Action)) {
                      Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($_.ComputerID) - $($_.ComputerName) - Attempting to $Action Automate Services - job will be submitted to online systems"
-                     $_ | Invoke-ControlCommand -Command @"
+                     $_ 
+                  }
+               } | Invoke-ControlCommand -Command @"
 LOCATIONID=$($_.Location.Id)
 cd /tmp&&(
  (rm -f cwaagent.zip; rm -Rf CWAutomate)&>/dev/null
@@ -229,14 +232,17 @@ cd /tmp&&(
  )||echo ERROR-Failed to download cwaagent.zip
 )||echo ERROR-Failed to change path to /tmp
 "@.Replace("`r",'') -TimeOut 300000 -MaxLength 20480 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects
-                  }
-               }
+
                $InstallerToken = Get-AutomateInstallerToken -InstallerType 3
                $ObjectCapture | Where-Object {$_.OperatingSystemName -like '*Linux*'} | ForEach-Object {
                   Write-Host -BackgroundColor Yellow -ForegroundColor Red "$($_.ComputerID) - $($_.ComputerName) - $Action action for Operating System ($($_.OperatingSystemName)) is not supported at present in this module"
-<#                  If ($PSCmdlet.ShouldProcess("Automate Services on $($_.ComputerID) - $($_.ComputerName)",$Action)) {
+<#
+                  If ($PSCmdlet.ShouldProcess("Automate Services on $($_.ComputerID) - $($_.ComputerName)",$Action)) {
                      Write-Host -BackgroundColor DarkGray -ForegroundColor Yellow "$($_.ComputerID) - $($_.ComputerName) - Attempting to $Action Automate Services - job will be submitted to online systems"
-                     $_ | Invoke-ControlCommand -Command @"
+                     $_ 
+                  }
+#>
+               } <# | Invoke-ControlCommand -Command @"
 LOCATIONID=$($_.Location.Id)
 cd /tmp&&(
  (rm -f cwaagent.zip; rm -Rf CWAutomate)&>/dev/null
@@ -256,8 +262,7 @@ cd /tmp&&(
  )||echo ERROR-Failed to download cwaagent.zip
 )||echo ERROR-Failed to change path to /tmp
 "@.Replace("`r",'') -TimeOut 300000 -MaxLength 10240 -BatchSize $BatchSize -OfflineAction Skip -ResultPropertyName $RepairProperty -PassthroughObjects 
-                  } #>
-               }
+#>
             )
             $ObjectCapture | Where-Object {!($_.OperatingSystemName -like '*Windows*' -or $_.OperatingSystemName -like '*OS X*' -or $_.OperatingSystemName -like '*Linux*')}  | ForEach-Object {
                Write-Host -BackgroundColor Yellow -ForegroundColor Red "$($_.ComputerID) - $($_.ComputerName) - $Action action for Operating System ($($_.OperatingSystemName)) is not supported at present in this module"
