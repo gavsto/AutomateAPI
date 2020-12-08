@@ -59,7 +59,9 @@ function Invoke-AutomateAPIMaster {
         If($Arguments.URI -notlike '*`?*' -and $Arguments.URI -like '*`&*') {
             $Arguments.URI = $Arguments.URI -replace '(.*?)&(.*)', '$1?$2'
         }        
-
+        if($Arguments.URI -notmatch '^(https?://|/)') {
+            $Arguments.URI = ('/' + $Arguments.URI)
+        }
         If($Arguments.URI -notmatch '^https?://') {
           $Arguments.URI = ($Script:CWAServer + $Arguments.URI)
         }

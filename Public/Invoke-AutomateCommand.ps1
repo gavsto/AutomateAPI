@@ -11,7 +11,7 @@ function Invoke-AutomateCommand {
     .PARAMETER Command
         The command you wish to issue to the machine.
     .PARAMETER TimeOut
-        The amount of time in seconds to wait for the command results. The default is 1 second.
+        The amount of time in seconds to wait for the command results. The default is 30 seconds.
     .PARAMETER BatchSize
         Number of computers to invoke commands in parallel at a time.
     .PARAMETER ResultPropertyName
@@ -26,22 +26,16 @@ function Invoke-AutomateCommand {
 
     .EXAMPLE
         Get-AutomateComputer -ComputerID 5 | Invoke-AutomateCommand -Powershell -Command "Get-Service"
-            Will retrieve Computer Information from Automate, Get ControlSession data and merge with the input object, then call Get-Service on the computer.
+            Will execute PowerShell command "Get-Service" on the computer.
     .EXAMPLE
-        Invoke-AutomateCommand -SessionID $SessionID -Command 'hostname'
-            Will return the hostname of the machine.
+        Invoke-AutomateCommand -ComputerID @(3,4,5,6,7,8) -Command 'hostname' -OfflineAction Skip
+            Will return the hostnames of the online machines.
     .EXAMPLE
-        Invoke-AutomateCommand -SessionID $SessionID -TimeOut 120000 -Command 'iwr -UseBasicParsing "https://bit.ly/ltposh" | iex; Restart-LTService' -PowerShell
-            Will restart the Automate agent on the target machine.
-    .EXAMPLE
-        $Results = Get-AutomateComputer -ClientName "Contoso" | Get-AutomateControlInfo | Invoke-AutomateCommand -IncludeComputerName -ResultPropertyName "OfficePlatform" -PowerShell -Command { Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Office\ClickToRun\Configuration" -Name Platform }
+        $Results = Get-AutomateComputer -ClientName "Contoso" | Invoke-AutomateCommand -ResultPropertyName "OfficePlatform" -PowerShell -Command { Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Office\ClickToRun\Configuration" -Name Platform } -PassthroughObjects
         $Results | select ComputerName, OfficePlatform
     .EXAMPLE
-        $Results = Get-AutomateComputer -ClientName "Contoso" | Get-AutomateControlInfo | Invoke-AutomateCommand -AsObjects -IncludeComputerName -ResultPropertyName "OfficeRegInfo" -PowerShell -Command { Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Office\ClickToRun\Configuration" }
-        $Results | ?{$_.OfficeRegInfo.Platform -eq "x86" -and $_.OfficeRegInfo.UpdateEnabled -notlike "true"} | select ComputerName
-    .EXAMPLE
-        Invoke-AutomateCommand -SessionID $SessionID -CommandID 40
-            Will tell the control service to Reinstall (update)
+        Invoke-AutomateCommand -ComputerID $ComputerID -CommandID 123 -Timeout 600000
+            Tells the remote agent to resend system inventory.
 
     #>
     [CmdletBinding(SupportsShouldProcess=$True,DefaultParameterSetName = 'ExecuteCommand')]
@@ -54,6 +48,9 @@ function Invoke-AutomateCommand {
         [Parameter(ParameterSetName = 'ExecuteCommand')]
         [Parameter(ParameterSetName = 'PassthroughObjects')]
         [string]$WorkingDirectory="%WINDIR%\Temp",
+        [Parameter(ParameterSetName = 'ExecuteCommand')]
+        [Parameter(ParameterSetName = 'PassthroughObjects')]
+        [switch]$PowerShell,
         [Parameter(ParameterSetName = 'CommandID', Mandatory = $True)]
         [int]$CommandID=2,
         [Parameter(ParameterSetName = 'CommandID')]
@@ -72,45 +69,38 @@ function Invoke-AutomateCommand {
     Begin {
         $ProgressPreference='SilentlyContinue'
 
-        #Build the URL to hit
         $URI = "cwa/api/v1/Computers"
-        #Build the Body Up
-        $Body = @{}
-
-        #Put the condition in
-        if ($Condition) {
-            $Body.Add("condition", "$condition")
-        }
-
-        #Include only these IDs
-        if ($IDs) {
-            $Body.Add("ids", "$IDs")
-        }
 
         Write-Debug "Selected parameterset $($PSCmdlet.ParameterSetName)"
         If ($PSCmdlet.ParameterSetName -eq 'CommandID') {
             $CommandBody=$CommandParameters
-        } ElseIf ($PSCmdlet.ParameterSetName -eq 'ExecuteScript') {
-            $CommandID=301
-            $FormattedCommand=@(@('0','PowerShell', 'Vbs', 'Batch', 'PowerShellBypass').IndexOf($ScriptType),
-                $(ConvertTo-LTSecurityv2 -InputString $ExecuteScript),
-                $(ConvertTo-LTSecurityv2 -InputString $ScriptParameters),
-                $(ConvertTo-LTSecurityv2 -InputString $RunAsUserName),
-                $(ConvertTo-LTSecurityv2 -InputString $RunAsPassword)
-            )
-            $CommandBody=$FormattedCommand -join '|'
         } Else {
+            If ($PowerShell) {
+                $Command=$Command -Replace '"','\"'
+                $FormattedCommand="powershell.exe!!! -NonInteractive -Command ""`$WorkingDirectory=[System.Environment]::ExpandEnvironmentVariables('$WorkingDirectory'); Set-Location -Path `$WorkingDirectory -ErrorAction Stop; $Command"""
+            } Else {
                 $FormattedCommand="cmd.exe!!! /c ""CD /D ""$WorkingDirectory"" && $Command"""
-            $CommandBody = $FormattedCommand
             }
-
-        $ResultObjects = @{ }
+            $CommandBody = $FormattedCommand
+        }
+        $ResultObjects = @{}
         $ComputerCollection = {}.Invoke()
         Write-Debug "CommandID $($CommandID) will be used to submit the following command`n$($CommandBody)"
-
     }
 
     Process {
+        If ($PassthroughObjects) {
+            $ObjectsIn=$_
+            Foreach ($xObject in $ObjectsIn) {
+                If ($xObject -and $xObject.ComputerID) {
+                    [string]$Computer=$xObject.ComputerID
+                    If (!($ResultObjects.ContainsKey($Computer))) {
+                        $ResultObjects.Add($Computer, [pscustomobject]@{ComputerID = $Computer })
+                    } Else {Write-Warning "ComputerID $Computer has already been added. Skipping"}
+                    $Null = $ComputerCollection.Add($xObject)
+                } Else {Write-Warning "Input Object is missing ComputerID property"}
+            }
+        } Else {
             Foreach ($Computer in $ComputerId) {
                 If ($Computer.ComputerID) {$Computer=$Computer.ComputerID}
                 [string]$Computer="$($Computer)"
@@ -122,6 +112,7 @@ function Invoke-AutomateCommand {
                 }
             }
         }
+    }
 
     End {
         Function New-ReturnObject {
@@ -142,11 +133,9 @@ function Invoke-AutomateCommand {
                 $ComputerIndex++
             }
 
-
             If ($AddComputers.Count -gt 0) {
                 If ( $PSCmdlet.ShouldProcess($AddComputers, "Submit Command to Agents") ) {
                     Foreach ($tmpComputerID IN $AddComputers) {
-Write-Debug "Submitting command to $($tmpComputerID)"
                         # Issue command
                         $ExecuteCommand=@{
                             'ComputerId' = $tmpComputerID
@@ -167,8 +156,7 @@ Write-Debug "Submitting command to $($tmpComputerID)"
                             If ($Result.content){
                                 $Result = $Result.content | ConvertFrom-Json
                             }
-Write-Debug "Invoke-AutomateAPIMaster Response: $(ConvertTo-JSON -InputObject $Result -Depth 100 -Compress)"
-            
+
                             If ($Result -and $Result.ID) {
                                 $ResultObjects[$tmpComputerID] = New-ReturnObject -InputObject $ResultObjects[$tmpComputerID] -Result "$($Result.Id)" -PropertyName 'CmdID' -IsSuccess $false
                                 $EventDate = Get-Date
@@ -185,7 +173,7 @@ Write-Debug "Invoke-AutomateAPIMaster Response: $(ConvertTo-JSON -InputObject $R
                 }
                 $AddComputers.Clear()
             }
-Write-Debug "Results: $(ConvertTo-JSON -InputObject $ResultObjects -Depth 10 -compress)"
+
             If ($RemainingComputers.Count -gt 0) {
 
                 Start-Sleep -Seconds 5
@@ -226,9 +214,8 @@ Write-Debug "Results: $(ConvertTo-JSON -InputObject $ResultObjects -Depth 10 -co
         } ElseIf (!($PassthroughObjects)) {
             $ComputerCollection | Select-Object -Property @{n=$ResultPropertyName;e={If ($_.ComputerID) {[string]$ComputerID=$_.ComputerID} Else {[string]$ComputerID=$_}; Write-Debug "Inserting results for ComputerID $($ComputerID)"; If ($ResultObjects.ContainsKey($ComputerID)) {$ResultObjects[$ComputerID]|Select-Object -Property * -ExcludeProperty __CommandTimeout} Else {"Results for ComputerID $($ComputerID) were not found"} }} | Select-Object -ExpandProperty "$ResultPropertyName"
         } Else {
-            $ComputerCollection | Select-Object -ExcludeProperty $ResultPropertyName -Property *,@{n=$ResultPropertyName;e={If ($_.ComputerID) {[string]$ComputerID=$_.ComputerID} Else {[string]$ComputerID=$_}; Write-Debug "Inserting results for ComputerID $($ComputerID)"; If ($ResultObjects.ContainsKey($ComputerID)) {$ResultObjects[$ComputerID]|Select-Object -Property * -ExcludeProperty __CommandTimeout} Else {"Results for ComputerID $($ComputerID) were not found"} }}
+            $ComputerCollection | Select-Object -ExcludeProperty $ResultPropertyName -Property *,@{n=$ResultPropertyName;e={If ($_.ComputerID) {[string]$ComputerID=$_.ComputerID} Else {[string]$ComputerID=$_}; Write-Debug "Inserting results for ComputerID $($ComputerID)"; If ($ResultObjects.ContainsKey($ComputerID)) {$ResultObjects[$ComputerID]|Select-Object -Property * -ExcludeProperty ComputerID,__CommandTimeout} Else {"Results for ComputerID $($ComputerID) were not found"} }}
         }
 
     }
 }
-
