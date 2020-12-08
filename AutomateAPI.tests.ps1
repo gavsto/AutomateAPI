@@ -35,4 +35,9 @@ Describe AutomateAPI {
     It "Control API returns a list of sessions" {
         (Get-ControlSession).Count | Should -BeGreaterThan 0
     }
+
+    It "Compares Automate Control Status" {
+        $result = Get-AutomateComputer -Online $true | Select-Object -First 1 | Compare-AutomateControlStatus -AllResults
+        $result | Should -Not -Be $null
+    }
 }

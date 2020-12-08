@@ -153,9 +153,9 @@ function Compare-AutomateControlStatus {
         }
 
         If ($AllResults) {
-            $ReturnedObject
+            return $ReturnedObject
         } Else {
-            $ReturnedObject | Where-Object{($_.OnlineStatusControl -eq $true) -and ($_.OnlineStatusAutomate -eq 'Offline') }
+            return $ReturnedObject | Where-Object{($_.OnlineStatusControl -eq $true) -and ($_.OnlineStatusAutomate -eq 'Offline') }
         }
     }
 }
