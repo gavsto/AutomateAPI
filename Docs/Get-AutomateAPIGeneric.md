@@ -12,17 +12,18 @@ Internal function used to make generic API calls
 
 ## SYNTAX
 
-### Page
+### AllResults (Default)
 ```
-Get-AutomateAPIGeneric [-PageSize <Int32>] -Page <Int32> -Endpoint <String> [-OrderBy <String>]
+Get-AutomateAPIGeneric [-AllResults] [-ResultSetSize <Object>] -Endpoint <String> [-OrderBy <String>]
  [-Condition <String>] [-IncludeFields <String>] [-ExcludeFields <String>] [-IDs <String>] [-Expand <String>]
  [<CommonParameters>]
 ```
 
-### AllResults
+### Page
 ```
-Get-AutomateAPIGeneric [-AllResults] -Endpoint <String> [-OrderBy <String>] [-Condition <String>]
- [-IncludeFields <String>] [-ExcludeFields <String>] [-IDs <String>] [-Expand <String>] [<CommonParameters>]
+Get-AutomateAPIGeneric [-PageSize <Int32>] [-Page <Int32>] -Endpoint <String> [-OrderBy <String>]
+ [-Condition <String>] [-IncludeFields <String>] [-ExcludeFields <String>] [-IDs <String>] [-Expand <String>]
+ [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -32,7 +33,7 @@ Internal function used to make generic API calls
 
 ### EXAMPLE 1
 ```
-Get-AutomateAPIGeneric -Page 1 -Condition "RemoteAgentLastContact <= 2019-12-18T00:50:19.575Z" -Endpoint "computers?"
+Get-AutomateAPIGeneric -Page 1 -Condition "RemoteAgentLastContact <= 2019-12-18T00:50:19.575Z" -Endpoint "computers"
 ```
 
 ## PARAMETERS
@@ -60,9 +61,9 @@ Type: Int32
 Parameter Sets: Page
 Aliases:
 
-Required: True
+Required: False
 Position: Named
-Default value: 0
+Default value: 1
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -82,8 +83,23 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
+### -ResultSetSize
+{{ Fill ResultSetSize Description }}
+
+```yaml
+Type: Object
+Parameter Sets: AllResults
+Aliases:
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
 ### -Endpoint
-The individial URI to post to for results, IE computers?
+The individial URI to post to for results, IE computers
 
 ```yaml
 Type: String
@@ -168,7 +184,7 @@ Accept wildcard characters: False
 ```
 
 ### -IDs
-A comma delimited list of fields, when specified only these IDs will be returned
+A comma delimited list of IDs, when specified only these IDs will be returned
 
 ```yaml
 Type: String
@@ -183,7 +199,7 @@ Accept wildcard characters: False
 ```
 
 ### -Expand
-{{Fill Expand Description}}
+{{ Fill Expand Description }}
 
 ```yaml
 Type: String
@@ -198,8 +214,7 @@ Accept wildcard characters: False
 ```
 
 ### CommonParameters
-This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable.
-For more information, see about_CommonParameters (http://go.microsoft.com/fwlink/?LinkID=113216).
+This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
 
 ## INPUTS
 
@@ -207,9 +222,12 @@ For more information, see about_CommonParameters (http://go.microsoft.com/fwlink
 
 ### The returned results from the API call
 ## NOTES
-Version:        1.0
+Version:        1.1.0
 Author:         Gavin Stone
-Creation Date:  20/01/2019
+Creation Date:  2019-01-20
 Purpose/Change: Initial script development
+
+Update Date:    2020-07-03
+Purpose/Change: Update to use Invoke-AutomateAPIMaster
 
 ## RELATED LINKS

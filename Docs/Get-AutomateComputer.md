@@ -12,46 +12,47 @@ Get Computer information out of the Automate API
 
 ## SYNTAX
 
-### IndividualPC
+### IncludeFields (Default)
 ```
-Get-AutomateComputer [[-ComputerID] <Int32[]>] [<CommonParameters>]
-```
-
-### AllResults
-```
-Get-AutomateComputer [-AllComputers] [-IncludeFields <String>] [-ExcludeFields <String>] [-OrderBy <String>]
- [<CommonParameters>]
-```
-
-### ByCondition
-```
-Get-AutomateComputer [-Condition <String>] [-IncludeFields <String>] [-ExcludeFields <String>]
- [-OrderBy <String>] [<CommonParameters>]
-```
-
-### CustomBuiltCondition
-```
-Get-AutomateComputer [-IncludeFields <String>] [-ExcludeFields <String>] [-OrderBy <String>]
- [-ClientName <String>] [-ClientId <Int32>] [-LocationId <Int32>] [-LocationName <String>]
- [-ComputerName <String>] [-OpenPort <String>] [-OperatingSystem <String>] [-DomainName <String>]
- [-NotSeenInDays <Int32>] [-Comment <String>] [-LastWindowsUpdateInDays <Int32>]
+Get-AutomateComputer [[-ComputerID] <Int32[]>] [-ClientName <String>] [-ClientId <Int32>] [-LocationId <Int32>]
+ [-LocationName <String>] [-ComputerName <String>] [-OpenPort <String>] [-OperatingSystem <String>]
+ [-DomainName <String>] [-NotSeenInDays <Int32>] [-Comment <String>] [-LastWindowsUpdateInDays <Int32>]
  [-AntiVirusDefinitionInDays <String>] [-LocalIPAddress <String>] [-GatewayIPAddress <String>]
  [-MacAddress <String>] [-LoggedInUser <String>] [-Master <Boolean>] [-NetworkProbe <Boolean>]
- [-MaintenanceMode <Boolean>] [-VirtualMachine <Boolean>] [-DDay] [-Online <Boolean>]
+ [-MaintenanceMode <Boolean>] [-VirtualMachine <Boolean>] [-Online <Boolean>]
  [-UserIdleLongerThanMinutes <Int32>] [-UptimeLongerThanMinutes <Int32>] [-AssetTag <String>]
  [-Server <Boolean>] [-Workstation <Boolean>] [-AntivirusScanner <String>] [-RebootNeeded <Boolean>]
  [-VirtualHost <Boolean>] [-SerialNumber <String>] [-BiosManufacturer <String>] [-BiosVersion <String>]
- [-LocalUserAccounts <String>] [<CommonParameters>]
+ [-LocalUserAccounts <String>] [-RemoteAgentVersionMin <Object>] [-RemoteAgentVersionMax <Object>]
+ [-Condition <String>] [-IncludeFields <String>] [-ResultSetSize <Object>] [-OrderBy <String>]
+ [<CommonParameters>]
+```
+
+### ExcludeFields
+```
+Get-AutomateComputer [[-ComputerID] <Int32[]>] [-ClientName <String>] [-ClientId <Int32>] [-LocationId <Int32>]
+ [-LocationName <String>] [-ComputerName <String>] [-OpenPort <String>] [-OperatingSystem <String>]
+ [-DomainName <String>] [-NotSeenInDays <Int32>] [-Comment <String>] [-LastWindowsUpdateInDays <Int32>]
+ [-AntiVirusDefinitionInDays <String>] [-LocalIPAddress <String>] [-GatewayIPAddress <String>]
+ [-MacAddress <String>] [-LoggedInUser <String>] [-Master <Boolean>] [-NetworkProbe <Boolean>]
+ [-MaintenanceMode <Boolean>] [-VirtualMachine <Boolean>] [-Online <Boolean>]
+ [-UserIdleLongerThanMinutes <Int32>] [-UptimeLongerThanMinutes <Int32>] [-AssetTag <String>]
+ [-Server <Boolean>] [-Workstation <Boolean>] [-AntivirusScanner <String>] [-RebootNeeded <Boolean>]
+ [-VirtualHost <Boolean>] [-SerialNumber <String>] [-BiosManufacturer <String>] [-BiosVersion <String>]
+ [-LocalUserAccounts <String>] [-RemoteAgentVersionMin <Object>] [-RemoteAgentVersionMax <Object>]
+ [-Condition <String>] [-ExcludeFields <String>] [-ResultSetSize <Object>] [-OrderBy <String>]
+ [<CommonParameters>]
 ```
 
 ## DESCRIPTION
-Connects to the Automate API and returns one or more full computer objects
+Connects to the Automate API and returns one or more full computer objects.
+With no parameters, all computers will be returned.
 
 ## EXAMPLES
 
 ### EXAMPLE 1
 ```
-Get-AutomateComputer -AllComputers
+Get-AutomateComputer
 ```
 
 ### EXAMPLE 2
@@ -72,97 +73,16 @@ Get-AutomateComputer -Condition "(Type != 'Workstation')"
 ## PARAMETERS
 
 ### -ComputerID
-Can take either single ComputerID integer, IE 1, or an array of ComputerID integers, IE 1,5,9
+Can take either single ComputerID integer, IE 1, or an array of ComputerID integers, IE 1,5,9.
+Limits results to include only specified IDs.
 
 ```yaml
 Type: Int32[]
-Parameter Sets: IndividualPC
+Parameter Sets: (All)
 Aliases: ID
 
 Required: False
 Position: 1
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -AllComputers
-Returns all computers in Automate, regardless of amount
-
-```yaml
-Type: SwitchParameter
-Parameter Sets: AllResults
-Aliases:
-
-Required: False
-Position: Named
-Default value: False
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -Condition
-A custom condition to build searches that can be used to search for specific things.
-Supported operators are '=', 'eq', '\>', '\>=', '\<', '\<=', 'and', 'or', '()', 'like', 'contains', 'in', 'not'.
-The 'not' operator is only used with 'in', 'like', or 'contains'.
-The '=' and 'eq' operator are the same.
-String values can be surrounded with either single or double quotes.
-IE (RemoteAgentLastContact \<= 2019-12-18T00:50:19.575Z)
-Boolean values are specified as 'true' or 'false'.
-Parenthesis can be used to control the order of operations and group conditions.
-
-```yaml
-Type: String
-Parameter Sets: ByCondition
-Aliases:
-
-Required: False
-Position: Named
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -IncludeFields
-A comma separated list of fields that you want including in the returned computer object.
-
-```yaml
-Type: String
-Parameter Sets: AllResults, ByCondition, CustomBuiltCondition
-Aliases:
-
-Required: False
-Position: Named
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -ExcludeFields
-A comma separated list of fields that you want excluding in the returned computer object.
-
-```yaml
-Type: String
-Parameter Sets: AllResults, ByCondition, CustomBuiltCondition
-Aliases:
-
-Required: False
-Position: Named
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -OrderBy
-A comma separated list of fields that you want to order by finishing with either an asc or desc.
-
-```yaml
-Type: String
-Parameter Sets: AllResults, ByCondition, CustomBuiltCondition
-Aliases:
-
-Required: False
-Position: Named
 Default value: None
 Accept pipeline input: False
 Accept wildcard characters: False
@@ -173,7 +93,7 @@ Client name to search for, uses wildcards so full client name is not needed
 
 ```yaml
 Type: String
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
 Aliases: Client
 
 Required: False
@@ -188,7 +108,7 @@ ClientID to search for, integer, -ClientID 1
 
 ```yaml
 Type: Int32
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
 Aliases:
 
 Required: False
@@ -203,7 +123,7 @@ LocationID to search for, integer, -LocationID 2
 
 ```yaml
 Type: Int32
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
 Aliases:
 
 Required: False
@@ -218,7 +138,7 @@ Location name to search for, uses wildcards so full location name is not needed
 
 ```yaml
 Type: String
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
 Aliases: Location
 
 Required: False
@@ -233,7 +153,7 @@ Computer name to search for, uses wildcards so full computer name is not needed
 
 ```yaml
 Type: String
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
 Aliases: Computer, Name, Netbios
 
 Required: False
@@ -249,7 +169,7 @@ Can either take a single number, ie -OpenPort "443"
 
 ```yaml
 Type: String
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
 Aliases: Port
 
 Required: False
@@ -265,7 +185,7 @@ IE: -OperatingSystem "Windows 7"
 
 ```yaml
 Type: String
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
 Aliases: OS, OSName
 
 Required: False
@@ -281,7 +201,7 @@ IE: -DomainName ".local"
 
 ```yaml
 Type: String
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
 Aliases: Domain
 
 Required: False
@@ -297,7 +217,7 @@ IE: -NotSeenInDays 30
 
 ```yaml
 Type: Int32
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
 Aliases: OfflineSince, OfflineInDays
 
 Required: False
@@ -313,7 +233,7 @@ Wildcard search.
 
 ```yaml
 Type: String
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
 Aliases:
 
 Required: False
@@ -329,7 +249,7 @@ This is not based on patch manager information but information in Windows
 
 ```yaml
 Type: Int32
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
 Aliases: WindowsUpdateInDays
 
 Required: False
@@ -344,7 +264,7 @@ Returns computers where the Antivirus definitions are older than x days
 
 ```yaml
 Type: String
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
 Aliases: AVDefinitionInDays
 
 Required: False
@@ -359,7 +279,7 @@ Returns computers with a specific local IP address
 
 ```yaml
 Type: String
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
 Aliases: IPAddress, IP
 
 Required: False
@@ -374,7 +294,7 @@ Returns the external IP of the Computer
 
 ```yaml
 Type: String
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
 Aliases: ExternalIPAddress, ExternalIP, IPAddressExternal, IPExternal
 
 Required: False
@@ -389,7 +309,7 @@ Returns computers with an mac address as a wildcard search
 
 ```yaml
 Type: String
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
 Aliases: Mac
 
 Required: False
@@ -404,7 +324,7 @@ Returns computers with a certain logged in user, using wildcard search, IE: -Log
 
 ```yaml
 Type: String
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
 Aliases: User, Username
 
 Required: False
@@ -419,7 +339,7 @@ Returns computers that are Automate masters
 
 ```yaml
 Type: Boolean
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
 Aliases: IsMaster
 
 Required: False
@@ -434,7 +354,7 @@ Returns computers that are Automate network probes
 
 ```yaml
 Type: Boolean
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
 Aliases: IsNetworkProbe
 
 Required: False
@@ -445,11 +365,11 @@ Accept wildcard characters: False
 ```
 
 ### -MaintenanceMode
-{{Fill MaintenanceMode Description}}
+{{ Fill MaintenanceMode Description }}
 
 ```yaml
 Type: Boolean
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
 Aliases: InMaintenanceMode
 
 Required: False
@@ -460,27 +380,12 @@ Accept wildcard characters: False
 ```
 
 ### -VirtualMachine
-{{Fill VirtualMachine Description}}
+{{ Fill VirtualMachine Description }}
 
 ```yaml
 Type: Boolean
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
 Aliases: IsVirtualMachine
-
-Required: False
-Position: Named
-Default value: False
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -DDay
-Returns agents that are affected by the Automate Binary issue hitting on 9th March 2019
-
-```yaml
-Type: SwitchParameter
-Parameter Sets: CustomBuiltCondition
-Aliases:
 
 Required: False
 Position: Named
@@ -494,7 +399,7 @@ Returns agents that are online or offline, IE -Online $true or alternatively -On
 
 ```yaml
 Type: Boolean
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
 Aliases:
 
 Required: False
@@ -510,7 +415,7 @@ IE -UserIdleLongerThanMinutes 60
 
 ```yaml
 Type: Int32
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
 Aliases: Idle
 
 Required: False
@@ -526,7 +431,7 @@ IE -UptimeLongerThanMinutes 60
 
 ```yaml
 Type: Int32
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
 Aliases: Uptime
 
 Required: False
@@ -541,7 +446,7 @@ Return computers with a certain asset tag - a wildcard search
 
 ```yaml
 Type: String
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
 Aliases:
 
 Required: False
@@ -556,7 +461,7 @@ Return computers that are servers, boolean value can be used as -Server $true or
 
 ```yaml
 Type: Boolean
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
 Aliases:
 
 Required: False
@@ -571,7 +476,7 @@ Return computers that are workstations, boolean value can be used as -Workstatio
 
 ```yaml
 Type: Boolean
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
 Aliases:
 
 Required: False
@@ -587,7 +492,7 @@ Wildcard search.
 
 ```yaml
 Type: String
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
 Aliases: AV, VirusScanner, Antivirus
 
 Required: False
@@ -604,7 +509,7 @@ Bool.
 
 ```yaml
 Type: Boolean
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
 Aliases: PendingReboot, RebootRequired
 
 Required: False
@@ -621,7 +526,7 @@ Bool.
 
 ```yaml
 Type: Boolean
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
 Aliases: IsVirtualHost
 
 Required: False
@@ -637,7 +542,7 @@ Wildcard Search
 
 ```yaml
 Type: String
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
 Aliases:
 
 Required: False
@@ -653,7 +558,7 @@ Wildcard search.
 
 ```yaml
 Type: String
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
 Aliases:
 
 Required: False
@@ -669,7 +574,7 @@ This is a string search and a wildcard.
 
 ```yaml
 Type: String
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
 Aliases:
 
 Required: False
@@ -684,7 +589,119 @@ Return computers where certain local user accounts are present
 
 ```yaml
 Type: String
-Parameter Sets: CustomBuiltCondition
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -RemoteAgentVersionMin
+Return computers where the RemoteAgentVersion \>= the specified value.
+
+```yaml
+Type: Object
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -RemoteAgentVersionMax
+Return computers where the RemoteAgentVersion \<= the specified value.
+
+```yaml
+Type: Object
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Condition
+A custom condition to build searches that can be used to search for specific things.
+Supported operators are '=', 'eq', '\>', '\>=', '\<', '\<=', 'and', 'or', '()', 'like', 'contains', 'in', 'not'.
+The 'not' operator is only used with 'in', 'like', or 'contains'.
+The '=' and 'eq' operator are the same.
+String values can be surrounded with either single or double quotes.
+IE (RemoteAgentLastContact \<= 2019-12-18T00:50:19.575Z)
+Boolean values are specified as 'true' or 'false'.
+Parenthesis can be used to control the order of operations and group conditions.
+
+```yaml
+Type: String
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -IncludeFields
+A comma separated list of fields that you want including in the returned computer object.
+
+```yaml
+Type: String
+Parameter Sets: IncludeFields
+Aliases:
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -ExcludeFields
+A comma separated list of fields that you want excluding in the returned computer object.
+
+```yaml
+Type: String
+Parameter Sets: ExcludeFields
+Aliases:
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -ResultSetSize
+{{ Fill ResultSetSize Description }}
+
+```yaml
+Type: Object
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -OrderBy
+A comma separated list of fields that you want to order by finishing with either an asc or desc.
+
+```yaml
+Type: String
+Parameter Sets: (All)
 Aliases:
 
 Required: False
@@ -695,8 +712,7 @@ Accept wildcard characters: False
 ```
 
 ### CommonParameters
-This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable.
-For more information, see about_CommonParameters (http://go.microsoft.com/fwlink/?LinkID=113216).
+This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
 
 ## INPUTS
 
@@ -708,5 +724,9 @@ Version:        1.0
 Author:         Gavin Stone
 Creation Date:  2019-01-20
 Purpose/Change: Initial script development
+
+Update Date:    2020-07-03
+Author:         Darren White
+Purpose/Change: Updates to support custom conditions plus parameter conditions, ID will be returned in ComputerIO property
 
 ## RELATED LINKS

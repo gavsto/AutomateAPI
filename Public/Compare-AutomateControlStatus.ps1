@@ -124,7 +124,8 @@ function Compare-AutomateControlStatus {
 
         #Control Sessions
         $ControlSessions=@{};
-        Get-ControlSessions -SessionID $SessionIDsToCheck -IncludeProperty Name,CreatedTime,GuestOperatingSystemManufacturerName,GuestOperatingSystemName,CustomProperty1,CustomProperty2,SessionType | Select-Object -Unique | ForEach-Object {$ControlSessions.Add([string]$_.SessionID, $($_))}
+        Get-ControlSessions -SessionID $SessionIDsToCheck -IncludeProperty Name,CreatedTime,GuestOperatingSystemManufacturerName,GuestOperatingSystemName,CustomProperty1,CustomProperty2,SessionType | ForEach-Object {If (!$ControlSessions.ContainsKey([string]$_.SessionID)) {$ControlSessions.Add([string]$_.SessionID, $($_))}}
+        
 
         Foreach ($Final in $ComputerArray) {
             $CAReturn = $Final

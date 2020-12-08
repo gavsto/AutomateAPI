@@ -14,12 +14,12 @@ Retrieve data from Automate API Control Extension
 
 ### ID (Default)
 ```
-Get-AutomateControlInfo [-ComputerID] <Int16[]> [<CommonParameters>]
+Get-AutomateControlInfo [-ComputerID] <Int32[]> [<CommonParameters>]
 ```
 
 ### pipeline
 ```
-Get-AutomateControlInfo -ID <Int16[]> -ComputerObjects <Object> [<CommonParameters>]
+Get-AutomateControlInfo -ComputerObjects <Object> [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -38,7 +38,7 @@ Get-AutomateControlInfo -ComputerId 123
 The Automate ComputerID to retrieve information on
 
 ```yaml
-Type: Int16[]
+Type: Int32[]
 Parameter Sets: ID
 Aliases:
 
@@ -46,21 +46,6 @@ Required: True
 Position: 1
 Default value: None
 Accept pipeline input: True (ByValue)
-Accept wildcard characters: False
-```
-
-### -ID
-Taken from the Pipeline, IE Get-AutomateComputer -ComputerID 5 | Get-AutomateControlInfo
-
-```yaml
-Type: Int16[]
-Parameter Sets: pipeline
-Aliases:
-
-Required: True
-Position: Named
-Default value: None
-Accept pipeline input: True (ByPropertyName)
 Accept wildcard characters: False
 ```
 
@@ -80,8 +65,7 @@ Accept wildcard characters: False
 ```
 
 ### CommonParameters
-This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable.
-For more information, see about_CommonParameters (http://go.microsoft.com/fwlink/?LinkID=113216).
+This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
 
 ## INPUTS
 
@@ -89,7 +73,7 @@ For more information, see about_CommonParameters (http://go.microsoft.com/fwlink
 
 ### Custom object with the ComputerID and Control SessionID. Additional properties from the return data will be included.
 ## NOTES
-Version:        1.0
+Version:        1.2.1
 Author:         Gavin Stone
 Creation Date:  2019-01-20
 Purpose/Change: Initial script development
@@ -97,5 +81,13 @@ Purpose/Change: Initial script development
 Update Date:    2019-02-12
 Author:         Darren White
 Purpose/Change: Modified returned object data
+
+Update Date:    2020-07-20
+Author:         Darren White
+Purpose/Change: Standardized on ComputerID for parameter name
+
+Update Date:    2020-08-04
+Author:         Darren White
+Purpose/Change: Use Get-AutomateAPIGeneric internally, Error handling
 
 ## RELATED LINKS

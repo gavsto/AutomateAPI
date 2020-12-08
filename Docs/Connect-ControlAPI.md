@@ -40,7 +40,7 @@ All values will be prompted for one by one:
 
 Connect-ControlAPI
 All values needed to Automatically create appropriate output
-Connect-ControlAPI -Server "https://control.rancorthebeast.com:8040" -Credentials $CredentialsToPass
+Connect-ControlAPI -Server "https://control.rancorthebeast.com:8040" -Credential $CredentialsToPass
 
 ## PARAMETERS
 
@@ -138,8 +138,7 @@ Accept wildcard characters: False
 ```
 
 ### CommonParameters
-This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable.
-For more information, see about_CommonParameters (http://go.microsoft.com/fwlink/?LinkID=113216).
+This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
 
 ## INPUTS
 
@@ -149,12 +148,12 @@ For more information, see about_CommonParameters (http://go.microsoft.com/fwlink
 ## NOTES
 Version:        1.0
 Author:         Gavin Stone
-Creation Date:  20/01/2019
+Creation Date:  2019-01-20
 Purpose/Change: Initial script development
 
 Version:        1.1
 Author:         Gavin Stone
-Creation Date:  22/06/2019
+Creation Date:  2019-06-22
 Purpose/Change: The previous function was far too complex.
 No-one could debug it and a lot of it was unnecessary.
 I have greatly simplified it.
@@ -164,5 +163,10 @@ Author:         Darren White
 Creation Date:  2019-06-24
 Purpose/Change: Added support for APIKey authentication.
 The new function was not complex enough.
+
+Version:        1.2.1
+Author:         Darren White
+Creation Date:  2020-12-01
+Purpose/Change: Added origin to standard header
 
 ## RELATED LINKS
