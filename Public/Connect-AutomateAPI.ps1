@@ -8,6 +8,8 @@ Connects to the Automate API and returns a bearer token which when passed with e
 The address to your Automate Server. Example 'rancor.hostedrmm.com'
 .PARAMETER Credential
 Takes a standard powershell credential object, this can be built with $CredentialsToPass = Get-Credential, then pass $CredentialsToPass
+.PARAMETER ClientID
+Takes the Client ID required by Automate v2020.11 for API access
 .PARAMETER TwoFactorToken
 Takes a string that represents the 2FA number
 .PARAMETER AuthorizationToken
