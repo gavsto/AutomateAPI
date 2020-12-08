@@ -57,7 +57,7 @@ function Set-CredentialsLocallyStored {
 
     If ($Automate) {
         If (!$SaveCurrent) {
-            # The Connect-AutomateAPI Cmdlet will interrogate the user for when give passed the following parameters
+            # The Connect-AutomateAPI Cmdlet will interrogate the user for credentials when give passed the following parameters
             # The variables are stored in script scope variables
             Connect-AutomateAPI -Server '' -Force
         }
@@ -66,17 +66,19 @@ function Set-CredentialsLocallyStored {
             @{'Name' = 'CWAServer'; 'Scope' = 'Script'},
             @{'Name' = 'CWACredentials'; 'Scope' = 'Script'},
             @{'Name' = 'CWATokenKey'; 'Scope' = 'Script'},
-            @{'Name' = 'CWATokenInfo'; 'Scope' = 'Script'}
+            @{'Name' = 'CWATokenInfo'; 'Scope' = 'Script'},
+            @{'Name' = 'CWAClientID'; 'Scope' = 'Script'}
         )
 
         $StoreBlock = [pscustomobject]@{}
         $CredentialPath = "$($CredentialDirectory)\Automate - Credentials.txt"
 
+        Write-Verbose "Saving Automate Variables"
         Foreach ($SaveVar in $StoreVariables) {
             If (!(Get-Variable @SaveVar -ErrorAction 0)) {Continue}
+            Write-Debug "Save $($SaveVar.Name)"
             If ($SaveVar.Name -match 'Credential') {
                 Try {
-                    Write-Debug "Trying to save $($SaveVar.Name)"
                     $x_Credential = @{'UserName'=(Get-Variable @SaveVar -ValueOnly).UserName; 'Password'=((Get-Variable @SaveVar -ValueOnly).Password|ConvertFrom-SecureString)}
                     $Null = $StoreBlock | Add-Member -NotePropertyName $($SaveVar.Name) -NotePropertyValue $x_Credential
                 } Catch {
@@ -100,22 +102,23 @@ function Set-CredentialsLocallyStored {
 
     If ($Control) {
         If (!$SaveCurrent) {
-            # This forces the Connect-ControlAPI function to interrogate the user for credentials
-            # The variables are stored in script scope variables
-            Connect-ControlAPI -Server '' 
+            Connect-ControlAPI -Server ''
         }
 
         $StoreVariables = @(
             @{'Name' = 'ControlAPICredentials'; 'Scope' = 'Script'},
             @{'Name' = 'ControlServer'; 'Scope' = 'Script'},
-            @{'Name' = 'ControlAPIKey'; 'Scope' = 'Script'}
+            @{'Name' = 'ControlAPIKey'; 'Scope' = 'Script'},
+            @{'Name' = 'CWCHeaders'; 'Scope' = 'Script'}
         )
 
         $StoreBlock = [pscustomobject]@{}
         $CredentialPath = "$($CredentialDirectory)\Control - Credentials.txt"
+        Write-Verbose "Saving Control Variables"
         # Here we read the variables that were stored by the Connect-ControlAPI method and ultimately store them
         Foreach ($SaveVar in $StoreVariables) {
             If (!(Get-Variable @SaveVar -ErrorAction 0)) {Continue}
+            Write-Debug "Save $($SaveVar.Name)"
             If ($SaveVar.Name -match 'Credential') {
                 Try {
                     $x_Credential = @{'UserName'=(Get-Variable @SaveVar -ValueOnly).UserName; 'Password'=((Get-Variable @SaveVar -ValueOnly).Password|ConvertFrom-SecureString)}

@@ -67,6 +67,7 @@ function Get-CredentialsLocallyStored {
 
         [Parameter(ParameterSetName = 'Automate')]
         [Parameter(ParameterSetName = 'Control')]    
+        [Parameter(ParameterSetName="All")]
         [string]$CredentialDirectory = "$($env:USERPROFILE)\AutomateAPI\"
 
     )
@@ -81,29 +82,23 @@ function Get-CredentialsLocallyStored {
         If (-not (Test-Path $CredentialPath -EA 0)) {
             Throw [System.IO.FileNotFoundException] "Automate Credentials not found at $($CredentialPath)"
         }
-        $StoreVariables = @(
-            @{'Name' = 'CWAServer'; 'Scope' = 'Script'},
-            @{'Name' = 'CWACredentials'; 'Scope' = 'Script'},
-            @{'Name' = 'CWATokenKey'; 'Scope' = 'Script'},
-            @{'Name' = 'CWATokenInfo'; 'Scope' = 'Script'}
-        )
         $StoreBlock = Get-Content $CredentialPath | ConvertFrom-Json
-        Foreach ($SaveVar in $StoreVariables) {
-            If (!($StoreBlock.$($SaveVar.Name))) {Continue}
+        Foreach ($SaveVar in $StoreBlock.psobject.Properties) {
+            Write-Debug "Restoring $($SaveVar.Name)"
             If ($SaveVar.Name -match 'Credential') {
                 Try {
-                    $Null = Set-Variable @SaveVar -Value $(New-Object System.Management.Automation.PSCredential -ArgumentList $($StoreBlock.$($SaveVar.Name).Username), $(ConvertTo-SecureString $($StoreBlock.$($SaveVar.Name).Password)))
+                    $Null = Set-Variable -Name $SaveVar.Name -Scope Script -Value $(New-Object System.Management.Automation.PSCredential -ArgumentList $($StoreBlock.$($SaveVar.Name).Username), $(ConvertTo-SecureString $($StoreBlock.$($SaveVar.Name).Password)))
                 } Catch {
                     Write-Warning "Failed to restore $($SaveVar.Name). The stored password is invalid."
                 }
             } ElseIf ($SaveVar.Name -match 'Key') {
                 Try {
-                    $Null = Set-Variable @SaveVar -Value $(ConvertTo-SecureString $($StoreBlock.$($SaveVar.Name)))
+                    $Null = Set-Variable -Name $SaveVar.Name -Scope Script -Value $(ConvertTo-SecureString $($StoreBlock.$($SaveVar.Name)))
                 } Catch {
                     Write-Warning "Failed to restore $($SaveVar.Name). The stored secure value is invalid."
                 }
             } Else {
-                $Null = Set-Variable @SaveVar -Value $($StoreBlock.$($SaveVar.Name))
+                $Null = Set-Variable -Name $SaveVar.Name -Scope Script -Value $($StoreBlock.$($SaveVar.Name))
             }
         }
         If ($Script:CWATokenKey -and $Script:CWATokenKey.GetType() -match 'SecureString') {
@@ -113,7 +108,7 @@ function Get-CredentialsLocallyStored {
             $Script:CWAToken = $AutomateToken
         }
         If (!(Connect-AutomateAPI -Verify -Quiet -ErrorAction 0)) {
-            Write-Error "Automate Credentials failed to successfully validate. Call Connect-AutomateAPI to establish a valid session." -ErrorAction 'Continue'
+            Write-Warning "Automate Credentials failed to successfully validate. Call Connect-AutomateAPI to establish a valid session."
         }
     }
 
@@ -122,33 +117,27 @@ function Get-CredentialsLocallyStored {
         If (-not (Test-Path $CredentialPath -EA 0)) {
             Throw [System.IO.FileNotFoundException] "Control Credentials not found at $($CredentialPath)"
         }
-        $StoreVariables = @(
-            @{'Name' = 'ControlAPICredentials'; 'Scope' = 'Script'},
-            @{'Name' = 'ControlServer'; 'Scope' = 'Script'},
-            @{'Name' = 'ControlAPIKey'; 'Scope' = 'Script'}
-        )
-
         $StoreBlock = Get-Content $CredentialPath | ConvertFrom-Json
-        Foreach ($SaveVar in $StoreVariables) {
-            If (!($StoreBlock.$($SaveVar.Name))) {Continue}
+        Foreach ($SaveVar in $StoreBlock.psobject.Properties) {
+            Write-Debug "Restoring $($SaveVar.Name)"
             If ($SaveVar.Name -match 'Credential') {
                 Try {
-                    $Null = Set-Variable @SaveVar -Value $(New-Object System.Management.Automation.PSCredential -ArgumentList $($StoreBlock.$($SaveVar.Name).Username), $(ConvertTo-SecureString $($StoreBlock.$($SaveVar.Name).Password)))
+                    $Null = Set-Variable -Name $SaveVar.Name -Scope Script -Value $(New-Object System.Management.Automation.PSCredential -ArgumentList $($StoreBlock.$($SaveVar.Name).Username), $(ConvertTo-SecureString $($StoreBlock.$($SaveVar.Name).Password)))
                 } Catch {
                     Write-Warning "Failed to restore $($SaveVar.Name). The stored password is invalid."
                 }
             } ElseIf ($SaveVar.Name -match 'Key') {
                 Try {
-                    $Null = Set-Variable @SaveVar -Value $(ConvertTo-SecureString $($StoreBlock.$($SaveVar.Name)))
+                    $Null = Set-Variable -Name $SaveVar.Name -Scope Script -Value $(ConvertTo-SecureString $($StoreBlock.$($SaveVar.Name)))
                 } Catch {
                     Write-Warning "Failed to restore $($SaveVar.Name). The stored secure value is invalid."
                 }
             } Else {
-                $Null = Set-Variable @SaveVar -Value $($StoreBlock.$($SaveVar.Name))
+                $Null = Set-Variable -Name $SaveVar.Name -Scope Script -Value $($StoreBlock.$($SaveVar.Name))
             }
         }
         If (!(Connect-ControlAPI -Verify -Quiet -ErrorAction 0)) {
-            Write-Error "Control Credentials failed to successfully validate. Call Connect-ControlAPI to establish a valid session." -ErrorAction 'Continue'
+            Write-Warning "Control Credentials failed to successfully validate. Call Connect-ControlAPI to establish a valid session."
         }
     }
 

@@ -11,6 +11,12 @@ function Invoke-ControlCommand {
         IE - Get-AutomateComputer -ComputerID 5 | Get-ControlSessions | Invoke-ControlCommand -Powershell -Command "Get-Service"
     .PARAMETER Command
         The command you wish to issue to the machine.
+    .PARAMETER CommandID
+        The command ID (Control SessionEventType) to issue to the machine.
+        When using -CommandID the command will be queued but results will not be checked for or returned. The "Wait" OfflineAction is treated like "Queue". 
+        For CommandID values see https://docs.connectwise.com/ConnectWise_Control_Documentation/Developers/Session_Manager_API_Reference/Enumerations
+    .PARAMETER CommandBody
+        The command body. Used with the -CommandID parameter.
     .PARAMETER MaxLength
         The maximum number of bytes to return from the remote session. The default is 5000 bytes.
     .PARAMETER PowerShell
@@ -19,14 +25,22 @@ function Invoke-ControlCommand {
         The amount of time in milliseconds that a command can execute. The default is 10000 milliseconds.
     .PARAMETER BatchSize
         Number of control sessions to invoke commands in parallel.
+    .PARAMETER ResultPropertyName
+        String containing the name of the member you would like to add to the input pipeline object that will hold the result of this command
+    .PARAMETER OfflineAction
+        Specifies the action to take if the session is offline.
+        - Wait : Will queue the command and wait up to the timeout specified for a response.
+        - Queue : Will queue the command but not wait for any response.
+        - Skip : Will not queue the command to the session.
     .OUTPUTS
         The output of the Command provided.
+        When -CommandID is used, the output will only indicate if the commandid was queued or not.
     .NOTES
-        Version:        2.2
+        Version:        2.3.1
         Author:         Chris Taylor
-        Modified By:    Gavin Stone 
+        Modified By:    Gavin Stone
         Modified By:    Darren White
-        Creation Date:  1/20/2016
+        Creation Date:  2016-01-20
         Purpose/Change: Initial script development
 
         Update Date:    2019-02-19
@@ -36,215 +50,246 @@ function Invoke-ControlCommand {
         Update Date:    2019-02-23
         Author:         Darren White
         Purpose/Change: Enable command batching against multiple sessions. Added OfflineAction parameter.
-        
+
         Update Date:    2019-06-24
         Author:         Darren White
         Purpose/Change: Updates to process object returned by Get-ControlSessions
-        
-    .EXAMPLE
-        Get-AutomateComputer -ComputerID 5 | Get-AutomateControlInfo | Invoke-ControlCommand -Powershell -Command "Get-Service"
-            Will retrieve Computer Information from Automate, Get ControlSession data and merge with the input object, then call Get-Service on the computer.
+
+        Update Date:    2019-08-20
+        Author:         Darren Kattan
+        Purpose/Change: Added ability to retain Computer object passed in from pipeline and append result of script to a named member of the computer object
+
+        Update Date:    2020-07-04
+        Author:         Darren White
+        Purpose/Change: Removed object processing on the remote host. Added -CommandID support
+
+        Update Date:    2020-08-01
+        Author:         Darren White
+        Purpose/Change: Use Invoke-ControlAPIMaster
     .EXAMPLE
         Invoke-ControlCommand -SessionID $SessionID -Command 'hostname'
             Will return the hostname of the machine.
     .EXAMPLE
         Invoke-ControlCommand -SessionID $SessionID -TimeOut 120000 -Command 'iwr -UseBasicParsing "https://bit.ly/ltposh" | iex; Restart-LTService' -PowerShell
             Will restart the Automate agent on the target machine.
+    .EXAMPLE
+        Invoke-ControlCommand -SessionID $SessionID -CommandID 40
+            Will tell the control service to Reinstall (update)
     #>
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'ExecuteCommand',SupportsShouldProcess=$True)]
     param (
         [Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
         [guid[]]$SessionID,
+        [Parameter(ParameterSetName = ('ExecuteCommand','PassthroughObjects'), Mandatory = $True)]
         [string]$Command,
+        [Parameter(ParameterSetName = 'CommandID', Mandatory = $True)]
+        [int]$CommandID,   
+        [Parameter(ParameterSetName = 'CommandID')]
+        $CommandBody='',
+        [Parameter(ParameterSetName = ('ExecuteCommand','PassthroughObjects'))]
         [int]$TimeOut = 10000,
+        [Parameter(ParameterSetName = ('ExecuteCommand','PassthroughObjects'))]
         [int]$MaxLength = 5000,
+        [Parameter(ParameterSetName = ('ExecuteCommand','PassthroughObjects'))]
         [switch]$PowerShell,
-        [ValidateSet('Wait', 'Queue', 'Skip')] 
+        [Parameter(ParameterSetName = ('ExecuteCommand','PassthroughObjects'))]
+        [ValidateSet('Wait', 'Queue', 'Skip')]
         $OfflineAction = 'Wait',
         [ValidateRange(1, 100)]
-        [int]$BatchSize = 20
+        [int]$BatchSize = 20,
+        [switch]$PassthroughObjects,
+        [string]$ResultPropertyName = 'Output'
     )
 
     Begin {
+        $ProgressPreference='SilentlyContinue'
 
-        $Server = $Script:ControlServer -replace '/$', ''
+        If (('SessionID','IsSuccess','__CommandTimeout') -contains $ResultPropertyName) {Throw "ResultPropertyName value $($ResultPropertyName) is reserved."}
 
-        # Format command
-        $FormattedCommand = @()
-        if ($Powershell) {
-            $FormattedCommand += '#!ps'
+        If ($PSCmdlet.ParameterSetName -eq 'CommandID') {
+            $SessionEventType = $CommandID
+        } Else {
+            $cmdMarker="AUTOMATEAPICOMMAND:"+[GUID]::NewGuid().ToString().ToUpper().Replace('-','')
+            # Format command
+            $FormattedCommand = @()
+            $FormattedCommand += "#timeout=$TimeOut"
+            $FormattedCommand += "#maxlength=$MaxLength"
+            If ($Powershell) {
+                $FormattedCommand = @('#!ps',$FormattedCommand,"`$ProgressPreference='SilentlyContinue'")
+            }
+            $FormattedCommand += @("ECHO OFF","ECHO $cmdMarker")
+            $FormattedCommand += $Command
+            $CommandBody = ($FormattedCommand  |Out-String -Stream) -join "`n" 
+            $SessionEventType = 44
         }
-        $FormattedCommand += "#timeout=$TimeOut"
-        $FormattedCommand += "#maxlength=$MaxLength"
-        $FormattedCommand += $Command
-        $FormattedCommand = $FormattedCommand | Out-String
-        $SessionEventType = 44
 
-        If ($Script:ControlAPIKey) {
-            $User = 'AutomateAPI'
+        If (${Script:ControlAPIKey}) {
+            If (${Script:CWACredentials}.UserName) {
+                $User = ${Script:CWACredentials}.UserName
+            } Else {
+                $User = 'AutomateAPI'
+            }
         }
-        ElseIf ($Script:ControlAPICredentials.UserName) {
-            $User = $Script:ControlAPICredentials.UserName
+        ElseIf (${Script:ControlAPICredentials}.UserName) {
+            $User = ${Script:ControlAPICredentials}.UserName
         }
         Else {
             $User = ''
         }
 
-        $SessionIDCollection = @()
-        $ResultSet = @()
-
+        $ResultObjects = @{ }
+        $SessionCollection = {}.Invoke()
     }
 
     Process {
-        If (!($Server -match 'https?://[a-z0-9][a-z0-9\.\-]*(:[1-9][0-9]*)?(\/[a-z0-9\.\-\/]*)?$')) {throw "Control Server address ($Server) is in an invalid format. Use Connect-ControlAPI to assign the server URL."; return}
-        If ($SessionID) {
-            $SessionIDCollection += $SessionID
+        $ObjectsIn=$_
+        If ($PassthroughObjects) {
+            Foreach ($xObject in $ObjectsIn) {
+                If ($xObject -and $xObject.SessionID) {
+                    [string]$Session=$xObject.SessionID
+                    If (!($ResultObjects.ContainsKey($Session))) {
+                        $ResultObjects.Add($Session, [pscustomobject]@{SessionID = $Session })
+                    } Else {Write-Warning "SesssionID $Session has already been added. Skipping"}
+                    $Null = $SessionCollection.Add($xObject)
+                } Else {Write-Warning "Input Object is missing SesssionID property"}
+            }
+        } Else {
+            Foreach ($Session in $SessionID) {
+                If ($Session.SessionID) {$Session=$Session.SessionID}
+                [string]$Session="$($Session)"
+                [pscustomobject]@{SessionID = $Session} | ForEach-Object {
+                    If (!($ResultObjects.ContainsKey($Session))) {
+                        $ResultObjects.Add($Session, $_)
+                    } Else {Write-Warning "SesssionID $Session has already been added. Skipping"}
+                    $Null = $SessionCollection.Add($_)
+                }
+            }
         }
     }
 
     End {
-        $SplitGUIDsArray = Split-Every -list $SessionIDCollection -count $BatchSize
-        ForEach ($GUIDs in $SplitGUIDsArray) {
-            If (!$GUIDs) {Continue} #Skip if Null value
-            $RemainingGUIDs = {$GUIDs}.Invoke()
-            If ($OfflineAction -ne 'Wait') {
-                #Check Online Status. Weed out sessions that have never connected or are not valid.
-                $ControlSessions=@{};
-                Get-ControlSessions -SessionID $RemainingGUIDs | ForEach-Object {$ControlSessions.Add($_.SessionID, $($_|Select-Object -Property OnlineStatusControl,LastConnected))}
-                If ($OfflineAction -eq 'Skip') {
-                    ForEach ($GUID in $ControlSessions.Keys) {
-                        If (!($ControlSessions[$GUID].OnlineStatusControl -eq $True)) {
-                            $ResultSet += [pscustomobject]@{
-                                'SessionID' = $GUID
-                                'Output'    = 'Skipped. Session was not connected.'
-                            }
-                            $Null = $RemainingGUIDs.Remove($GUID)
+        Function New-ReturnObject {
+            param([object]$InputObject, [object]$Result, [bool]$IsSuccess, [string]$PropertyName)
+            $InputObject | Add-Member -NotePropertyName $PropertyName -NotePropertyValue $Result -Force
+            $InputObject | Add-Member -NotePropertyName 'IsSuccess' -NotePropertyValue $IsSuccess -Force
+            $InputObject
+        }
+
+        $ProcessSessions=@($ResultObjects.Keys)
+        $RemainingSessions={}.Invoke()
+        $AddSessions={}.Invoke()
+        $EventDateFormatted=$Null
+        $SessionIndex=0
+        Do {
+
+            While (($AddSessions.Count+$RemainingSessions.Count) -lt $BatchSize -and $SessionIndex -lt $ProcessSessions.Count) {
+                $AddSessions.Add($ProcessSessions[$SessionIndex])
+                $SessionIndex++
+            }
+
+            If ($AddSessions.Count -gt 0 -and ($OfflineAction -eq 'Skip' -or $SessionEventType -eq 44)) { #Need to check session details before queueing command
+                $AddingSessions=@($AddSessions.GetEnumerator())
+                $ControlSessions = @{ };
+                Get-ControlSession -SessionID $AddingSessions | ForEach-Object { $ControlSessions.Add($_.SessionID, $($_ | Select-Object -Property OnlineStatusControl,LastConnected)) }
+                ForEach ($AddGUID in $AddingSessions) {
+                    Write-Debug "Checking if session $($AddGUID) is connected: ($($ControlSessions[$AddGUID].OnlineStatusControl))"
+                    #Check Online Status.
+                    If ($OfflineAction -eq 'Skip' -and !($ControlSessions[$AddGUID].OnlineStatusControl -eq $True)) {
+                        #Weed out sessions that have never connected or are not valid.
+                        If ($PSCmdlet.ShouldProcess("Disconnected Session $($AddGUID)","Skipping")) {
+                            $ResultObjects[$AddGUID] = New-ReturnObject -InputObject $ResultObjects[$AddGUID] -Result 'Skipped. Session was not connected.' -PropertyName $ResultPropertyName -IsSuccess $false
                         }
+                        $Null = $AddSessions.Remove($AddGUID)
                     }
                 }
             }
 
-            If (!$RemainingGUIDs) {
-                Continue; #Nothing to process
-            }
-            $xGUIDS=@(ForEach ($x in $RemainingGUIDs) {$x})
-            $Body = ConvertTo-Json @($User, $xGUIDS, $SessionEventType, $FormattedCommand) -Compress
+            If ($AddSessions.Count -gt 0) {
+                $Body = ConvertTo-Json @($User, $AddSessions, $SessionEventType, $CommandBody) -Compress
 
-            $RESTRequest = @{
-                'URI'         = "$Server/App_Extensions/fc234f0e-2e8e-4a1f-b977-ba41b14031f7/ReplicaService.ashx/PageAddEventToSessions"
-                'Method'      = 'POST'
-                'ContentType' = 'application/json'
-                'Body'        = $Body
-            }
-            If ($Script:ControlAPIKey) {
-                $RESTRequest.Add('Headers', @{'CWAIKToken' = (Get-CWAIKToken)})
-            } Else {
-                $RESTRequest.Add('Credential', $Script:ControlAPICredentials)
-            }
-
-            # Issue command
-            Try {
-                $Results = Invoke-WebRequest @RESTRequest
-            } Catch {
-                Write-Error "$(($_.ErrorDetails | ConvertFrom-Json).message)"
-                return
-            }
-            $RequestTimer = [diagnostics.stopwatch]::StartNew()
-
-            $EventDate = Get-Date $($Results.Headers.Date)
-            $EventDateFormatted = (Get-Date $EventDate.ToUniversalTime() -UFormat "%Y-%m-%d %T")
-
-            $Looking = $True
-            $TimeOutDateTime = (Get-Date).AddMilliseconds($TimeOut)
-
-            while ($Looking) {
-                Start-Sleep -Seconds $(Get-SleepDelay -Seconds $([int]($RequestTimer.Elapsed.TotalSeconds)) -TotalSeconds $([int]($TimeOut / 1000)))
-
-                #Build GUID Conditional
-                $GuidCondition = $(ForEach ($GUID in $RemainingGUIDs) {"sessionid='$GUID'"}) -join ' OR '
-                # Look for results of command
-                $Body = ConvertTo-Json @("SessionConnectionEvent", @(), @("SessionID", "Time", "Data"), "($GuidCondition) AND EventType='RanCommand' AND Time>='$EventDateFormatted'", "", 200) -Compress
                 $RESTRequest = @{
-                    'URI'         = "$Server/App_Extensions/fc234f0e-2e8e-4a1f-b977-ba41b14031f7/ReportService.ashx/GenerateReportForAutomate"
-                    'Method'      = 'POST'
-                    'ContentType' = 'application/json'
+                    'URI'         = "ReplicaService.ashx/PageAddEventToSessions"
                     'Body'        = $Body
                 }
 
-                If ($Script:ControlAPIKey) {
-                    $RESTRequest.Add('Headers', @{'CWAIKToken' = (Get-CWAIKToken)})
-                } Else {
-                    $RESTRequest.Add('Credential', $Script:ControlAPICredentials)
-                }
-
-                Try {
-                    $SessionEvents = Invoke-RestMethod @RESTRequest
-                } Catch {
-                    Write-Error $($_.Exception.Message)
-                }
-
-                $FNames = $SessionEvents.FieldNames
-                $Events = ($SessionEvents.Items | ForEach-Object {$x = $_; $SCEventRecord = [pscustomobject]@{}; for ($i = 0; $i -lt $FNames.Length; $i++) {$Null = $SCEventRecord | Add-Member -NotePropertyName $FNames[$i] -NotePropertyValue $x[$i]}; $SCEventRecord} | Sort-Object -Property Time,SessionID -Descending)
-                foreach ($Event in $Events) {
-                    if ($Event.Time -ge $EventDate.ToUniversalTime() -and $RemainingGUIDs.Contains($Event.SessionID)) {
-                        $Output = $Event.Data
-                        if (!$PowerShell) {
-                            $Output = $Output -replace '^[\r\n]*',''
-                        }
-                        $ResultSet += [pscustomobject]@{
-                            'SessionID' = $Event.SessionID
-                            'Output'    = $Output
-                        }
-                        $Null = $RemainingGUIDs.Remove($Event.SessionID)
+                $CWCServerTime=$Null
+                If ($PSCmdlet.ShouldProcess("Session(s) $($Addsessions -join ',')","Queue command id $($SessionEventType)")) {
+                    $Null = Invoke-ControlAPIMaster -Arguments $RESTRequest
+                    If (!$CWCServerTime) {
+                        Write-Error $Error[0]
+                        return
                     }
-                }
-
-                $WaitingForGUIDs = $RemainingGUIDs
-                If ($OfflineAction -eq 'Queue') {
-                    $WaitingForGUIDs=$(
-                        ForEach ($GUID in $WaitingForGUIDs) {
-                            Write-Debug "Checking if GUID $GUID is online: $($ControlSessions[$GUID.ToString()].OnlineStatusControl)"
-                            If ($ControlSessions[$GUID.ToString()].OnlineStatusControl -eq $True) {$GUID}
-                        }
-                    )
-                }
-
-                Write-Debug "$($WaitingForGUIDs.Count) sessions remaining after $($RequestTimer.Elapsed.TotalSeconds) seconds."
-                If (!($WaitingForGUIDs.Count -gt 0)) {
-                    $Looking = $False
-                    If ($RemainingGUIDs) {
-                        ForEach ($GUID in $RemainingGUIDs) {
-                            $ResultSet += [pscustomobject]@{
-                            'SessionID' = $GUID
-                            'Output'    = 'Command was queued for the session.'
-                            }
-                        }
-                        return $Output -Join ""
+                    $RequestTimer = [diagnostics.stopwatch]::StartNew()
+                    If (!($EventDateFormatted)) {
+                        $EventDateFormatted = (Get-Date $CWCServerTime.ToUniversalTime() -UFormat "%Y-%m-%d %T")
                     }
-                }
-
-                if ($Looking -and $(Get-Date) -gt $TimeOutDateTime.AddSeconds(1)) {
-                    $Looking = $False
-                    ForEach ($GUID in $RemainingGUIDs) {
-                        If ($OfflineAction -ne 'Wait' -and $ControlSessions[$GUID.ToString()].OnlineStatusControl -eq $False) {
-                            $ResultSet += [pscustomobject]@{
-                                'SessionID' = $GUID
-                                'Output'    = 'Command was queued for the session'
-                            }
+                    $TimeOutDateTime = $CWCServerTime.AddMilliseconds($TimeOut+3000)
+                    Foreach ($SessionsGUID in $AddSessions) {
+                        If ($PSCmdlet.ParameterSetName -ne 'CommandID') {
+                            $ResultObjects[$SessionsGUID] = New-ReturnObject -InputObject $ResultObjects[$SessionsGUID] -Result $TimeOutDateTime -PropertyName '__CommandTimeout' -IsSuccess $false
+                            $Null = $RemainingSessions.Add($SessionsGUID)
                         } Else {
-                            $ResultSet += [pscustomobject]@{
-                                'SessionID' = $GUID
-                                'Output'    = 'Command timed out when sent to Agent'
-                            }
+                            $ResultObjects[$SessionsGUID] = New-ReturnObject -InputObject $ResultObjects[$SessionsGUID] -Result 'Command was queued for the session' -PropertyName $ResultPropertyName -IsSuccess $true
                         }
+                    }
+                }
+                $AddSessions.Clear()
+            }
+
+            If ($RemainingSessions.Count -gt 0) {
+
+                Start-Sleep -Seconds $(Get-SleepDelay -Seconds $([int]($RequestTimer.Elapsed.TotalSeconds)) -TotalSeconds $([int]($TimeOut / 1000)))
+                #Build GUID Conditional
+                $GuidCondition = $(ForEach ($SessionsGUID in $RemainingSessions) { "sessionid='$SessionsGUID'" }) -join ' OR '
+                # Look for results of command
+                $Body = ConvertTo-Json @("SessionConnectionEvent", @(), @("SessionID", "Time", "Data"), "($GuidCondition) AND EventType='RanCommand' AND Time>='$EventDateFormatted'", "", 200) -Compress
+
+                $RESTRequest = @{
+                    'URI'         = "ReportService.ashx/GenerateReportForAutomate"
+                    'Body'        = $Body
+                }
+
+                $CWCServerTime=$Null
+                $Events = Invoke-ControlAPIMaster -Arguments $RESTRequest
+                If (!$CWCServerTime) {
+                    Write-Error $Error[0]
+                    return
+                }
+                $EventDateFormatted = (Get-Date $CWCServerTime.ToUniversalTime() -UFormat "%Y-%m-%d %T")
+
+                Foreach ($Event in $Events) {
+                    [string]$EventGUID = "$($Event.SessionID)"
+                    If ($RemainingSessions.Contains($EventGUID)) {
+                        $Output = $Event.Data.Trim()
+                        If ($Output -match "$cmdMarker") {
+                            $Output = $Output -replace "(?s)^.*?(?<!ECHO )$cmdMarker((?=$)|\s*(?<=[\n]))", ''
+                            $ResultObjects[$EventGUID] = New-ReturnObject -InputObject $ResultObjects[$EventGUID] -Result $Output -PropertyName $ResultPropertyName -IsSuccess $true
+                            $Null = $RemainingSessions.Remove($EventGUID)
+                        }
+                    }
+                }
+
+                $WaitingSessions=@($RemainingSessions.GetEnumerator())
+                Foreach ($WaitingGUID in $WaitingSessions) {
+                    If ($CWCServerTime -gt $ResultObjects[$WaitingGUID].__CommandTimeout) {
+                        Write-Debug "Expiring Session $($WaitingGUID)"
+                        If ($OfflineAction -eq 'Queue') {
+                            $ResultObjects[$WaitingGUID] = New-ReturnObject -InputObject $ResultObjects[$WaitingGUID] -Result 'Command was queued for the session' -PropertyName $ResultPropertyName -IsSuccess $false
+                        } Else {
+                            $ResultObjects[$WaitingGUID] = New-ReturnObject -InputObject $ResultObjects[$WaitingGUID] -Result 'Command timed out for the session' -PropertyName $ResultPropertyName -IsSuccess $false
+                        }
+                        $Null = $RemainingSessions.Remove($WaitingGUID)
                     }
                 }
             }
-        }
-        If ($ResultSet.Count -eq 1) {
-            Return $ResultSet | Select-Object -ExpandProperty Output -ErrorAction 0
+        } Until ($SessionIndex -eq $ProcessSessions.Count -and $RemainingSessions.Count -eq 0)
+
+        If ($SessionCollection.Count -eq 1 -and !($PassthroughObjects)) {
+            $ResultObjects.Values | Select-Object -ExpandProperty $ResultPropertyName -ErrorAction SilentlyContinue
+        } ElseIf (!($PassthroughObjects)) {
+            $SessionCollection | Select-Object -Property @{n=$ResultPropertyName;e={If ($_.SessionID) {[string]$SessionID=$_.SessionID} Else {[string]$SessionID=$_}; Write-Debug "Inserting results for sessionID $($SessionID)"; If ($ResultObjects.ContainsKey($SessionID)) {$ResultObjects[$SessionID]|Select-Object -Property * -ExcludeProperty __CommandTimeout} Else {"Results for SessionID $($SessionID) were not found"} }} | Select-Object -ExpandProperty "$ResultPropertyName"
         } Else {
-            Return $ResultSet
+            $SessionCollection | Select-Object -ExcludeProperty $ResultPropertyName -Property *,@{n=$ResultPropertyName;e={If ($_.SessionID) {[string]$SessionID=$_.SessionID} Else {[string]$SessionID=$_}; Write-Debug "Inserting results for sessionID $($SessionID)"; If ($ResultObjects.ContainsKey($SessionID)) {$ResultObjects[$SessionID]|Select-Object -Property * -ExcludeProperty __CommandTimeout} Else {"Results for SessionID $($SessionID) were not found"} }}
         }
     }
 }

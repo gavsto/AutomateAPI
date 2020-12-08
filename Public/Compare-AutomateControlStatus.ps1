@@ -7,15 +7,17 @@ function Compare-AutomateControlStatus {
     .PARAMETER ComputerObject
     Can be taken from the pipeline in the form of Get-AutomateComputer -ComputerID 5 | Compare-AutomateControlStatus
     .PARAMETER AllResults
-    Instead of outputting a comparison it outputs everything, which include two columns indicating online status
+    Instead of outputting only status differences it outputs all records
+    .PARAMETER Force
+    Instead of retrieving only known Control Sessions, all Control Sessions will be returned. ComputerID will be 0 for extra sessions
     .PARAMETER Quiet
-    Doesn't output any log messages
+    Doesn't output any messages
     .OUTPUTS
-    An object containing Online status for Control and Automate
+    An object containing properties for Online status in Control and Automate
     .NOTES
-    Version:        1.4
+    Version:        1.5.0
     Author:         Gavin Stone
-    Creation Date:  20/01/2019
+    Creation Date:  2019-01-20
     Purpose/Change: Initial script development
 
     Update Date:    2019-02-23
@@ -29,6 +31,10 @@ function Compare-AutomateControlStatus {
     Update Date:    2019-06-24
     Author:         Darren White
     Purpose/Change: Update to use objects returned by Get-ControlSessions
+
+    Update Date:    2020-08-13
+    Author:         Darren White
+    Purpose/Change: -Force to include all Control Sessions, even if not found in Automate.
 
     .EXAMPLE
     Get-AutomateComputer -ComputerID 5 | Compare-AutomateControlStatus
@@ -44,63 +50,81 @@ function Compare-AutomateControlStatus {
         [switch]$AllResults,
 
         [Parameter()]
+        [switch]$Force,
+
+        [Parameter()]
         [switch]$Quiet
     )
     
     Begin {
-        $ComputerArray = @()
-        $ObjectRebuild = @()
-        $ReturnedObject = @()
+        $ComputerArray = {}.Invoke()
+        $ObjectRebuild = {}.Invoke()
+        $ReturnedObject = {}.Invoke()
+        $FullLookupMethod = $False
     }
     
     Process {
         If ($ComputerObject) {
-            $ObjectRebuild += $ComputerObject 
+            Foreach ($Computer in $ComputerObject) {
+                If ($Computer -and $Computer.ComputerID -match '^[1-9]\d*$') {
+                    $Null = $ObjectRebuild.Add($Computer)
+                } Else {
+                    Write-Warning "Input Object ComputerID property is missing or invalid. Skipping."
+                }
+            }
         }
     }
     
     End {
-        # The primary concern now is to get out the ComputerIDs of the machines of the objects
-        # We want to support all ComputerIDs being called if no computer object is passed in
-        If (!$Quiet){Write-Host -BackgroundColor Blue -ForegroundColor White "Checking to see if the recommended Internal Monitor is present"}
-        $AutoControlSessions=@{};
-        $Null=Get-AutomateAPIGeneric -Endpoint "InternalMonitorResults" -allresults -condition "(Name like '%GetControlSessionIDs%')" -EA 0 | Where-Object {($_.computerid -and $_.computerid -gt 0 -and $_.IdentityField -and $_.IdentityField -match '.+')} | ForEach-Object {$AutoControlSessions.Add($_.computerid,$_.IdentityField)};
-
         # Check to see if any Computers were specified in the incoming object
-        If (!$ObjectRebuild.Count -gt 0){$FullLookupMethod = $true}
+        # We want to support all ComputerIDs being returned if no computer object is passed in
+        If (!($ObjectRebuild.Count -gt 0)) {$FullLookupMethod = $true}
 
         If ($FullLookupMethod) {
-            $ObjectRebuild = Get-AutomateComputer -AllComputers | Select-Object Id, ComputerName, @{Name = 'ClientName'; Expression = {$_.Client.Name}}, OperatingSystemName, Status 
+            $ObjectRebuild = Get-AutomateComputer | Select-Object ComputerId, ComputerName, Client, Location, OperatingSystemName, RemoteAgentLastContact, Status 
+        } ElseIf ($Force) {
+            Write-Warning "Input Objects were provided. False positives of Control Sessions not known by Automate may occur for computers not provided."
         }
 
-        Foreach ($computer in $ObjectRebuild) {
-            If (!$AutoControlSessions[[int]$Computer.ID])
-            {
-                $AutomateControlGUID = Get-AutomateControlInfo -ComputerID $($computer | Select-Object -ExpandProperty id) | Select-Object -ExpandProperty SessionID
+        # The primary concern now is to get the SessionIDs for the Automate Computers. Skip use of Internal Monitor when a small number of computers are being checked.
+        $AutoControlSessions=@{};
+        If (!($ObjectRebuild.Count -le 15)) {
+            If (!$Quiet){Write-Host -BackgroundColor Blue -ForegroundColor White "Checking to see if the recommended Internal Monitor is present"}
+            $Null=Get-AutomateAPIGeneric -Endpoint "InternalMonitorResults" -allresults -condition "(Name like '%GetControlSessionIDs%')" -EA 0 | Where-Object {($_.computerid -and $_.computerid -gt 0 -and $_.IdentityField -and $_.IdentityField -match '.+')} | ForEach-Object {$AutoControlSessions.Add([int]$_.computerid,$_.IdentityField)};
+            If ($AutoControlSessions.Count -gt 0 -and !$Quiet) {Write-Host -BackgroundColor Blue -ForegroundColor White "Internal Monitor is present"}
+        }
+
+        Foreach ($Computer in $ObjectRebuild) {
+            If (!$AutoControlSessions[[int]$Computer.ComputerID]) {
+                $AutoControlSessionID = Get-AutomateControlInfo -ComputerID $($Computer | Select-Object -ExpandProperty ComputerId) | Select-Object -ExpandProperty SessionID
+                $AutoControlSessions.Add([int]$Computer.ComputerID,$AutoControlSessionID)
             } Else {
-                $AutomateControlGUID = $AutoControlSessions[[int]$Computer.ID]
+                $AutoControlSessionID = $AutoControlSessions[[int]$Computer.ComputerID]
             }
 
-            $FinalComputerObject = $computer
-            $Null = $FinalComputerObject | Add-Member -MemberType NoteProperty -Name ComputerID -Value $Computer.ID -Force -EA 0
-            $Null = $FinalComputerObject | Add-Member -MemberType NoteProperty -Name OnlineStatusAutomate -Value $Computer.Status -Force -EA 0
-            $Null = $FinalComputerObject | Add-Member -MemberType NoteProperty -Name SessionID -Value $AutomateControlGUID -Force -EA 0
-            If([string]::IsNullOrEmpty($Computer.ClientName)) {
+            $FinalComputerObject = $Computer
+            If([string]::IsNullOrEmpty($Computer.ClientName) -and $Computer.Client -and $Computer.Client.Name -match '.+') {
                 $Null = $FinalComputerObject | Add-Member -MemberType NoteProperty -Name ClientName -Value $Computer.Client.Name -Force -EA 0
             }
-            $Null = $FinalComputerObject.PSObject.properties.remove('ID')
+            If ($Computer|Get-Member -Name Status) {
+                $Null = $FinalComputerObject | Add-Member -MemberType NoteProperty -Name OnlineStatusAutomate -Value $Computer.Status -Force -EA 0
+            } Else {
+                Write-Debug "Refreshing Automate Status for Computer ID $($FinalComputerObject.ComputerID)"
+                $Null = $FinalComputerObject | Add-Member -MemberType NoteProperty -Name OnlineStatusAutomate -Value $(Get-AutomateComputer -ComputerID $FinalComputerObject.ComputerID -IncludeFields Status).Status -Force -EA 0
+            } 
+            $Null = $FinalComputerObject | Add-Member -MemberType NoteProperty -Name SessionID -Value $AutoControlSessionID -Force -EA 0
             $Null = $FinalComputerObject.PSObject.properties.remove('Status')
 
-            $ComputerArray += $FinalComputerObject
+            $Null = $ComputerArray.Add($FinalComputerObject)
         }
 
-        #GUIDs to get Control information for
-        $GUIDsToLookupInControl = $ComputerArray | Where-Object {$_.SessionID -match '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'} | Select-Object -ExpandProperty SessionID
-        If ($GUIDsToLookupInControl.Count -gt 100) {$GUIDsToLookupInControl=$Null} #For larger groups, just retrieve all sessions.
+        #SessionIDs to check in Control
+        $SessionIDsToCheck = $ComputerArray | Where-Object {$_.SessionID -match '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'} | Select-Object -ExpandProperty SessionID
+        If ($Force -or $SessionIDsToCheck.Count -gt 100) {$SessionIDsToCheck=$Null} #For larger groups, just retrieve all sessions.
 
         #Control Sessions
         $ControlSessions=@{};
-        Get-ControlSessions -SessionID $GUIDsToLookupInControl | ForEach-Object {$ControlSessions.Add($_.SessionID, $($_|Select-Object -Property OnlineStatusControl,LastConnected))}
+        Get-ControlSessions -SessionID $SessionIDsToCheck -IncludeProperty Name,CreatedTime,GuestOperatingSystemManufacturerName,GuestOperatingSystemName,CustomProperty1,CustomProperty2,SessionType | ForEach-Object {$ControlSessions.Add([string]$_.SessionID, $($_))}
 
         Foreach ($Final in $ComputerArray) {
             $CAReturn = $Final
@@ -109,19 +133,31 @@ function Compare-AutomateControlStatus {
                     $Null = $CAReturn | Add-Member -MemberType NoteProperty -Name OnlineStatusControl -Value $($ControlSessions[$Final.SessionID].OnlineStatusControl) -Force -EA 0
                     $Null = $CAReturn | Add-Member -MemberType NoteProperty -Name LastConnectedControl -Value $($ControlSessions[$Final.SessionID].LastConnected) -Force -EA 0
                 } Else {
-                    $Null = $CAReturn | Add-Member -MemberType NoteProperty -Name OnlineStatusControl -Value "GUID Not in Control or No Connection Events" -Force -EA 0
+                    $Null = $CAReturn | Add-Member -MemberType NoteProperty -Name OnlineStatusControl -Value "SessionID not in Control" -Force -EA 0
                 } 
             } Else {
-                $Null = $CAReturn | Add-Member -MemberType NoteProperty -Name OnlineStatusControl -Value "Control not installed or GUID not in Automate" -Force -EA 0
+                $Null = $CAReturn | Add-Member -MemberType NoteProperty -Name OnlineStatusControl -Value "Control not installed or SessionID not in Automate" -Force -EA 0
             }
 
-            $ReturnedObject += $CAReturn
+            $Null = $ReturnedObject.Add($CAReturn)
         }
         
+        If ($Force) {
+            ForEach ($ControlSessionID In $AutoControlSessions.Values) {
+                $Null = $ControlSessions.Remove($ControlSessionID.ToString())
+            }
+            # Get list of sessions we learned about from Control, skip any we already knew about.
+            $ControlSessions.GetEnumerator() | Foreach-Object {
+                $CAReturn=$_.Value | Select-Object -Property @{n='ComputerId';e={0}},@{n='ComputerName';e={[string]$_.Name}},@{n='ClientName';e={$_.CustomProperty1}},@{n='Location';e={$_.CustomProperty2}},@{n='OperatingSystemName';e={(@($_.GuestOperatingSystemManufacturerName,$_.GuestOperatingSystemName).GetEnumerator()|Where-Object {$_}) -join ' '}},@{n='OnlineStatusAutomate';e={'Offline'}},SessionType,SessionID,OnlineStatusControl,CreatedTime,@{n='LastConnectedControl';e={$_.LastConnected}}
+                If (!$CAReturn.ComputerName) {$CAReturn.ComputerName=''}
+                $Null = $ReturnedObject.Add($CAReturn)
+            }
+        }
+
         If ($AllResults) {
-            $ReturnedObject
+            return $ReturnedObject
         } Else {
-            $ReturnedObject | Where-Object{($_.OnlineStatusControl -eq $true) -and ($_.OnlineStatusAutomate -eq 'Offline') }
+            return $ReturnedObject | Where-Object{($_.OnlineStatusControl -eq $true) -and ($_.OnlineStatusAutomate -eq 'Offline') }
         }
     }
 }

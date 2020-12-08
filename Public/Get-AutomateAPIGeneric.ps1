@@ -11,7 +11,7 @@ function Get-AutomateAPIGeneric {
       .PARAMETER AllResults
         Will bring back all results for a particular query with no concern for result set size
       .PARAMETER Endpoint
-        The individial URI to post to for results, IE computers?
+        The individial URI to post to for results, IE computers
       .PARAMETER OrderBy
         Order by - Used to sort the results by a field. Can be sorted in ascending or descending order.
         Example - fieldname asc
@@ -26,36 +26,38 @@ function Get-AutomateAPIGeneric {
       .PARAMETER ExcludeFields
         A comma delimited list of fields, when specified these fields will be excluded from the final result set
       .PARAMETER IDs
-        A comma delimited list of fields, when specified only these IDs will be returned
+        A comma delimited list of IDs, when specified only these IDs will be returned
       .OUTPUTS
         The returned results from the API call
       .NOTES
-        Version:        1.0
+        Version:        1.1.0
         Author:         Gavin Stone
-        Creation Date:  20/01/2019
+        Creation Date:  2019-01-20
         Purpose/Change: Initial script development
+
+        Update Date:    2020-07-03
+        Purpose/Change: Update to use Invoke-AutomateAPIMaster
+
       .EXAMPLE
-        Get-AutomateAPIGeneric -Page 1 -Condition "RemoteAgentLastContact <= 2019-12-18T00:50:19.575Z" -Endpoint "computers?"
+        Get-AutomateAPIGeneric -Page 1 -Condition "RemoteAgentLastContact <= 2019-12-18T00:50:19.575Z" -Endpoint "computers"
     #>
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName='AllResults')]
     param (
         [Parameter(Mandatory = $false, ParameterSetName = "Page")]
         [ValidateRange(1,1000)]
         [int]
         $PageSize = 1000,
 
-        [Parameter(Mandatory = $true, ParameterSetName = "Page")]
+        [Parameter(Mandatory = $false, ParameterSetName = "Page")]
         [ValidateRange(1,65535)]
         [int]
-        $Page,
+        $Page = 1,
 
         [Parameter(Mandatory = $false, ParameterSetName = "AllResults")]
         [switch]
         $AllResults,
-
-        [Parameter(Mandatory = $false)]
-        [switch]
-        $GenerateInstallerToken,
+        [Parameter(Mandatory = $false, ParameterSetName = "AllResults")]
+        $ResultSetSize,
 
         [Parameter(Mandatory = $true)]
         [string]
@@ -87,14 +89,15 @@ function Get-AutomateAPIGeneric {
     )
     
     begin {
-        #Build the URL to hit
-        $url = ($Script:CWAServer + '/cwa/api/v1/' + $EndPoint)
+        #Build the URI to hit
+        $URI = ('/cwa/api/v1/' + $EndPoint)
 
         #Build the Body Up
         $Body = @{}
 
         #Put the page size in
-        $Body.Add("pagesize", "$PageSize")
+        $Body.Add("pagesize", $PageSize)
+        $Body.Add("page", $Page)
 
         #Put the condition in
         if ($Condition) {
@@ -126,64 +129,40 @@ function Get-AutomateAPIGeneric {
           $Body.Add("expand", "$Expand")
         }
 
-        if ($GenerateInstallerToken) {
-          $Body.Add("LocationId", "1")
-          $Body.Add("InstallerType", "1")
-          $Body = $Body | ConvertTo-JSON
-        }
+        $ReturnedResults = @()
+        [System.Collections.ArrayList]$ReturnedResults
     }
     
     process {
-        if ($AllResults) {
-            $ReturnedResults = @()
-            [System.Collections.ArrayList]$ReturnedResults
-            $i = 0
-            DO {
-                [int]$i += 1
-                $URLNew = "$($url)?page=$($i)"
-                try {
-                    $return = Invoke-RestMethod -Uri $URLNew -Headers $script:CWAToken -ContentType "application/json" -Body $Body
-                }
-                catch {
-                    Write-Error "Failed to perform Invoke-RestMethod to Automate API with error $_.Exception.Message"
-                }
-
-                $ReturnedResults += ($return)
-            }
-            WHILE ($return.count -gt 0)
+        $Arguments = @{
+            'URI'=$URI
+            'ContentType'="application/json"
+            'Body'=$Body
         }
-
-        if ($Page) {
-            $ReturnedResults = @()
-            [System.Collections.ArrayList]$ReturnedResults
-            $URLNew = "$($url)?page=$($Page)"
-            try {
-                $return = Invoke-RestMethod -Uri $URLNew -Headers $script:CWAToken -ContentType "application/json" -Body $Body
+        If ($AllResults) {$Arguments.Body.page=1}
+        Do {
+            Try {
+                Write-Debug "Calling Invoke-AutomateAPIMaster with Arguments $(ConvertTo-JSON -InputObject $Arguments -Depth 100 -Compress)"
+                $Result = Invoke-AutomateAPIMaster -Arguments $Arguments
+                If ($Result.content){
+                    $Result = $Result.content | ConvertFrom-Json
+                }
+                $ReturnedResults += ($Result)
             }
-            catch {
-                Write-Error "Failed to perform Invoke-RestMethod to Automate API with error $_.Exception.Message"
+            Catch {
+                Write-Error "Failed to perform Invoke-AutomateAPIMaster"
+                $Result=$Null
             }
 
-            $ReturnedResults += ($return)
+            $Arguments.Body.page+=1
         }
-
-        if ($GenerateInstallerToken) {
-          $ReturnedResults = @()
-          [System.Collections.ArrayList]$ReturnedResults
-          $URLNew = "$($url)"
-          try {
-              $return = Invoke-RestMethod -Uri $URLNew -Headers $script:CWAToken -ContentType "application/json" -Body $Body -Method 'Post'
-          }
-          catch {
-              Write-Error "Failed to perform Invoke-RestMethod to Automate API with error $_.Exception.Message"
-          }
-
-          $ReturnedResults += ($return)
-      }
-
+        While ($Result.Count -gt 0 -and $AllResults -and !($ResultSetSize -gt 0 -and $ReturnedResults.Count -ge $ResultSetSize))
+        If ($ResultSetSize -and $ResultSetSize -gt 0) {
+          $ReturnedResults = $ReturnedResults | Select-Object -First $ResultSetSize
+        }
     }
     
-    end {
+    End {
         return $ReturnedResults
     }
 }
