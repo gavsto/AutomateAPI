@@ -4,7 +4,10 @@ Get-Module AutomateAPI | Remove-Module -Force
 Import-Module "$PSScriptRoot\\AutomateAPI.psm1" -Force
 #Get credentials $creds is available in every test
 #Copy credentials.example.json to a new file credentials.json
-$creds = Get-Content "$PSScriptRoot\\credentials.json" | Out-String | ConvertFrom-Json
+$creds = $null
+if(Test-Path "$PSScriptRoot\\credentials.json") {
+    $creds = Get-Content "$PSScriptRoot\\credentials.json" | Out-String | ConvertFrom-Json
+}
 Describe AutomateAPI {
     It "AutomateAPI is valid PowerShell code" {
         $psFile = Get-Content -Path "$PSScriptRoot\\AutomateAPI.psm1" -ErrorAction Stop
@@ -14,10 +17,16 @@ Describe AutomateAPI {
     }
 
     It "Connects to the Automate API" {
-        $password = ConvertTo-SecureString $creds.Automate.password -AsPlainText -Force
-        $credentials = New-Object System.Management.Automation.PSCredential($creds.Automate.user, $password)
-        $result = Connect-AutomateAPI -Server $creds.Automate.server -Credential $credentials `
-                    -ClientID $creds.Automate.clientid
+        if($creds) {
+            $password = ConvertTo-SecureString $creds.Automate.password -AsPlainText -Force
+            $credentials = New-Object System.Management.Automation.PSCredential($creds.Automate.user, $password)
+            $result = Connect-AutomateAPI -Server $creds.Automate.server -Credential $credentials `
+                        -ClientID $creds.Automate.clientid
+        }
+        else {
+            $result = Connect-AutomateAPI
+        }
+
         $result | Should -be $null
     }
 
@@ -26,9 +35,15 @@ Describe AutomateAPI {
     }
     
     It "Connects to the Control API" {
-        $password = ConvertTo-SecureString $creds.Control.password -AsPlainText -Force
-        $credentials = New-Object System.Management.Automation.PSCredential($creds.Control.user, $password)
-        $result = Connect-ControlAPI -Server $creds.Control.server -Credential $credentials
+        if($creds) {
+            $password = ConvertTo-SecureString $creds.Control.password -AsPlainText -Force
+            $credentials = New-Object System.Management.Automation.PSCredential($creds.Control.user, $password)
+            $result = Connect-ControlAPI -Server $creds.Control.server -Credential $credentials
+        }
+        else {
+            $result = Connect-ControlAPI
+        }
+
         $result | Should -be $null
     }
     
