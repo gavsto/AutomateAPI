@@ -1,4 +1,11 @@
-﻿# Set-CredentialsLocallyStored
+---
+external help file: AutomateAPI-help.xml
+Module Name: AutomateAPI
+online version:
+schema: 2.0.0
+---
+
+# Set-CredentialsLocallyStored
 
 ## SYNOPSIS
 Sets credential objects on a server that has never had them before
@@ -22,7 +29,8 @@ Set-CredentialsLocallyStored [-Control] [-SaveCurrent] [-CredentialDirectory <St
 
 ### Custom
 ```
-Set-CredentialsLocallyStored -Custom -CredentialDisplayName <String> -CredentialDirectory <String> [<CommonParameters>]
+Set-CredentialsLocallyStored [-Custom] -CredentialDisplayName <String> -CredentialDirectory <String>
+ [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -30,126 +38,137 @@ This function takes a Powershell script and sets credentials on the local disk e
 
 ## EXAMPLES
 
-### -------------------------- EXAMPLE 1 --------------------------
-PS C:\\\>
-```powershell
+### EXAMPLE 1
+```
 Set-CredentialsLocallyStored -Automate
 ```
 
-### -------------------------- EXAMPLE 2 --------------------------
-PS C:\\\>
-```powershell
-Set-CredentialsLocallyStored -All
+### EXAMPLE 2
 ```
-
-### EXAMPLE 3
-PS C:\\\>
-```powershell
 Set-CredentialsLocallyStored -Custom -CredentialDisplayName 'Office365' -CredentialDirectory "C:\Credentials"
 ```
 
 ## PARAMETERS
 
-### Automate
-
+### -Automate
+{{ Fill Automate Description }}
 
 ```yaml
 Type: SwitchParameter
 Parameter Sets: Automate
-Aliases: 
+Aliases:
 
-Required: false
-Position: named
-Default Value: False
-Pipeline Input: false
+Required: False
+Position: Named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
 ```
 
-### SaveCurrent
+### -All
+Will save both Automate and Control credentials
 
+```yaml
+Type: SwitchParameter
+Parameter Sets: All
+Aliases:
+
+Required: False
+Position: Named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Control
+{{ Fill Control Description }}
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: Control
+Aliases:
+
+Required: False
+Position: Named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Custom
+{{ Fill Custom Description }}
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: Custom
+Aliases:
+
+Required: True
+Position: Named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -CredentialDisplayName
+{{ Fill CredentialDisplayName Description }}
+
+```yaml
+Type: String
+Parameter Sets: Custom
+Aliases:
+
+Required: True
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -SaveCurrent
+{{ Fill SaveCurrent Description }}
 
 ```yaml
 Type: SwitchParameter
 Parameter Sets: Automate, All, Control
 Aliases: Save
 
-Required: false
-Position: named
-Default Value: False
-Pipeline Input: false
+Required: False
+Position: Named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
 ```
 
-### CredentialDirectory
-
+### -CredentialDirectory
+{{ Fill CredentialDirectory Description }}
 
 ```yaml
 Type: String
-Parameter Sets: Automate, Control, Custom
-Aliases: 
+Parameter Sets: Automate, Control
+Aliases:
 
-Required: true
-Position: named
-Default Value: "$($env:USERPROFILE)\AutomateAPI\"
-Pipeline Input: false
+Required: False
+Position: Named
+Default value: "$($env:USERPROFILE)\AutomateAPI\"
+Accept pipeline input: False
+Accept wildcard characters: False
 ```
-
-### All
-Will save both Automate and Control credentials
-
-```yaml
-Type: SwitchParameter
-Parameter Sets: All
-Aliases: 
-
-Required: false
-Position: named
-Default Value: False
-Pipeline Input: false
-```
-
-### Control
-
-
-```yaml
-Type: SwitchParameter
-Parameter Sets: Control
-Aliases: 
-
-Required: false
-Position: named
-Default Value: False
-Pipeline Input: false
-```
-
-### Custom
-
-
-```yaml
-Type: SwitchParameter
-Parameter Sets: Custom
-Aliases: 
-
-Required: true
-Position: named
-Default Value: False
-Pipeline Input: false
-```
-
-### CredentialDisplayName
-
 
 ```yaml
 Type: String
 Parameter Sets: Custom
-Aliases: 
+Aliases:
 
-Required: true
-Position: named
-Default Value: 
-Pipeline Input: false
+Required: True
+Position: Named
+Default value: "$($env:USERPROFILE)\AutomateAPI\"
+Accept pipeline input: False
+Accept wildcard characters: False
 ```
 
-### \<CommonParameters\>
-This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see about_CommonParameters (http://go.microsoft.com/fwlink/?LinkID=113216).
+### CommonParameters
+This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
 
 ## INPUTS
 
@@ -158,6 +177,3 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 ## NOTES
 
 ## RELATED LINKS
-
-
-*Generated by:  PowerShell HelpWriter 2019 v2.3.45*

@@ -54,7 +54,7 @@ Get-AutomateTicket -AllTickets
 ## PARAMETERS
 
 ### -TicketID
-{{Fill TicketID Description}}
+{{ Fill TicketID Description }}
 
 ```yaml
 Type: Int32[]
@@ -69,7 +69,7 @@ Accept wildcard characters: False
 ```
 
 ### -ComputerID
-{{Fill ComputerID Description}}
+{{ Fill ComputerID Description }}
 
 ```yaml
 Type: Int32[]
@@ -166,7 +166,7 @@ Accept wildcard characters: False
 ```
 
 ### -StatusID
-{{Fill StatusID Description}}
+{{ Fill StatusID Description }}
 
 ```yaml
 Type: Int32
@@ -181,7 +181,7 @@ Accept wildcard characters: False
 ```
 
 ### -StatusName
-{{Fill StatusName Description}}
+{{ Fill StatusName Description }}
 
 ```yaml
 Type: String
@@ -196,7 +196,7 @@ Accept wildcard characters: False
 ```
 
 ### -Subject
-{{Fill Subject Description}}
+{{ Fill Subject Description }}
 
 ```yaml
 Type: String
@@ -211,7 +211,7 @@ Accept wildcard characters: False
 ```
 
 ### -PriorityID
-{{Fill PriorityID Description}}
+{{ Fill PriorityID Description }}
 
 ```yaml
 Type: Int32
@@ -226,7 +226,7 @@ Accept wildcard characters: False
 ```
 
 ### -PriorityName
-{{Fill PriorityName Description}}
+{{ Fill PriorityName Description }}
 
 ```yaml
 Type: String
@@ -241,7 +241,7 @@ Accept wildcard characters: False
 ```
 
 ### -From
-{{Fill From Description}}
+{{ Fill From Description }}
 
 ```yaml
 Type: String
@@ -256,7 +256,7 @@ Accept wildcard characters: False
 ```
 
 ### -CC
-{{Fill CC Description}}
+{{ Fill CC Description }}
 
 ```yaml
 Type: String
@@ -271,7 +271,7 @@ Accept wildcard characters: False
 ```
 
 ### -SupportLevel
-{{Fill SupportLevel Description}}
+{{ Fill SupportLevel Description }}
 
 ```yaml
 Type: Int32
@@ -286,7 +286,7 @@ Accept wildcard characters: False
 ```
 
 ### -ExternalID
-{{Fill ExternalID Description}}
+{{ Fill ExternalID Description }}
 
 ```yaml
 Type: Int32
@@ -301,7 +301,7 @@ Accept wildcard characters: False
 ```
 
 ### -UnsyncedTickets
-{{Fill UnsyncedTickets Description}}
+{{ Fill UnsyncedTickets Description }}
 
 ```yaml
 Type: SwitchParameter
@@ -316,8 +316,7 @@ Accept wildcard characters: False
 ```
 
 ### CommonParameters
-This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable.
-For more information, see about_CommonParameters (http://go.microsoft.com/fwlink/?LinkID=113216).
+This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
 
 ## INPUTS
 

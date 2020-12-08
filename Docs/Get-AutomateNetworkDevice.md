@@ -5,69 +5,64 @@ online version:
 schema: 2.0.0
 ---
 
-# Get-AutomateClient
+# Get-AutomateNetworkDevice
 
 ## SYNOPSIS
-Get Client information out of the Automate API
+Get Network Device Information out of the Automate API
 
 ## SYNTAX
 
-### IndividualClient
+### IndividualNetworkDevice
 ```
-Get-AutomateClient [[-ClientId] <Int32[]>] [<CommonParameters>]
+Get-AutomateNetworkDevice [[-NetworkDeviceID] <Int32[]>] [<CommonParameters>]
 ```
 
 ### AllResults
 ```
-Get-AutomateClient [-AllClients] [-IncludeFields <String>] [-ExcludeFields <String>] [-OrderBy <String>]
- [<CommonParameters>]
+Get-AutomateNetworkDevice [-AllNetworkDevices] [-IncludeFields <String>] [-ExcludeFields <String>]
+ [-OrderBy <String>] [<CommonParameters>]
 ```
 
 ### ByCondition
 ```
-Get-AutomateClient [-Condition <String>] [-IncludeFields <String>] [-ExcludeFields <String>]
+Get-AutomateNetworkDevice [-Condition <String>] [-IncludeFields <String>] [-ExcludeFields <String>]
  [-OrderBy <String>] [<CommonParameters>]
 ```
 
 ### CustomBuiltCondition
 ```
-Get-AutomateClient [-IncludeFields <String>] [-ExcludeFields <String>] [-OrderBy <String>]
- [-ClientName <String>] [-LocationId <Int32>] [-LocationName <String>] [<CommonParameters>]
+Get-AutomateNetworkDevice [-IncludeFields <String>] [-ExcludeFields <String>] [-OrderBy <String>]
+ [-ClientName <String>] [-ClientId <Int32>] [-LocationId <Int32>] [-LocationName <String>] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
-Connects to the Automate API and returns one or more full client objects
+Connects to the Automate API and returns one or more full network device objects
 
 ## EXAMPLES
 
 ### EXAMPLE 1
 ```
-Get-AutomateClient -AllClients
+Get-AutomateNetworkDevice -AllNetworkDevices
 ```
 
 ### EXAMPLE 2
 ```
-Get-AutomateClient -ClientId 4
+Get-AutomateNetworkDevice -ClientName "Rancor"
 ```
 
 ### EXAMPLE 3
 ```
-Get-AutomateClient -ClientName "Rancor"
-```
-
-### EXAMPLE 4
-```
-Get-AutomateClient -Condition "(City != 'Baltimore')"
+Get-AutomateNetworkDevice -Condition "(Type != 'Workstation')"
 ```
 
 ## PARAMETERS
 
-### -ClientId
-ClientID to search for, integer, -ClientID 1
+### -NetworkDeviceID
+{{ Fill NetworkDeviceID Description }}
 
 ```yaml
 Type: Int32[]
-Parameter Sets: IndividualClient
+Parameter Sets: IndividualNetworkDevice
 Aliases: ID
 
 Required: False
@@ -77,8 +72,8 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
-### -AllClients
-Returns all clients in Automate, regardless of amount
+### -AllNetworkDevices
+Returns all computers in Automate, regardless of amount
 
 ```yaml
 Type: SwitchParameter
@@ -115,7 +110,7 @@ Accept wildcard characters: False
 ```
 
 ### -IncludeFields
-{{ Fill IncludeFields Description }}
+A comma separated list of fields that you want including in the returned computer object.
 
 ```yaml
 Type: String
@@ -130,7 +125,7 @@ Accept wildcard characters: False
 ```
 
 ### -ExcludeFields
-{{ Fill ExcludeFields Description }}
+A comma separated list of fields that you want excluding in the returned computer object.
 
 ```yaml
 Type: String
@@ -174,6 +169,21 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
+### -ClientId
+ClientID to search for, integer, -ClientID 1
+
+```yaml
+Type: Int32
+Parameter Sets: CustomBuiltCondition
+Aliases:
+
+Required: False
+Position: Named
+Default value: 0
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
 ### -LocationId
 LocationID to search for, integer, -LocationID 2
 
@@ -211,11 +221,11 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 
 ## OUTPUTS
 
-### Client objects
+### Network Device Objects
 ## NOTES
 Version:        1.0
-Author:         Gavin Stone and Andrea Mastellone
-Creation Date:  2019-03-19
+Author:         Gavin Stone
+Creation Date:  2020-10-05
 Purpose/Change: Initial script development
 
 ## RELATED LINKS

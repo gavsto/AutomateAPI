@@ -13,7 +13,7 @@ Compares Automate Online Status with Control, and outputs all machines online in
 ## SYNTAX
 
 ```
-Compare-AutomateControlStatus [[-ComputerObject] <Object>] [-AllResults] [-Quiet] [<CommonParameters>]
+Compare-AutomateControlStatus [[-ComputerObject] <Object>] [-AllResults] [-Force] [-Quiet] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -49,7 +49,23 @@ Accept wildcard characters: False
 ```
 
 ### -AllResults
-Instead of outputting a comparison it outputs everything, which include two columns indicating online status
+Instead of outputting only status differences it outputs all records
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Force
+Instead of retrieving only known Control Sessions, all Control Sessions will be returned.
+ComputerID will be 0 for extra sessions
 
 ```yaml
 Type: SwitchParameter
@@ -64,7 +80,7 @@ Accept wildcard characters: False
 ```
 
 ### -Quiet
-Doesn't output any log messages
+Doesn't output any messages
 
 ```yaml
 Type: SwitchParameter
@@ -79,18 +95,17 @@ Accept wildcard characters: False
 ```
 
 ### CommonParameters
-This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable.
-For more information, see about_CommonParameters (http://go.microsoft.com/fwlink/?LinkID=113216).
+This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
 
 ## INPUTS
 
 ## OUTPUTS
 
-### An object containing Online status for Control and Automate
+### An object containing properties for Online status in Control and Automate
 ## NOTES
-Version:        1.4
+Version:        1.5.0
 Author:         Gavin Stone
-Creation Date:  20/01/2019
+Creation Date:  2019-01-20
 Purpose/Change: Initial script development
 
 Update Date:    2019-02-23
@@ -104,5 +119,9 @@ Purpose/Change: Reuse incoming object to preserve properties passed on the pipel
 Update Date:    2019-06-24
 Author:         Darren White
 Purpose/Change: Update to use objects returned by Get-ControlSessions
+
+Update Date:    2020-08-13
+Author:         Darren White
+Purpose/Change: -Force to include all Control Sessions, even if not found in Automate.
 
 ## RELATED LINKS
