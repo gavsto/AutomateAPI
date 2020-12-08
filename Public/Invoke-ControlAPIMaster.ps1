@@ -6,6 +6,8 @@ function Invoke-ControlAPIMaster {
         Internal function used to make API calls
     .PARAMETER Arguments
         Required parameters for the API call
+        A URI without a leading "/" will default to the Automate Extension path.
+        A URI without a protocol/server will default to the Control Server established by Connect-ControlAPI
     .OUTPUTS
         The returned results from the API call
     .NOTES
@@ -21,7 +23,7 @@ function Invoke-ControlAPIMaster {
 
     .EXAMPLE
         $APIRequest = @{
-            'URI' = "/App_Extensions/fc234f0e-2e8e-4a1f-b977-ba41b14031f7/ReportService.ashx/GenerateReportForAutomate"
+            'URI' = "ReportService.ashx/GenerateReportForAutomate"
             'Body' = ConvertTo-Json @("Session","",@('SessionID','SessionType','Name','CreatedTime'),"NOT IsEnded", "", 10000)
         }
         $AllSessions = Invoke-ControlAPIMaster -Arguments $APIRequest
@@ -68,7 +70,7 @@ function Invoke-ControlAPIMaster {
             $Arguments.URI = $Arguments.URI -replace '(.*?)&(.*)', '$1?$2'
         }        
         if($Arguments.URI -notmatch '^(https?://|/)') {
-            $Arguments.URI = ('/App_Extensions/fc234f0e-2e8e-4a1f-b977-ba41b14031f7/' + $Arguments.URI)
+            $Arguments.URI = ($Script:CWCExtensionURI + $Arguments.URI)
         }
         if($Arguments.URI -notmatch '^https?://') {
             $Arguments.URI = ($Script:ControlServer + $Arguments.URI)
@@ -165,6 +167,10 @@ function Invoke-ControlAPIMaster {
                     }
                     [pscustomobject]$SCEventRecord
                 }
+            } ElseIf ($SCData) {
+                $SCData
+            } Else {
+                $Result.Content
             }
         }
         Return
