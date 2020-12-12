@@ -35,7 +35,8 @@ function Invoke-ControlAPIMaster {
         [int]$MaxRetry = 5
     )
 
-    Begin {
+    Begin { 
+        $Result = $Null
     }
 
     Process {
@@ -70,10 +71,10 @@ function Invoke-ControlAPIMaster {
             $Arguments.URI = $Arguments.URI -replace '(.*?)&(.*)', '$1?$2'
         }        
         if($Arguments.URI -notmatch '^(https?://|/)') {
-            $Arguments.URI = ($Script:CWCExtensionURI + $Arguments.URI)
+            $Arguments.URI = "/App_Extensions/${Script:CWCExtensionID}/$($Arguments.URI)"
         }
         if($Arguments.URI -notmatch '^https?://') {
-            $Arguments.URI = ($Script:ControlServer + $Arguments.URI)
+            $Arguments.URI = "${Script:ControlServer}$($Arguments.URI)"
         }
 
         If(!$Arguments.ContainsKey('Method')) {
@@ -88,8 +89,8 @@ function Invoke-ControlAPIMaster {
         Try {
             $ProgressPreference = 'SilentlyContinue'
             $Result = Invoke-WebRequest @Arguments
-        } 
-        Catch {
+            Write-Debug "Result:`n$(($Result|Out-String -Stream) -join "`n")"
+        } Catch {
             # Start error message
             $ErrorMessage = @()
             If($_.Exception.Response){
@@ -104,6 +105,7 @@ function Invoke-ControlAPIMaster {
                     $ErrorMessage += ''    
                     $ErrorMessage += "--> $($ErrBody.code)"
                     If($errBody.code -eq 'Unauthorized'){
+                        $Script:CWCIsConnected=$False
                         $ErrorMessage += "-----> $($ErrBody.message)"
                         $ErrorMessage += "-----> Use 'Connect-ControlAPI' to set new authentication."
                     } Else {
@@ -122,6 +124,10 @@ function Invoke-ControlAPIMaster {
                 $ErrorMessage += "--> $($errDetails.message)"
                 If($errDetails.errors.message){
                     $ErrorMessage += "-----> $($errDetails.errors.message)"
+                }
+                If($errDetails.message -match 'Unauthorized'){
+                    $Script:CWCIsConnected=$False
+                    $ErrorMessage += "-----> Use 'Connect-ControlAPI' to set new authentication."
                 }
             }
             If (!$ErrorMessage) {$ErrorMessage+='An unknown error was returned'; $ErrorMessage+=$Result|Out-String -Stream}
@@ -157,7 +163,7 @@ function Invoke-ControlAPIMaster {
                 Set-Variable -Name CWCServerTime -Scope 1 -Value (Get-Date $($Result.Headers.Date))
             } Catch {}
             $SCData = $(If ($Result.Content) {$Result.Content | ConvertFrom-Json})
-            If ($SCData -and $SCData.FieldNames -and $SCData.Items -and $SCData.Items.Count -gt 0) {
+            If ($SCData -and @($SCData.PSObject.Properties.Name) -contains 'FieldNames' -and $SCData.Items -and $SCData.Items.Count -gt 0) {
                 $FNames = $SCData.FieldNames
                 $SCData.Items | ForEach-Object {
                     $x = $_
