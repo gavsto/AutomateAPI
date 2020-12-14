@@ -223,10 +223,10 @@ function Connect-ControlAPI {
                 If (!$SkipCheck) {
                     Try {
                         $CWCWExtension = Invoke-ControlAPIMaster -Arguments @{'URI' = "ReplicaService.ashx/ExtensionGetExtensionInfos"} | Where-Object {$_.ExtensionID -eq $Script:CWCExtensionID}
-                    } Catch {}
-                        Write-Host -BackgroundColor Green -ForegroundColor Black "Successfully tested and connected to the Control API."
-                        Write-Host -BackgroundColor Green -ForegroundColor Black "Server version is $($AuthorizationResult)."
                         Write-Host -BackgroundColor Green -ForegroundColor Black "Control Extension version $($CWCWExtension.Version) enabled: $($CWCWExtension.IsEnabled)"
+                    } Catch {Write-Warning "Failed to obtain extension information."}
+                    Write-Host -BackgroundColor Green -ForegroundColor Black "Server version is $($AuthorizationResult)."
+                    Write-Host -BackgroundColor Green -ForegroundColor Black "Successfully tested and connected to the Control API."
                 } Else {
                     Write-Host -BackgroundColor Green -ForegroundColor Black "Successfully stored Control Server parameters"
                 }
