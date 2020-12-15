@@ -75,11 +75,11 @@ function Connect-ControlAPI {
                 $Server = Read-Host -Prompt "Please enter your Control Server address, the full URL. IE https://control.rancorthebeast.com:8040" 
             }
         }
-        $Server = $Server -replace '/$', ''
         $AuthorizationResult=$Null
+        $Script:CWCIsConnected = $False
+        $Server = $Server -replace ':(?<=^https:[^:]+:)443(?!\d)|:(?<=^http:[^:]+:)80(?!\d)|/(?<=://.+).*$', '' #Cleanup URL, remove port specification for standard port values
         $testCWCHeaders = @{'Origin'=$Server}
         If ($Script:CWAClientID) {$testCWCHeaders.Add('ClientID',$Script:CWAClientID)}
-        $Script:CWCIsConnected = $False
     }
     
     Process {
