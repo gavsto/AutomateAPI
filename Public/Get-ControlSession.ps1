@@ -153,7 +153,7 @@ function Get-ControlSession {
         If (!$SplitGUIDsArray) {Write-Debug "Resetting to include all Sessions"; $SplitGUIDsArray=@('')}
         ForEach ($GUIDs in $SplitGUIDsArray) {
             $FilterCondition="($SessionTypeFilter)"
-            $GuidCondition=$(ForEach ($GUID in $GUIDs) {If ($GUID -and ($IncludeProperty -or !($SCConnected.ContainsKey($GUID)))) {"sessionid='$GUID'"}}) -join ' OR '
+            $GuidCondition=$(ForEach ($GUID in $GUIDs) {If ($GUID -and ($IncludeProperty -or !($SCConnected.ContainsKey($GUID)))) {"SessionID='$GUID'"}}) -join ' OR '
             If ($GuidCondition) {$FilterCondition="$FilterCondition AND ($GuidCondition)"}
             #Pull Session details
             $Body=ConvertTo-Json @("Session","",$SessionFields,$FilterCondition, "", $MaxRecords) -Compress
@@ -179,8 +179,8 @@ function Get-ControlSession {
                 }
             }
 
-            $FilterCondition="DisconnectedTime IS NULL AND ($($SessionTypeFilter.Replace('SessionType=','SessionSessionType=')))"
-            $GuidCondition=$(ForEach ($GUID in $GUIDs) {If ($GUID) {"sessionid='$GUID'"}}) -join ' OR '
+            $FilterCondition="ProcessType='Guest' AND DisconnectedTime IS NULL AND ($($SessionTypeFilter.Replace('SessionType=','SessionSessionType=')))"
+            $GuidCondition=$(ForEach ($GUID in $GUIDs) {If ($GUID) {"SessionID='$GUID'"}}) -join ' OR '
             If ($GuidCondition) {$FilterCondition="$FilterCondition AND ($GuidCondition)"}
             $Body=ConvertTo-Json @("SessionConnection",@("SessionID"),@("Count"),$FilterCondition, "", $MaxRecords) -Compress
 
@@ -196,7 +196,7 @@ function Get-ControlSession {
             }
 
             $FilterCondition="ProcessType='Guest' AND ($($SessionTypeFilter.Replace('SessionType=','SessionSessionType=')))"
-            $GuidCondition=$(ForEach ($GUID in $GUIDs) {If ($GUID -and $SCConnected.ContainsKey($GUID) -and $SCConnected[$GUID] -ne $True) {"sessionid='$GUID'"}}) -join ' OR '
+            $GuidCondition=$(ForEach ($GUID in $GUIDs) {If ($GUID -and $SCConnected.ContainsKey($GUID) -and $SCConnected[$GUID] -ne $True) {"SessionID='$GUID'"}}) -join ' OR '
             If ($GuidCondition) {$FilterCondition="$FilterCondition AND ($GuidCondition)"}
             ElseIf ($GUIDs -and $GUIDs.Count -ge 1 -and $GUIDs -match '.+') {$FilterCondition=$Null}
             If ($FilterCondition) {
