@@ -90,7 +90,6 @@ function Invoke-ControlAPIMaster {
         Try {
             $ProgressPreference = 'SilentlyContinue'
             $Result = Invoke-WebRequest @Arguments
-            Write-Debug "Result:`n$(($Result|Out-String -Stream) -join "`n")"
         } Catch {
             # Start error message
             $ErrorMessage = @()
