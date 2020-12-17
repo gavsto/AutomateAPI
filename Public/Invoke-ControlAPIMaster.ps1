@@ -32,7 +32,7 @@ function Invoke-ControlAPIMaster {
     param(
         [Parameter(Mandatory = $True)]
         $Arguments,
-        [int]$MaxRetry = 5
+        [int]$MaxRetry = 3
     )
 
     Begin { 
@@ -61,9 +61,10 @@ function Invoke-ControlAPIMaster {
         }
         If ($Script:ControlAPIKey) {
             $Arguments.Headers.Item('CWAIKToken') = (Get-CWAIKToken)
-        }
-        Else {
-            $Arguments.Item('Credential')=$Script:ControlAPICredentials
+        } ElseIf (!$Arguments.Headers.Authorization) {
+            $Authstring  = "$($Script:ControlAPICredentials.UserName):$($Script:ControlAPICredentials.GetNetworkCredential().Password)"
+            $encodedAuth  = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes($Authstring));
+            $Arguments.Headers.Item('Authorization') = "Basic $encodedAuth"
         }
 
         # Check URI format
@@ -98,6 +99,7 @@ function Invoke-ControlAPIMaster {
                 $ErrorStream = $_.Exception.Response.GetResponseStream()
                 $Reader = New-Object System.IO.StreamReader($ErrorStream)
                 $global:ErrBody = $Reader.ReadToEnd() | ConvertFrom-Json
+                $Result=$_.Exception | Select-Object -ExpandProperty Response
 
                 If($errBody.code){
                     $ErrorMessage += "An exception has been thrown."
@@ -116,10 +118,11 @@ function Invoke-ControlAPIMaster {
             }
 
             If ($_.ErrorDetails) {
+                $Result=$Result | Select-Object -ExcludeProperty Content -Property *,@{n='Content';e={$_.Exception.Message}}
                 $ErrorMessage += "An error has been thrown."
                 $ErrorMessage +=  $_.ScriptStackTrace
                 $ErrorMessage += ''
-                $global:errDetails = $_.ErrorDetails | ConvertFrom-Json
+                $global:errDetails = $_.ErrorDetails
                 $ErrorMessage += "--> $($errDetails.code)"
                 $ErrorMessage += "--> $($errDetails.message)"
                 If($errDetails.errors.message){
@@ -132,7 +135,7 @@ function Invoke-ControlAPIMaster {
             }
             If (!$ErrorMessage) {$ErrorMessage+='An unknown error was returned'; $ErrorMessage+=$Result|Out-String -Stream}
             Write-Error ($ErrorMessage | Out-String)
-            Return
+            If ($Result.StatusCode -ne 500 ) {Return}
         }
 
         # Not sure this will be hit with current iwr error handling
@@ -143,14 +146,18 @@ function Invoke-ControlAPIMaster {
         while ($Retry -lt $MaxRetry -and $Result.StatusCode -eq 500) {
             $Retry++
             $Wait = $([math]::pow( 2, $Retry))
-            Write-Warning "Issue with request, status: $($Result.StatusCode) $($Result.StatusDescription)"
-            Write-Warning "$($Retry)/$($MaxRetry) retries, waiting $($Wait)ms."
-            Start-Sleep -Milliseconds $Wait
+            Write-Warning "Issue with request, status: $($Result.StatusCode.Value__) $($Result.StatusDescription)"
+            Write-Warning "$($Retry)/$($MaxRetry) retries, waiting $($Wait)s."
+            Start-Sleep -Seconds $Wait
             $ProgressPreference = 'SilentlyContinue'
-            $Result = Invoke-WebRequest @Arguments
+            Try {
+                $Result = Invoke-WebRequest @Arguments
+            } Catch {
+                $Result=$_.Exception | Select-Object -ExpandProperty Response
+                $Result=$Result | Select-Object -ExcludeProperty Content -Property *,@{n='Content';e={$_.Exception.Message}}
+            }
         }
         If ($Retry -ge $MaxRetry -and $Result.StatusCode -eq 500) {
-            $Script:CWCIsConnected=$False
             Write-Error "Max retries hit. Status: $($Result.StatusCode) $($Result.StatusDescription)"
             Return
         }
@@ -162,7 +169,7 @@ function Invoke-ControlAPIMaster {
                 Get-Variable -Name CWCServerTime -Scope 1 -ErrorAction Stop
                 Set-Variable -Name CWCServerTime -Scope 1 -Value (Get-Date $($Result.Headers.Date))
             } Catch {}
-            $SCData = $(If ($Result.Content) {$Result.Content | ConvertFrom-Json})
+            $SCData=$(Try {$Result.Content | ConvertFrom-Json} Catch {})
             If ($SCData -and @($SCData.PSObject.Properties.Name) -contains 'FieldNames' -and $SCData.Items -and $SCData.Items.Count -gt 0) {
                 $FNames = $SCData.FieldNames
                 $SCData.Items | ForEach-Object {
