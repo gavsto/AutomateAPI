@@ -167,15 +167,15 @@ function Get-ControlSession {
 
             $AllData | Where-Object {$_.SessionID} | ForEach-Object {
                 If (!$_.IsEnded -or $_.IsEnded -eq $IncludeEnded) {
-                        $SessionLookup.Add($_.SessionID,$_)
-                        $SCLastConnected=$_.CreatedTime
-                If ((Get-Date $_.GuestLastActivityTime) -gt (Get-Date $SCLastConnected)) {
-                    $SCLastConnected=$_.GuestLastActivityTime
-                }
-                If ((Get-Date $_.GuestInfoUpdateTime) -gt (Get-Date $SCLastConnected)) {
-                    $SCLastConnected=$_.GuestInfoUpdateTime
-                }
-                $SCConnected.Add($_.SessionID,$SCLastConnected)
+                    $SessionLookup.Add($_.SessionID,$_)
+                    $SCLastConnected=$_.CreatedTime
+                    If ((Get-Date $_.GuestLastActivityTime) -gt (Get-Date $SCLastConnected)) {
+                        $SCLastConnected=$_.GuestLastActivityTime
+                    }
+                    If ((Get-Date $_.GuestInfoUpdateTime) -gt (Get-Date $SCLastConnected)) {
+                        $SCLastConnected=$_.GuestInfoUpdateTime
+                    }
+                    $SCConnected.Add($_.SessionID,$SCLastConnected)
                 }
             }
 
