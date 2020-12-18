@@ -10,7 +10,7 @@ $Private = @( Get-ChildItem -Recurse -Path "$PSScriptRoot\Private\" -File -Filte
 }
 
 $Script:LTPoShURI='https://raw.githubusercontent.com/LabtechConsulting/LabTech-Powershell-Module/master/LabTech.psm1'
-$Script:CWCExtensionURI='/App_Extensions/fc234f0e-2e8e-4a1f-b977-ba41b14031f7/'
+$Script:CWCExtensionID='fc234f0e-2e8e-4a1f-b977-ba41b14031f7'
 
 #check PS version for this, PS 6 and above use -SkipCertificateCheck for Invoke-RestMethod
 if ($PSVersionTable.PSVersion.Major -lt 6)

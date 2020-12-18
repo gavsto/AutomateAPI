@@ -99,7 +99,7 @@ Connect-AutomateAPI -Quiet
             }
         }
         $Server = $Server -replace '^https?://','' -replace '/[^\/]*$',''
-        $AuthorizationToken = $AuthorizationToken -replace 'Bearer ',''
+        $testAuthorizationToken = $AuthorizationToken -replace 'Bearer ',''
         $Script:CWAIsConnected=$False
         If ($ClientID -notmatch '.+') {
             $ClientID=$Null
@@ -117,10 +117,10 @@ Connect-AutomateAPI -Quiet
                 Write-Debug "Setting Credentials to $($Credential.UserName)"
                 $Script:CWACredentials = $Credential
             }
-            If ($AuthorizationToken) {
+            If ($testAuthorizationToken) {
                 #Build the token
                 $AutomateToken = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
-                $Null = $AutomateToken.Add("Authorization", "Bearer $AuthorizationToken")
+                $Null = $AutomateToken.Add("Authorization", "Bearer $testAuthorizationToken")
                 Write-Debug "Setting Authorization Token to $($AutomateToken.Authorization)"
                 $Script:CWAToken = $AutomateToken
             }
@@ -130,14 +130,14 @@ Connect-AutomateAPI -Quiet
             }
             Return
         }
-        If (!$AuthorizationToken -and $PSCmdlet.ParameterSetName -eq 'verify') {
+        If (!$testAuthorizationToken -and $PSCmdlet.ParameterSetName -eq 'verify') {
             If (!$Quiet) { Throw "Attempt to verify token failed. No token was provided or was cached." }
             Return
         }
         Do {
             $testCredential=$Credential
             If (!$Quiet) {
-                If (!$Credential -and ($Force -or !$AuthorizationToken)) {
+                If (!$Credential -and ($Force -or !$testAuthorizationToken)) {
                     If ($Force -or !$Script:CWACredentials) {
                         $Username = Read-Host -Prompt "Please enter your Automate Username"
                         $Password = Read-Host -Prompt "Please enter your Automate Password" -AsSecureString
@@ -150,7 +150,7 @@ Connect-AutomateAPI -Quiet
                 }
             }
 
-            If (!$AuthorizationToken -and !$testCredential -and $Script:CWACredentials -and $Force -ne $True -and $PSCmdlet.ParameterSetName -ne 'verify') {
+            If (!$testAuthorizationToken -and !$testCredential -and $Script:CWACredentials -and $Force -ne $True) {
                 $testCredential = $Script:CWACredentials
             }
             If ($testCredential) {
@@ -171,7 +171,7 @@ Connect-AutomateAPI -Quiet
                     'Body' = $($PostBody | ConvertTo-Json -Compress)
                 }
             } ElseIf ($PSCmdlet.ParameterSetName -eq 'refresh') {
-                $PostBody = $AuthorizationToken -replace 'Bearer ',''
+                $PostBody = $testAuthorizationToken -replace 'Bearer ',''
                 $RESTRequest = @{
                     'URI' = ($AutomateAPIURI + '/apitoken/refresh')
                     'Method' = 'POST'
@@ -180,7 +180,7 @@ Connect-AutomateAPI -Quiet
                     'Body' = $PostBody | ConvertTo-Json -Compress
                 }
             } ElseIf ($PSCmdlet.ParameterSetName -eq 'verify') {
-                $PostBody = $AuthorizationToken -replace 'Bearer ',''
+                $PostBody = $testAuthorizationToken -replace 'Bearer ',''
                 $RESTRequest = @{
                     'URI' = ($AutomateAPIURI + '/PatchInformation')
                     'Method' = 'GET'
@@ -211,13 +211,17 @@ Connect-AutomateAPI -Quiet
             
             $AuthorizationToken=$AutomateAPITokenResult.Accesstoken
             $TwoFactorNeeded=$AutomateAPITokenResult.IsTwoFactorRequired
-            If ($PSCmdlet.ParameterSetName -eq 'verify' -and !$AuthorizationToken -and $AutomateAPITokenResult -and $TwoFactorNeeded -ne $True) {
-                $AuthorizationToken = $Script:CWAToken.Authorization -replace 'Bearer ',''
-                $Script:CWAToken.Authorization=$Null
-                Write-Verbose "Server Version: $($AutomateAPITokenResult.DBAgentServerPatchVersion)"
+            If ($PSCmdlet.ParameterSetName -eq 'verify' -and !$AuthorizationToken -and $TwoFactorNeeded -ne $True) {
+                If ($AutomateAPITokenResult) {
+                    Write-Verbose "Server Version: $($AutomateAPITokenResult.DBAgentServerPatchVersion)"
+                    $AuthorizationToken=$testAuthorizationToken
+                } Else {
+                    $testAuthorizationToken = $Script:CWAToken.Authorization -replace 'Bearer ',''
+                    Try {$Script:CWAToken.Authorization=$Null} Catch {}
+                }
             }
-        } Until ($Quiet -or ![string]::IsNullOrEmpty($AuthorizationToken) -or 
-                ($PSCmdlet.ParameterSetName -eq 'verify' -and !$AuthorizationToken) -or
+        } Until (![string]::IsNullOrEmpty($AuthorizationToken) -or 
+                ($PSCmdlet.ParameterSetName -eq 'verify' -and $testCredential) -or
                 ($TwoFactorNeeded -ne $True -and $Credential) -or 
                 ($TwoFactorNeeded -eq $True -and $TwoFactorToken -ne '')
             )

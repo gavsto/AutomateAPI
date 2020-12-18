@@ -75,10 +75,11 @@ function Connect-ControlAPI {
                 $Server = Read-Host -Prompt "Please enter your Control Server address, the full URL. IE https://control.rancorthebeast.com:8040" 
             }
         }
-        $Server = $Server -replace '/$', ''
         $AuthorizationResult=$Null
         $Script:CWCIsConnected = $False
-        $AntiForgeryToken=$Script:CWCHeaders.'x-anti-forgery-token'
+        $Server = $Server -replace ':(?<=^https:[^:]+:)443(?!\d)|:(?<=^http:[^:]+:)80(?!\d)|/(?<=://.+).*$', '' #Cleanup URL, remove port specification for standard port values
+        $testCWCHeaders = @{'Origin'=$Server}
+        If ($Script:CWAClientID) {$testCWCHeaders.Add('ClientID',$Script:CWAClientID)}
     }
     
     Process {
@@ -100,7 +101,7 @@ function Connect-ControlAPI {
             } Else {
                 # Watch for time offset problems
                 Try {
-                    $SvrCheck = Invoke-WebRequest $Server -Method Head -UseBasicParsing
+                    $SvrCheck = Invoke-WebRequest $Server -Headers $testCWCHeaders -Method Head -UseBasicParsing
                     $SvrOffset=New-TimeSpan -Start $(Get-Date ($SvrCheck.Headers.Date))
                     Write-Debug "Server Time $($SvrCheck.Headers.Date) is $([Math]::Truncate($SvrOffset.TotalSeconds)) seconds offset from local clock"
                     If ([Math]::ABS($SvrOffset.TotalMinutes) -gt 30) {
@@ -113,10 +114,12 @@ function Connect-ControlAPI {
             Remove-Variable ControlAPIKey -Scope Script -ErrorAction 0
             # Retrieve Control Instance ID to verify APIKey
             $RESTRequest = @{
-                'Method' = 'GET'
-                'URI' = "$($Server)/App_Extensions/fc234f0e-2e8e-4a1f-b977-ba41b14031f7/Service.ashx/GetServerVersion"
-                'Headers' = @{'CWAIKToken' = (Get-CWAIKToken -APIKey $APIKey)}
+                'Method'  = 'GET'
+                'Headers' = $testCWCHeaders
+                'URI'     = "$($Server)/App_Extensions/${Script:CWCExtensionID}/Service.ashx/GetServerVersion"
             }
+
+            $RESTRequest.Headers.Add('CWAIKToken',(Get-CWAIKToken -APIKey $APIKey))
             Write-Debug "Submitting Request to $($RESTRequest.URI)"
             Try {
                 $AuthorizationResult = Invoke-RestMethod @RESTRequest
@@ -131,7 +134,7 @@ function Connect-ControlAPI {
 
             $testCredential=$Credential
             If (!$Quiet) {
-                If (!$Credential -and !$Script:ControlAPICredentials -and $PSCmdlet.ParameterSetName -ne 'verify') {
+                If (!$testCredential -and !$Script:ControlAPICredentials -and $PSCmdlet.ParameterSetName -ne 'verify') {
                     # If we have not been given credentials, lets ask for them
                     $Username = Read-Host -Prompt "Please enter your Control Username"
                     $Password = Read-Host -Prompt "Please enter your Control Password" -AsSecureString
@@ -158,45 +161,27 @@ function Connect-ControlAPI {
 
             # Now we will test the credentials
             # Build up the REST request that we will use to test with
-            $ControlAPITestURI = ($Server + '/Services/PageService.ashx/GetHostSessionInfo')
             $RESTRequest = @{
-                'URI'         = $ControlAPITestURI
+                'URI'         = "$($Server)/App_Extensions/${Script:CWCExtensionID}/Service.ashx/GetServerVersion"
+                'Headers'     = $testCWCHeaders
                 'Method'      = 'GET'
                 'ContentType' = 'application/json; charset=utf-8'
                 'Credential'  = $testCredential
             }
 
-<#
-            # Retrieve AntiForgeryToken
-            Try {
-               $SvrCheck = Invoke-WebRequest $Server -Method Get -UseBasicParsing | Select-Object -Expand Content | Select-String -Pattern '"antiForgeryToken":"([^"]*)"' 
-                If ($SvrCheck -and $SvrCheck.Matches -and $SvrCheck.Matches.Count -gt 0) {
-                    $AntiForgeryToken = $SvrCheck.Matches.Groups[1].Value
-                    Write-Debug "AntiForgeryToken $($AntiForgeryToken) retrieved"
-                } Else {Write-Verbose "No AntiForgeryToken was found"}
-            } Catch {}
-            If ($AntiForgeryToken) {$RESTRequest.Add('Headers',@{'x-anti-forgery-token'=$AntiForgeryToken})}
-#>
             # Invoke the REST Request
             Write-Debug "Submitting Request to $($RESTRequest.URI)`nHeaders:`n$($RESTRequest.Headers|ConvertTo-JSON -Depth 5)`nBody:`n$($RESTRequest.Body|ConvertTo-JSON -Depth 5)"
             Try {
-                $ControlAPITokenResult = Invoke-RestMethod @RESTRequest
-                Write-Debug "Request Results: $($ControlAPITokenResult|ConvertTo-Json -Depth 5 -Compress -EA 0)"
+                $AuthorizationResult = Invoke-RestMethod @RESTRequest
             }
             Catch {
-                # The authentication has failed, so remove the credentials from the script scope and throw an error
-                If ($testCredential) {
-#                    Remove-Variable ControlAPICredentials -Scope Script -ErrorAction 0
-                }
+                Write-Debug "Request Results: $($AuthorizationResult|ConvertTo-Json -Depth 5 -Compress -EA 0)"
                 If ($Credential) {
                     Remove-Variable ControlAPICredentials -Scope Script -ErrorAction 0
                     Throw "Attempt to authenticate to the Control server has failed with error $($_.Exception.Message|Out-String)"
                     Return
                 }
             }
-        
-            # Set the auth result to the product version
-            $AuthorizationResult = $ControlAPITokenResult.ProductVersion
         } 
     }
 
@@ -226,22 +211,22 @@ function Connect-ControlAPI {
             } 
             ElseIf ($PSCmdlet.ParameterSetName -eq 'apikey' -or $APIKey) {
                 $Script:ControlAPIKey = $APIKey
-                $AntiForgeryToken=$Null
             }
             Else {
                 Throw "Error - No parameter set was recognized."
             }
             $Script:ControlServer = $Server
+            $Script:CWCHeaders = $testCWCHeaders
             $Script:CWCIsConnected = $True
-            $Script:CWCHeaders = @{'Origin'=$Server}
-#            $Script:CWCHeaders = @{'Origin'=$Server -replace ':\d+.*$',''}
-#            If ($AntiForgeryToken) {$Script:CWCHeaders.Add('x-anti-forgery-token',$AntiForgeryToken)}
-            If ($Script:CWAClientID) {$Script:CWCHeaders.Add('ClientID',$Script:CWAClientID)}
-#            Write-Debug "CWC Header Set: $($Script:CWCHeaders|Out-String)"
 
             If (!$Quiet) {
                 If (!$SkipCheck) {
-                    Write-Host -BackgroundColor Green -ForegroundColor Black "Successfully tested and connected to the Control API. Server version is $($AuthorizationResult)"
+                    Try {
+                        $CWCExtension = Invoke-ControlAPIMaster -Arguments @{'URI' = "ReplicaService.ashx/ExtensionGetExtensionInfos"} | Where-Object {$_.ExtensionID -eq $Script:CWCExtensionID}
+                        Write-Host -BackgroundColor Green -ForegroundColor Black "Control Extension version $($CWCExtension.Version) enabled: $($CWCExtension.IsEnabled)"
+                    } Catch {Write-Warning "Failed to obtain extension information."}
+                    Write-Host -BackgroundColor Green -ForegroundColor Black "Server version is $($AuthorizationResult)."
+                    Write-Host -BackgroundColor Green -ForegroundColor Black "Successfully tested and connected to the Control API."
                 } Else {
                     Write-Host -BackgroundColor Green -ForegroundColor Black "Successfully stored Control Server parameters"
                 }

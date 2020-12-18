@@ -87,7 +87,7 @@ function Connect-ControlSession {
                 If ($AccessToken) {
                     Write-Debug "Access Token $($AccessToken) retrieved"
                     #Build Launch URL
-                    $LaunchURL="$($Script:ControlServer)$($Script:CWCExtensionURI)Launch.aspx?SessionID=$($Session)&HostAccessToken=$($AccessToken)"
+                    $LaunchURL="$($Script:ControlServer)/App_Extensions/${Script:CWCExtensionID}/Launch.aspx?SessionID=$($Session)&HostAccessToken=$($AccessToken)"
                     Write-Debug "Starting $($LaunchURL)"
                     Start-Process "$($LaunchURL)"
                 } Else {Write-Error "No Access Token was returned"}
