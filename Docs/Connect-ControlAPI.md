@@ -169,4 +169,10 @@ Author:         Darren White
 Creation Date:  2020-12-01
 Purpose/Change: Added origin to standard header
 
+Version:        1.2.2
+Author:         Darren White
+Creation Date:  2021-01-12
+Purpose/Change: Support custom Server URI path
+                Reference: https://docs.connectwise.com/ConnectWise_Control_Documentation/On-premises/Get_started_with_ConnectWise_Control_On-Premise/Change_ports_for_an_on-premises_installation
+
 ## RELATED LINKS
