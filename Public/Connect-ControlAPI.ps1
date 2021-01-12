@@ -39,6 +39,12 @@ function Connect-ControlAPI {
     Creation Date:  2020-12-01
     Purpose/Change: Added origin to standard header
 
+    Version:        1.2.2
+    Author:         Darren White
+    Creation Date:  2021-01-12
+    Purpose/Change: Support custom Server URI path
+                    Reference: https://docs.connectwise.com/ConnectWise_Control_Documentation/On-premises/Get_started_with_ConnectWise_Control_On-Premise/Change_ports_for_an_on-premises_installation
+
     .EXAMPLE
     All values will be prompted for one by one:
     Connect-ControlAPI
@@ -77,14 +83,14 @@ function Connect-ControlAPI {
         }
         $AuthorizationResult=$Null
         $Script:CWCIsConnected = $False
-        $Server = $Server -replace ':(?<=^https:[^:]+:)443(?!\d)|:(?<=^http:[^:]+:)80(?!\d)|/(?<=://.+).*$', '' #Cleanup URL, remove port specification for standard port values
-        $testCWCHeaders = @{'Origin'=$Server}
+        $Server = $Server -replace ':(?<=^https:[^:]+:)443(?!\d)|:(?<=^http:[^:]+:)80(?!\d)|/$', '' #Cleanup URL, remove port specification for standard port values
+        $testCWCHeaders = @{'Origin'=$Server -replace '/(?<=://.+).*$',''}
         If ($Script:CWAClientID) {$testCWCHeaders.Add('ClientID',$Script:CWAClientID)}
     }
     
     Process {
         # This indicates an error state because the server is not in a valid format. Triggering will immediately throw an error
-        If (!($Server -match 'https?://[a-z0-9][a-z0-9\.\-]*(:[1-9][0-9]*)?(\/[a-z0-9\.\-\/]*)?$')) {$Server=$Null; throw "Control Server address ($Server) is in invalid format."; return}
+        If (!($Server -match 'https?://[a-z0-9][a-z0-9\.\-]*(:[1-9][0-9]*)?(\/[a-z0-9\.\_\-\/]*)?$')) {$Server=$Null; throw "Control Server address ($Server) is in invalid format."; return}
 
         If (($PSCmdlet.ParameterSetName -eq 'apikey' -or $PSCmdlet.ParameterSetName -eq 'verify') -and $Null -ne $APIKey) {
             # Authenticating with an APIKey
