@@ -45,6 +45,11 @@ function Connect-ControlAPI {
     Purpose/Change: Support custom Server URI path
                     Reference: https://docs.connectwise.com/ConnectWise_Control_Documentation/On-premises/Get_started_with_ConnectWise_Control_On-Premise/Change_ports_for_an_on-premises_installation
 
+    Version:        1.2.3
+    Author:         Darren White
+    Creation Date:  2021-01-19
+    Purpose/Change: Regex Fix
+
     .EXAMPLE
     All values will be prompted for one by one:
     Connect-ControlAPI
@@ -90,7 +95,7 @@ function Connect-ControlAPI {
     
     Process {
         # This indicates an error state because the server is not in a valid format. Triggering will immediately throw an error
-        If (!($Server -match 'https?://[a-z0-9][a-z0-9\.\-]*(:[1-9][0-9]*)?(\/[a-z0-9\.\_\-\/]*)?$')) {$Server=$Null; throw "Control Server address ($Server) is in invalid format."; return}
+        If (!($Server -match 'https?://[a-z0-9][a-z0-9\.\-]*(:[1-9][0-9]*)?(\/[a-z0-9\._\-\/]*)?$')) {$Server=$Null; throw "Control Server address ($Server) is in invalid format."; return}
 
         If (($PSCmdlet.ParameterSetName -eq 'apikey' -or $PSCmdlet.ParameterSetName -eq 'verify') -and $Null -ne $APIKey) {
             # Authenticating with an APIKey
