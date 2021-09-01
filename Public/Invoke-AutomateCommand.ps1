@@ -144,7 +144,7 @@ function Invoke-AutomateCommand {
                         }
 
                         $Arguments = @{
-                            'URI'="${URI}/${tmpComputerID}/CommandExecute"
+                            'URI'="/${URI}/${tmpComputerID}/CommandExecute"
                             'ContentType'="application/json"
                             'Body'=$ExecuteCommand|ConvertTo-Json -Depth 100 -Compress
                             'Method'='POST'
