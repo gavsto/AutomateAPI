@@ -78,28 +78,26 @@ function Invoke-AutomateAPIMaster {
             If ($_.Exception.Response) {
                
                 if ($psversiontable.psversion.major -lt 6) {
-                    if ($psversiontable.psversion.major -lt 6) {
-                        # Read exception response
-                        $ErrorStream = $_.Exception.Response.GetResponseStream()
-                        $Reader = New-Object System.IO.StreamReader($ErrorStream)
-                        $global:ErrBody = $Reader.ReadToEnd() | ConvertFrom-Json
+                    # Read exception response
+                    $ErrorStream = $_.Exception.Response.GetResponseStream()
+                    $Reader = New-Object System.IO.StreamReader($ErrorStream)
+                    $global:ErrBody = $Reader.ReadToEnd() | ConvertFrom-Json
 
-                        # Start error message
-                        $ErrorMessage = @()
+                    # Start error message
+                    $ErrorMessage = @()
 
-                        if ($errBody.code) {
-                            $ErrorMessage += "An exception has been thrown."
-                            $ErrorMessage += $_.ScriptStackTrace
-                            $ErrorMessage += ''    
-                            $ErrorMessage += "--> $($ErrBody.code)"
-                            if ($errBody.code -eq 'Unauthorized') {
-                                $ErrorMessage += "-----> $($ErrBody.message)"
-                                $ErrorMessage += "-----> Use 'Connect-AutomateAPI' to set new authentication."
-                            } 
-                            else {
-                                $ErrorMessage += "-----> $($ErrBody.message)"
-                                $ErrorMessage += "-----> ^ Error has not been documented please report. ^"
-                            }
+                    if ($errBody.code) {
+                        $ErrorMessage += "An exception has been thrown."
+                        $ErrorMessage += $_.ScriptStackTrace
+                        $ErrorMessage += ''    
+                        $ErrorMessage += "--> $($ErrBody.code)"
+                        if ($errBody.code -eq 'Unauthorized') {
+                            $ErrorMessage += "-----> $($ErrBody.message)"
+                            $ErrorMessage += "-----> Use 'Connect-AutomateAPI' to set new authentication."
+                        } 
+                        else {
+                            $ErrorMessage += "-----> $($ErrBody.message)"
+                            $ErrorMessage += "-----> ^ Error has not been documented please report. ^"
                         }
                     }
                 }
