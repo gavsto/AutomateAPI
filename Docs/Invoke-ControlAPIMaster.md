@@ -60,7 +60,7 @@ Aliases:
 
 Required: False
 Position: 2
-Default value: 5
+Default value: 3
 Accept pipeline input: False
 Accept wildcard characters: False
 ```

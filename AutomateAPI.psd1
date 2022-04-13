@@ -12,7 +12,7 @@
 RootModule = 'AutomateAPI.psm1'
 
 # Version number of this module.
-ModuleVersion = '1.2.1'
+ModuleVersion = '1.1.5'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -27,7 +27,7 @@ Author = 'Gavin Stone'
 CompanyName = 'Gavsto'
 
 # Copyright statement for this module
-Copyright = '(c) 2019 Gavsto. All rights reserved.'
+Copyright = '(c) 2021 Gavsto. All rights reserved.'
 
 # Description of the functionality provided by this module
 Description = 'A module to provide access to the ConnectWise Automate API and surrounding products'

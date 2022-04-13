@@ -1,9 +1,9 @@
 # AutomateAPI
-Latest Tested Versions (as of 20201206):  
-Automate 20.0.373 (Patch 11)  
-Automate Control Plugin 6.5.20005.4  
-Control 20.11.1385.7587  
-Control Automate Extension 4.1.0.3  
+Latest Tested Versions (as of 2021-09-01):  
+Automate 21.0.181 (Patch 8)  
+Automate Control Plugin 6.6.20005.1 
+Control 21.8.3663.7830  
+Control Automate Extension 4.2.0.1
  
 Note: A Partner "ClientID" token is needed with Automate 20 Patch 11 and above. See https://developer.connectwise.com/ClientID  
   
@@ -14,15 +14,9 @@ Note: A Partner "ClientID" token is needed with Automate 20 Patch 11 and above. 
 
 3) Autofix agents that are broken using Repair-AutomateAgent. See https://github.com/gavsto/AutomateAPI/wiki/Autofix-Broken-Agents
 
+4) New - Invoke-AutomateCommand, used like this Get-AutomateComputer -ComputerId 1 | Invoke-AutomateCommand -PowerShell -Command "Get-Service"
+
 A PowerShell Module created by Gavin Stone (Gavsto) for the ConnectWise Automate API
-
-# What happened to my local repository?
-If you are using git and are working with this branch, your commit history may differ from the server and you may be unable to push or pull.
-Running these commands from the folder for the git repository should get everything back in sync:
-
-    git stash push
-    git pull --rebase
-    git stash pop
 
 # How do I get Going
 See https://github.com/gavsto/AutomateAPI/wiki/Pre-requisites-and-Install

@@ -35,10 +35,10 @@ function Invoke-AutomateAPIMaster {
     
     Process {
         # Check that we have cached connection info
-        If(!$Script:CWAIsConnected){
+        If (!$Script:CWAIsConnected) {
             $ErrorMessage = @()
             $ErrorMessage += "Not connected to an Automate server."
-            $ErrorMessage +=  $_.ScriptStackTrace
+            $ErrorMessage += $_.ScriptStackTrace
             $ErrorMessage += ''
             $ErrorMessage += "----> Run 'Connect-AutomateAPI' to initialize the connection before issuing other AutomateAPI commandlets."
             Write-Error ($ErrorMessage | Out-String)
@@ -46,26 +46,26 @@ function Invoke-AutomateAPIMaster {
         }
         
         # Add default set of arguments
-        $Arguments.Item('UseBasicParsing')=$Null
-        If (!$Arguments.Headers) {$Arguments.Headers=@{}}
-        Foreach($Key in $script:CWAToken.Keys){
-            If($Arguments.Headers.Keys -notcontains $Key){
-                $Arguments.Headers += @{$Key = $script:CWAToken.$Key}
+        $Arguments.Item('UseBasicParsing') = $Null
+        If (!$Arguments.Headers) { $Arguments.Headers = @{} }
+        Foreach ($Key in $script:CWAToken.Keys) {
+            If ($Arguments.Headers.Keys -notcontains $Key) {
+                $Arguments.Headers += @{$Key = $script:CWAToken.$Key }
             }
         }
-    #    if(!$Arguments.SessionVariable){ $Arguments.WebSession = $global:CWMServerConnection.Session }
+        #    if(!$Arguments.SessionVariable){ $Arguments.WebSession = $global:CWMServerConnection.Session }
 
         # Check URI format
-        If($Arguments.URI -notlike '*`?*' -and $Arguments.URI -like '*`&*') {
+        If ($Arguments.URI -notlike '*`?*' -and $Arguments.URI -like '*`&*') {
             $Arguments.URI = $Arguments.URI -replace '(.*?)&(.*)', '$1?$2'
         }        
 
-        If($Arguments.URI -notmatch '^https?://') {
-          $Arguments.URI = ($Script:CWAServer + $Arguments.URI)
+        If ($Arguments.URI -notmatch '^https?://') {
+            $Arguments.URI = ($Script:CWAServer + $Arguments.URI)
         }
         #Add required CWA ClientID to API request
-        If($Arguments.Headers.Keys -notcontains 'clientID' -and $Script:CWAClientID -match '.+') {
-            $Arguments.Headers += @{'clientID' = "$Script:CWAClientID"}
+        If ($Arguments.Headers.Keys -notcontains 'clientID' -and $Script:CWAClientID -match '.+') {
+            $Arguments.Headers += @{'clientID' = "$Script:CWAClientID" }
         }
 
         # Issue request
@@ -75,44 +75,47 @@ function Invoke-AutomateAPIMaster {
             $Result = Invoke-WebRequest @Arguments
         } 
         Catch {
-            If($_.Exception.Response){
-                # Read exception response
-                $ErrorStream = $_.Exception.Response.GetResponseStream()
-                $Reader = New-Object System.IO.StreamReader($ErrorStream)
-                $global:ErrBody = $Reader.ReadToEnd() | ConvertFrom-Json
+            If ($_.Exception.Response) {
+               
+                if ($psversiontable.psversion.major -lt 6) {
+                    # Read exception response
+                    $ErrorStream = $_.Exception.Response.GetResponseStream()
+                    $Reader = New-Object System.IO.StreamReader($ErrorStream)
+                    $global:ErrBody = $Reader.ReadToEnd() | ConvertFrom-Json
 
-                # Start error message
-                $ErrorMessage = @()
+                    # Start error message
+                    $ErrorMessage = @()
 
-                if($errBody.code){
-                    $ErrorMessage += "An exception has been thrown."
-                    $ErrorMessage +=  $_.ScriptStackTrace
-                    $ErrorMessage += ''    
-                    $ErrorMessage += "--> $($ErrBody.code)"
-                    if($errBody.code -eq 'Unauthorized'){
-                        $ErrorMessage += "-----> $($ErrBody.message)"
-                        $ErrorMessage += "-----> Use 'Connect-AutomateAPI' to set new authentication."
-                    } 
-                    else {
-                        $ErrorMessage += "-----> $($ErrBody.message)"
-                        $ErrorMessage += "-----> ^ Error has not been documented please report. ^"
+                    if ($errBody.code) {
+                        $ErrorMessage += "An exception has been thrown."
+                        $ErrorMessage += $_.ScriptStackTrace
+                        $ErrorMessage += ''    
+                        $ErrorMessage += "--> $($ErrBody.code)"
+                        if ($errBody.code -eq 'Unauthorized') {
+                            $ErrorMessage += "-----> $($ErrBody.message)"
+                            $ErrorMessage += "-----> Use 'Connect-AutomateAPI' to set new authentication."
+                        } 
+                        else {
+                            $ErrorMessage += "-----> $($ErrBody.message)"
+                            $ErrorMessage += "-----> ^ Error has not been documented please report. ^"
+                        }
                     }
                 }
-            }
 
-            if ($_.ErrorDetails) {
-                $ErrorMessage += "An error has been thrown."
-                $ErrorMessage +=  $_.ScriptStackTrace
-                $ErrorMessage += ''
-                $global:errDetails = $_.ErrorDetails | ConvertFrom-Json
-                $ErrorMessage += "--> $($errDetails.code)"
-                $ErrorMessage += "--> $($errDetails.message)"
-                if($errDetails.errors.message){
-                    $ErrorMessage += "-----> $($errDetails.errors.message)"
+                if ($_.ErrorDetails) {
+                    $ErrorMessage += "An error has been thrown."
+                    $ErrorMessage += $_.ScriptStackTrace
+                    $ErrorMessage += ''
+                    $global:errDetails = $_.ErrorDetails | ConvertFrom-Json
+                    $ErrorMessage += "--> $($errDetails.code)"
+                    $ErrorMessage += "--> $($errDetails.message)"
+                    if ($errDetails.errors.message) {
+                        $ErrorMessage += "-----> $($errDetails.errors.message)"
+                    }
                 }
+                Write-Error ($ErrorMessage | out-string)
+                Return
             }
-            Write-Error ($ErrorMessage | out-string)
-            Return
         }
 
         # Not sure this will be hit with current iwr error handling
@@ -130,7 +133,7 @@ function Invoke-AutomateAPIMaster {
             $Result = Invoke-WebRequest @Arguments
         }
         If ($Retry -ge $MaxRetry -and $Result.StatusCode -eq 500) {
-            $Script:CWAIsConnected=$False
+            $Script:CWAIsConnected = $False
             Write-Error "Max retries hit. Status: $($Result.StatusCode) $($Result.StatusDescription)"
             Return
         }
