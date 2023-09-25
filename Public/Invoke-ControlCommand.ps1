@@ -242,7 +242,7 @@ function Invoke-ControlCommand {
                 #Build GUID Conditional
                 $GuidCondition = $(ForEach ($SessionsGUID in $RemainingSessions) { "sessionid='$SessionsGUID'" }) -join ' OR '
                 # Look for results of command
-                $Body = ConvertTo-Json @("SessionConnectionEvent", @(), @("SessionID", "Time", "Data"), "($GuidCondition) AND EventType='RanCommand' AND Time>='$EventDateFormatted'", "", 200) -Compress
+                $Body = ConvertTo-Json @("SessionEvent", @(), @("SessionID", "Time", "Data"), "($GuidCondition) AND EventType='RanCommand' AND Time>='$EventDateFormatted'", "", 200) -Compress
 
                 $RESTRequest = @{
                     'URI'         = "ReportService.ashx/GenerateReportForAutomate"
