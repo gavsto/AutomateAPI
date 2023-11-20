@@ -1,12 +1,11 @@
 # AutomateAPI
-Latest Tested Versions (as of 2021-09-01):  
-Automate 21.0.181 (Patch 8)  
-Automate Control Plugin 6.6.20005.1 
-Control 21.8.3663.7830  
-Control Automate Extension 4.2.0.1
- 
-Note: A Partner "ClientID" token is needed with Automate 20 Patch 11 and above. See https://developer.connectwise.com/ClientID  
-  
+Latest Tested Versions (as of 2023-11-15):
+| Automate | Extension | ScreenConnect | Plugin |
+| :---: | :---: | :---: | :---: |
+| v23.0.9.392  | v4.4.0.2 | v23.6.8.8644 | v7.1.23001.13 |
+
+Note: A Partner "ClientID" token is needed with Automate 20 Patch 11 and above. See https://developer.connectwise.com/ClientID
+
 # Features
 1) Get, search and return PowerShell objects for pre-defined searches or custom conditions using Get-AutomateComputer. See https://github.com/gavsto/AutomateAPI/wiki/Get-AutomateComputer
 
