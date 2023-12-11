@@ -17,7 +17,7 @@ function Get-AutomateGroup {
     .PARAMETER GroupID
         GroupID to search for, integer, -GroupID 1
     .OUTPUTS
-        Client objects
+        Group objects
     .NOTES
         Version:        1.0
         Author:         Marcus Tedde
@@ -28,7 +28,7 @@ function Get-AutomateGroup {
     .EXAMPLE
         Get-AutomateGroup -GroupId 4
     .EXAMPLE
-        Get-AutomateGroup -GroupName "Rancor"
+        Get-AutomateGroup -GroupName "PatchingGroup1"
     .EXAMPLE
         Get-AutomateGroup -Condition "(TypeName = 'Patching')"
     #>
