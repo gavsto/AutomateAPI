@@ -66,11 +66,11 @@ function Get-AutomateGroup {
         $ArrayOfConditions = @()
 
         
-        if ($ClientID) {
+        if ($GroupID) {
             Return Get-AutomateAPIGeneric -AllResults -Endpoint "Groups" -IDs $(($GroupID) -join ",")
         }
 
-        if ($AllClients) {
+        if ($AllGroups) {
             Return Get-AutomateAPIGeneric -AllResults -Endpoint "Groups" -IncludeFields $IncludeFields -ExcludeFields $ExcludeFields -OrderBy $OrderBy
         }
 
@@ -78,23 +78,23 @@ function Get-AutomateGroup {
             Return Get-AutomateAPIGeneric -AllResults -Endpoint "Groups" -Condition $Condition -IncludeFields $IncludeFields -ExcludeFields $ExcludeFields -OrderBy $OrderBy
         }
 
-        if ($ClientName) {
+        if ($GroupName) {
             $ArrayOfConditions += "(Name like '%$GroupName%')"
         }
 
-        $ClientFinalCondition = Get-ConditionsStacked -ArrayOfConditions $ArrayOfConditions
+        $GroupFinalCondition = Get-ConditionsStacked -ArrayOfConditions $ArrayOfConditions
 
-        $Clients = Get-AutomateAPIGeneric -AllResults -Endpoint "Groups" -Condition $ClientFinalCondition -IncludeFields $IncludeFields -ExcludeFields $ExcludeFields -OrderBy $OrderBy
+        $Groups = Get-AutomateAPIGeneric -AllResults -Endpoint "Groups" -Condition $GroupFinalCondition -IncludeFields $IncludeFields -ExcludeFields $ExcludeFields -OrderBy $OrderBy
 
         $FinalResult = @()
-        foreach ($Client in $Clients) {
+        foreach ($Group in $Groups) {
             $ArrayOfConditions = @()
-            $ArrayOfConditions += "(Client.Id = '$($Client.Id)')"
+            $ArrayOfConditions += "(Group.Id = '$($Group.Id)')"
             $LocationFinalCondition = Get-ConditionsStacked -ArrayOfConditions $ArrayOfConditions
             $Locations = Get-AutomateAPIGeneric -AllResults -Endpoint "locations" -Condition $LocationFinalCondition -IncludeFields $IncludeFields -ExcludeFields $ExcludeFields -OrderBy $OrderBy
-            $FinalClient = $Client
-            Add-Member -inputobject $FinalClient -NotePropertyName 'Locations' -NotePropertyValue $locations
-            $FinalResult += $FinalClient
+            $FinalGroup = $Group
+            Add-Member -inputobject $FinalGroup -NotePropertyName 'Locations' -NotePropertyValue $locations
+            $FinalResult += $FinalGroup
         }
 
         return $FinalResult
